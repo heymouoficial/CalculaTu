@@ -1,0 +1,7 @@
+{
+  "name": "CalculaTu SmartWeb",
+  "description": "A modern, glassmorphism-styled landing page for the CalculaTu currency converter and voice assistant app, featuring AI support.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
