@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Zap, BadgeCheck, ShieldCheck, Download, WifiOff, Calendar, RefreshCcw, Sparkles, Star, ArrowRight, BrainCircuit, SignalHigh, ChevronDown, ChevronUp, Clock, AlertCircle, Leaf, Check } from 'lucide-react';
-import { RATES, COLORS } from './constants';
+import { COLORS } from './constants';
 import { DemoCard } from './components/DemoCard';
 import { ChatWidget } from './components/ChatWidget';
 import { CalculatorView } from './components/CalculatorView';
 import { ViewState } from './types';
+import { useAppStore } from './store/useAppStore';
+import { fetchGlobalRates } from './services/ratesService';
 
 // FAQ Data
 const FAQS = [
@@ -69,6 +71,8 @@ const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState('');
   const [chatTrigger, setChatTrigger] = useState<{ open: boolean; message?: string }>({ open: false });
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const rates = useAppStore(s => s.rates);
+  const setBaseRates = useAppStore(s => s.setBaseRates);
 
   // Efecto para guardar la preferencia cada vez que cambia la vista
   useEffect(() => {
@@ -79,6 +83,15 @@ const App: React.FC = () => {
     const date = new Date();
     const formatted = date.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
     setCurrentDate(formatted.charAt(0).toUpperCase() + formatted.slice(1));
+  }, []);
+
+  // Load global rates from Supabase (public read). If user has a 24h override, it stays.
+  useEffect(() => {
+    fetchGlobalRates()
+      .then((r) => {
+        if (r) setBaseRates({ USD: r.USD, EUR: r.EUR });
+      })
+      .catch(() => {});
   }, []);
 
   const toggleCurrency = () => setShowEuro(!showEuro);
@@ -106,7 +119,7 @@ const App: React.FC = () => {
             <div className="flex flex-col"><span className="font-bold text-lg leading-none tracking-tight">CalculaTu</span><span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{currentDate}</span></div>
           </div>
           <button onClick={toggleCurrency} className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl px-3 py-1.5 border border-white/5 transition-all">
-            <div className="text-right"><div className="text-[10px] text-gray-400 font-medium uppercase">Tasa BCV</div><div className="text-sm font-mono font-bold text-emerald-400">{showEuro ? `€ ${RATES.EUR}` : `$ ${RATES.USD}`}</div></div>
+            <div className="text-right"><div className="text-[10px] text-gray-400 font-medium uppercase">Tasa BCV</div><div className="text-sm font-mono font-bold text-emerald-400">{showEuro ? `€ ${rates.EUR}` : `$ ${rates.USD}`}</div></div>
             <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><RefreshCcw size={12} /></div>
           </button>
         </div>
@@ -196,7 +209,7 @@ const App: React.FC = () => {
                     <span className="text-sm text-gray-500">/mes</span>
                   </div>
                   <span className="text-sm font-mono text-emerald-500 mt-1">
-                    ≈ Bs {(1 * RATES.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ≈ Bs {(1 * rates.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">Facturado mensualmente</p>
@@ -228,7 +241,7 @@ const App: React.FC = () => {
                         <span className="text-lg text-gray-500 line-through decoration-red-500/50">$15</span>
                       </div>
                       <span className="text-sm font-mono text-emerald-200 mt-1">
-                        ≈ Bs {(10 * RATES.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ≈ Bs {(10 * rates.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <p className="text-xs text-emerald-400 font-bold mt-2 uppercase tracking-wide">Pago Único - De por vida</p>

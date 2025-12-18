@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { ShoppingCart, Mic, Calculator, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { RATES, DEMO_ITEMS, SAVARA_AVATAR } from '../constants';
+import { DEMO_ITEMS, SAVARA_AVATAR } from '../constants';
+import { useAppStore } from '../store/useAppStore';
 
 export const DemoCard: React.FC = () => {
   const [isSavaraMode, setIsSavaraMode] = useState(false);
+  const rates = useAppStore(s => s.rates);
 
   const totalUsd = useMemo(() => DEMO_ITEMS.reduce((acc, item) => acc + item.priceUsd, 0), []);
-  const totalBs = useMemo(() => totalUsd * RATES.USD, [totalUsd]);
+  const totalBs = useMemo(() => totalUsd * rates.USD, [totalUsd, rates.USD]);
 
   return (
     <div className="relative w-full max-w-sm mx-auto perspective-1000">

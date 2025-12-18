@@ -3,6 +3,7 @@ import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshC
 import { RATES, SAVARA_AVATAR } from '../constants';
 import { ShoppingItem } from '../types';
 import { SavaraLiveClient } from '../services/geminiService';
+import { useAppStore } from '../store/useAppStore';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -31,16 +32,20 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   
   // Modes & License
   const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [isLicenseActive, setIsLicenseActive] = useState(false); // Default locked
+  const license = useAppStore(s => s.license);
+  const setLicense = useAppStore(s => s.setLicense);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   
   // Settings Drawer State
   const [activeTab, setActiveTab] = useState<'config' | 'history' | 'license'>('config');
   const [budget, setBudget] = useState('');
-  const [rates, setRates] = useState(RATES); 
+  const rates = useAppStore(s => s.rates);
+  const setRatesTemporarily = useAppStore(s => s.setRatesTemporarily);
+  const clearTemporaryRates = useAppStore(s => s.clearTemporaryRates);
+  const ratesOverrideExpiresAt = useAppStore(s => s.ratesOverrideExpiresAt);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [machineId] = useState(() => 'M-' + Math.random().toString(36).substr(2, 9).toUpperCase());
+  const machineId = useAppStore(s => s.machineId);
   const [activationToken, setActivationToken] = useState('');
   
   // Copy Feedback State
@@ -126,11 +131,33 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     setViewingHistoryEntry(null);
   };
 
-  const validateToken = () => {
-    if (activationToken.trim().length > 3) {
-      // Simulate validation
-      setIsLicenseActive(true);
+  const validateToken = async () => {
+    const token = activationToken.trim();
+    if (!token) return;
+
+    try {
+      const resp = await fetch('/api/license/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, deviceId: machineId }),
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.valid) {
+        alert(data?.error || 'Token inválido o no corresponde a este dispositivo.');
+        return;
+      }
+
+      setLicense({
+        active: true,
+        plan: data.plan,
+        expiresAt: data.expiresAt ?? null,
+        token,
+      });
+
       alert("¡Licencia Activada! Savara desbloqueada.");
+    } catch {
+      alert('No pude validar el token. Revisa tu conexión e intenta de nuevo.');
     }
   };
 
@@ -158,7 +185,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Toggle Savara Logic
   const toggleSavara = async () => {
-    if (!isLicenseActive) return; // Guard clause
+    if (!license.active) return; // Guard clause
 
     if (isListening) {
       await liveClientRef.current?.disconnect();
@@ -400,7 +427,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         )}
 
         {/* VOICE MODE DOCK (SAVARA) - ONLY IF LICENSE ACTIVE */}
-        {isVoiceMode && isLicenseActive && (
+        {isVoiceMode && license.active && (
           <div className="flex items-center gap-4 px-6 py-4 bg-[#111]/90 backdrop-blur-3xl border border-emerald-500/20 rounded-[2.5rem] shadow-[0_0_50px_rgba(16,185,129,0.1)] z-[100] min-w-[320px] animate-fade-in-up">
             <div className="flex-1 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden border border-emerald-500/30 shadow-sm relative">
@@ -552,22 +579,22 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               {activeTab === 'config' && (
                 <div className="space-y-6 animate-fade-in">
                   {/* Savara Toggle */}
-                  <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${isLicenseActive ? 'bg-white/5 border-white/5' : 'bg-white/5 border-white/5 opacity-60'}`}>
+                  <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${license.active ? 'bg-white/5 border-white/5' : 'bg-white/5 border-white/5 opacity-60'}`}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                        {isLicenseActive ? <Mic size={20} /> : <Lock size={20} />}
+                        {license.active ? <Mic size={20} /> : <Lock size={20} />}
                       </div>
                       <div>
                         <h4 className="font-bold text-white text-sm">Savara AI</h4>
-                        <p className="text-[10px] text-gray-500">Asistente de Voz {isLicenseActive ? '(Activo)' : '(Requiere Licencia)'}</p>
+                      <p className="text-[10px] text-gray-500">Asistente de Voz {license.active ? '(Activo)' : '(Requiere Licencia)'}</p>
                       </div>
                     </div>
                     <button 
-                      onClick={() => isLicenseActive && setIsVoiceMode(!isVoiceMode)}
-                      disabled={!isLicenseActive}
-                      className={`w-12 h-7 rounded-full transition-colors relative ${isVoiceMode && isLicenseActive ? 'bg-emerald-500' : 'bg-white/10'}`}
+                      onClick={() => license.active && setIsVoiceMode(!isVoiceMode)}
+                      disabled={!license.active}
+                      className={`w-12 h-7 rounded-full transition-colors relative ${isVoiceMode && license.active ? 'bg-emerald-500' : 'bg-white/10'}`}
                     >
-                      <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform shadow-md ${isVoiceMode && isLicenseActive ? 'left-6' : 'left-1'}`} />
+                      <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform shadow-md ${isVoiceMode && license.active ? 'left-6' : 'left-1'}`} />
                     </button>
                   </div>
 
@@ -580,7 +607,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                         <input 
                           type="number" 
                           value={rates.USD}
-                          onChange={(e) => setRates(prev => ({ ...prev, USD: parseFloat(e.target.value) || 0 }))}
+                          onChange={(e) => setRatesTemporarily({ ...rates, USD: parseFloat(e.target.value) || 0 })}
                           className="w-full bg-transparent text-white font-mono font-bold text-lg outline-none"
                         />
                       </div>
@@ -589,10 +616,21 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                          <input 
                           type="number" 
                           value={rates.EUR}
-                          onChange={(e) => setRates(prev => ({ ...prev, EUR: parseFloat(e.target.value) || 0 }))}
+                          onChange={(e) => setRatesTemporarily({ ...rates, EUR: parseFloat(e.target.value) || 0 })}
                           className="w-full bg-transparent text-white font-mono font-bold text-lg outline-none"
                         />
                       </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="text-[10px] text-gray-500">
+                        {ratesOverrideExpiresAt ? `Guardado 24h • expira: ${new Date(ratesOverrideExpiresAt).toLocaleString('es-VE')}` : 'Por defecto (BCV/global)'}
+                      </p>
+                      <button
+                        onClick={clearTemporaryRates}
+                        className="text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:text-emerald-300"
+                      >
+                        Reset
+                      </button>
                     </div>
                   </div>
 

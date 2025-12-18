@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Mic, Copy, Check, CreditCard, Smartphone, MessageCircle, Info, Zap, HelpCircle, BarChart3 } from 'lucide-react';
-import { createChatSession, sendMessageToGemini } from '../services/geminiService';
+import { LiveServerMessage } from '@google/genai';
+import { connectLandingLiveChat } from '../services/geminiService';
 import { Message } from '../types';
 import { SAVARA_AVATAR } from '../constants';
 
@@ -175,7 +176,9 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const chatSessionRef = useRef<any>(null);
+  const liveSessionRef = useRef<any>(null);
+  const connectPromiseRef = useRef<Promise<any> | null>(null);
+  const pendingModelIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -184,7 +187,51 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
 
   useEffect(() => {
     if (isOpen) {
-      if (!chatSessionRef.current) chatSessionRef.current = createChatSession();
+      if (!connectPromiseRef.current) {
+        connectPromiseRef.current = connectLandingLiveChat({
+          onmessage: (message: LiveServerMessage) => {
+            const delta = message.text || '';
+            const turnComplete = !!message.serverContent?.turnComplete;
+
+            if (delta) {
+              setMessages((prev) => {
+                const pendingId = pendingModelIdRef.current;
+                if (!pendingId) {
+                  const newId = `model_${Date.now()}`;
+                  pendingModelIdRef.current = newId;
+                  return [...prev, { id: newId, role: 'model', text: delta }];
+                }
+                return prev.map((m) => {
+                  if (m.id !== pendingId) return m;
+                  // Avoid common duplication patterns
+                  const nextText = m.text.endsWith(delta) ? m.text : m.text + delta;
+                  return { ...m, text: nextText };
+                });
+              });
+            }
+
+            if (turnComplete) {
+              pendingModelIdRef.current = null;
+              setIsLoading(false);
+            }
+          },
+          onclose: () => {
+            liveSessionRef.current = null;
+            connectPromiseRef.current = null;
+            pendingModelIdRef.current = null;
+            setIsLoading(false);
+          },
+          onerror: () => {
+            liveSessionRef.current = null;
+            connectPromiseRef.current = null;
+            pendingModelIdRef.current = null;
+            setIsLoading(false);
+          }
+        }).then((session) => {
+          liveSessionRef.current = session;
+          return session;
+        });
+      }
       if (initialMessage && messages.length === 1) {
         handleSend(initialMessage);
       }
@@ -197,6 +244,14 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
 
   const handleClose = () => {
     setIsOpen(false);
+    try {
+      liveSessionRef.current?.close?.();
+    } catch {
+      // ignore
+    }
+    liveSessionRef.current = null;
+    connectPromiseRef.current = null;
+    pendingModelIdRef.current = null;
     if (onClose) onClose();
   };
 
@@ -210,13 +265,17 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     setIsLoading(true);
     
     try {
-      if (!chatSessionRef.current) chatSessionRef.current = createChatSession();
-      const responseText = await sendMessageToGemini(chatSessionRef.current, userMsg.text);
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'model', text: responseText }]);
+      const session = liveSessionRef.current || (await connectPromiseRef.current);
+      const pendingId = `model_${Date.now() + 1}`;
+      pendingModelIdRef.current = pendingId;
+      setMessages((prev) => [...prev, { id: pendingId, role: 'model', text: '' }]);
+
+      session.sendClientContent({ turns: userMsg.text, turnComplete: true });
     } catch (e) { 
       setMessages(prev => [...prev, { id: 'error', role: 'model', text: 'Ups, perdona. ¿Podemos intentarlo de nuevo?' }]);
     } finally { 
-      setIsLoading(false); 
+      // Loading state is cleared on turnComplete; keep a fallback timeout.
+      window.setTimeout(() => setIsLoading(false), 8000);
     }
   };
 

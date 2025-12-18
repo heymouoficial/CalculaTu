@@ -1,5 +1,23 @@
 import { GoogleGenAI, Chat, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
 
+const LANDING_SYSTEM_INSTRUCTION = `Eres Savara, la voz oficial de CalculaTu.
+CONOCIMIENTO OBLIGATORIO:
+1. ¿Qué es CalculaTu?: App inteligente para controlar gastos del mercado. Convierte USD/EUR a Bs usando tasa BCV.
+2. Cómo funciona: Sumas productos, Savara convierte y te da el total. Funciona con voz o teclado.
+3. Características: Tasa BCV oficial, Modo Bunker (Offline), Comandos de voz, Historial de tickets.
+4. Planes:
+   - Gratis: Básico manual.
+   - Pro Mensual: $1/mes.
+   - Savara Pro Lifetime: $10 PAGO ÚNICO (Oferta hasta 31 Enero). Precio regular $15.
+5. Pagos: Aceptamos Binance Pay y Pago Móvil.
+6. Tasas: Sincronización automática con el Banco Central de Venezuela.
+
+ESTRUCTURA DE RESPUESTA:
+- Si mencionas pagos, usa [[BINANCE]] o [[PAGO_MOVIL]] para que el sistema muestre la tarjeta.
+- Sé breve, amable y profesional. Usa negritas para resaltar puntos clave.`;
+
+const LIVE_TEXT_MODEL = 'gemini-live-2.5-flash-preview';
+
 // --- Audio Helpers (PCM raw streams) ---
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -175,26 +193,34 @@ export class SavaraLiveClient {
   }
 }
 
+export const connectLandingLiveChat = async (callbacks: {
+  onmessage: (message: LiveServerMessage) => void;
+  onclose?: () => void;
+  onerror?: () => void;
+  onopen?: () => void;
+}) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return ai.live.connect({
+    model: LIVE_TEXT_MODEL,
+    callbacks: {
+      onopen: callbacks.onopen,
+      onmessage: callbacks.onmessage,
+      onclose: callbacks.onclose,
+      onerror: callbacks.onerror,
+    },
+    config: {
+      responseModalities: [Modality.TEXT],
+      systemInstruction: LANDING_SYSTEM_INSTRUCTION,
+    },
+  });
+};
+
 export const createChatSession = (): Chat => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   return ai.chats.create({
     model: 'gemini-3-pro-preview',
     config: {
-      systemInstruction: `Eres Savara, la voz oficial de CalculaTu.
-      CONOCIMIENTO OBLIGATORIO:
-      1. ¿Qué es CalculaTu?: App inteligente para controlar gastos del mercado. Convierte USD/EUR a Bs usando tasa BCV.
-      2. Cómo funciona: Sumas productos, Savara convierte y te da el total. Funciona con voz o teclado.
-      3. Características: Tasa BCV oficial, Modo Bunker (Offline), Comandos de voz, Historial de tickets.
-      4. Planes: 
-         - Gratis: Básico manual.
-         - Pro Mensual: $1/mes.
-         - Savara Pro Lifetime: $10 PAGO ÚNICO (Oferta hasta 31 Enero). Precio regular $15.
-      5. Pagos: Aceptamos Binance Pay y Pago Móvil.
-      6. Tasas: Sincronización automática con el Banco Central de Venezuela.
-      
-      ESTRUCTURA DE RESPUESTA:
-      - Si mencionas pagos, usa [[BINANCE]] o [[PAGO_MOVIL]] para que el sistema muestre la tarjeta.
-      - Sé breve, amable y profesional. Usa negritas para resaltar puntos clave.`,
+      systemInstruction: LANDING_SYSTEM_INSTRUCTION,
     },
   });
 };
