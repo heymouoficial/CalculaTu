@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './index.css';
 import App from './App';
 import { Portality } from './components/Portality';
 
@@ -20,11 +21,16 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   }
 }
 
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+
 const root = ReactDOM.createRoot(rootElement);
 const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
 const isPortality = pathname === '/portality' || pathname.startsWith('/portality/');
 root.render(
   <React.StrictMode>
     {isPortality ? <Portality /> : <App />}
+    <Analytics />
+    <SpeedInsights />
   </React.StrictMode>
 );
