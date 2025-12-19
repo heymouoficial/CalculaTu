@@ -8,13 +8,13 @@ import { SAVARA_AVATAR } from '../constants';
 // SVG Logos for Branding
 const BinanceLogo = () => (
   <svg viewBox="0 0 32 32" className="w-full h-full text-[#F0B90B] fill-current">
-    <path d="M16 0l6 6-6 6-6-6 6-6zm0 12l-6 6 6 6 6-6-6-6zm10.5-1.5l-4.5 4.5 4.5 4.5 4.5-4.5-4.5-4.5zm-21 0l-4.5 4.5 4.5 4.5 4.5-4.5-4.5-4.5zm10.5 13.5l6 6-6 6-6-6 6-6z"/>
+    <path d="M16 0l6 6-6 6-6-6 6-6zm0 12l-6 6 6 6 6-6-6-6zm10.5-1.5l-4.5 4.5 4.5 4.5 4.5-4.5-4.5-4.5zm-21 0l-4.5 4.5 4.5 4.5 4.5-4.5-4.5-4.5zm10.5 13.5l6 6-6 6-6-6 6-6z" />
   </svg>
 );
 
 const BanescoLogo = () => (
   <svg viewBox="0 0 24 24" className="w-full h-full text-white fill-current">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-2-8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-2-8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
   </svg>
 );
 
@@ -59,13 +59,12 @@ const CopyButton: React.FC<{ text: string; label?: string; dark?: boolean }> = (
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button 
-      onClick={handleCopy} 
-      className={`flex items-center justify-between w-full p-3 rounded-xl border transition-all group ${
-        dark 
-        ? 'bg-black/40 border-white/10 hover:bg-black/60' 
-        : 'bg-white/10 border-white/20 hover:bg-white/20'
-      }`}
+    <button
+      onClick={handleCopy}
+      className={`flex items-center justify-between w-full p-3 rounded-xl border transition-all group ${dark
+          ? 'bg-black/40 border-white/10 hover:bg-black/60'
+          : 'bg-white/10 border-white/20 hover:bg-white/20'
+        }`}
     >
       <div className="flex flex-col items-start text-left">
         {label && <span className="text-[9px] opacity-70 font-black uppercase tracking-widest mb-0.5">{label}</span>}
@@ -81,27 +80,27 @@ const CopyButton: React.FC<{ text: string; label?: string; dark?: boolean }> = (
 const PaymentCard: React.FC<{ type: 'binance' | 'pagoMovil' }> = ({ type }) => {
   const isBinance = type === 'binance';
   const data = isBinance ? PAYMENT_DATA.binance : PAYMENT_DATA.pagoMovil;
-  
+
   const handleWhatsApp = () => {
     const msg = encodeURIComponent(`Hola Multiversa 👋. Deseo activar mi cuenta Pro para ahorrar con Savara. Ya realicé el pago vía ${data.title}.`);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`);
   };
-  
+
   return (
     <div className={`my-6 rounded-[1.5rem] overflow-hidden shadow-2xl ${data.bg} border ${data.border}`}>
       {/* Header Card */}
       <div className="p-6 relative">
         <div className="flex items-center justify-between mb-6">
-           <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isBinance ? 'bg-black/40' : 'bg-white/20'}`}>
-                {isBinance ? <div className="w-6 h-6"><BinanceLogo /></div> : <div className="w-6 h-6"><BanescoLogo /></div>}
-              </div>
-              <div>
-                <h4 className={`font-black text-sm tracking-wide ${data.accent}`}>{data.title}</h4>
-                <p className={`text-[10px] opacity-80 ${data.accent}`}>Cuenta Oficial</p>
-              </div>
-           </div>
-           {isBinance && <div className="text-[#F0B90B]"><Sparkles size={16} fill="currentColor" /></div>}
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isBinance ? 'bg-black/40' : 'bg-white/20'}`}>
+              {isBinance ? <div className="w-6 h-6"><BinanceLogo /></div> : <div className="w-6 h-6"><BanescoLogo /></div>}
+            </div>
+            <div>
+              <h4 className={`font-black text-sm tracking-wide ${data.accent}`}>{data.title}</h4>
+              <p className={`text-[10px] opacity-80 ${data.accent}`}>Cuenta Oficial</p>
+            </div>
+          </div>
+          {isBinance && <div className="text-[#F0B90B]"><Sparkles size={16} fill="currentColor" /></div>}
         </div>
 
         <div className={`space-y-3 ${isBinance ? 'text-[#F0B90B]' : 'text-white'}`}>
@@ -121,13 +120,12 @@ const PaymentCard: React.FC<{ type: 'binance' | 'pagoMovil' }> = ({ type }) => {
 
       {/* Action Footer */}
       <div className="p-4 bg-black/20 border-t border-white/5">
-        <button 
-          onClick={handleWhatsApp} 
-          className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
-            isBinance 
-              ? 'bg-[#F0B90B] text-black hover:bg-[#ffe252]' 
+        <button
+          onClick={handleWhatsApp}
+          className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isBinance
+              ? 'bg-[#F0B90B] text-black hover:bg-[#ffe252]'
               : 'bg-white text-[#207e5c] hover:bg-gray-100'
-          }`}
+            }`}
         >
           <MessageCircle size={16} strokeWidth={2.5} /> Reportar Pago
         </button>
@@ -190,7 +188,8 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
       if (!connectPromiseRef.current) {
         connectPromiseRef.current = connectLandingLiveChat({
           onmessage: (message: LiveServerMessage) => {
-            const delta = message.text || '';
+            // Robust parsing for different SDK versions
+            const delta = message.text || (message as any).serverContent?.modelTurn?.parts?.[0]?.text || '';
             const turnComplete = !!message.serverContent?.turnComplete;
 
             if (delta) {
@@ -204,7 +203,8 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
                 return prev.map((m) => {
                   if (m.id !== pendingId) return m;
                   // Avoid common duplication patterns
-                  const nextText = m.text.endsWith(delta) ? m.text : m.text + delta;
+                  const currentText = m.text;
+                  const nextText = currentText.endsWith(delta) ? currentText : currentText + delta;
                   return { ...m, text: nextText };
                 });
               });
@@ -238,8 +238,8 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     }
   }, [isOpen]);
 
-  useEffect(() => { 
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
   const handleClose = () => {
@@ -258,12 +258,12 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
   const handleSend = async (textOverride?: string) => {
     const textToSend = textOverride || input;
     if (!textToSend.trim() || isLoading) return;
-    
+
     const userMsg: Message = { id: Date.now().toString(), role: 'user', text: textToSend };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
-    
+
     try {
       const session = liveSessionRef.current || (await connectPromiseRef.current);
       const pendingId = `model_${Date.now() + 1}`;
@@ -271,9 +271,9 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
       setMessages((prev) => [...prev, { id: pendingId, role: 'model', text: '' }]);
 
       session.sendClientContent({ turns: userMsg.text, turnComplete: true });
-    } catch (e) { 
+    } catch (e) {
       setMessages(prev => [...prev, { id: 'error', role: 'model', text: 'Ups, perdona. ¿Podemos intentarlo de nuevo?' }]);
-    } finally { 
+    } finally {
       // Loading state is cleared on turnComplete; keep a fallback timeout.
       window.setTimeout(() => setIsLoading(false), 8000);
     }
@@ -283,7 +283,7 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     <>
       {/* Backdrop for closing on mobile tap outside */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] animate-fade-in lg:bg-transparent lg:backdrop-blur-none"
           onClick={handleClose}
         />
@@ -292,7 +292,7 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
       <div className={`fixed bottom-6 right-6 z-[110] flex flex-col items-end`}>
         {isOpen && (
           <div className="mb-4 w-[400px] max-w-[92vw] h-[min(640px,85vh)] bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,1)] flex flex-col overflow-hidden animate-fade-in-up">
-            
+
             {/* Header with Savara Avatar */}
             <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
               <div className="flex items-center gap-4">
@@ -315,7 +315,7 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
             {/* Quick Actions */}
             <div className="flex overflow-x-auto p-4 gap-2 border-b border-white/5 bg-white/[0.01] scrollbar-hide">
               {QUICK_ACTIONS.map((action, idx) => (
-                <button 
+                <button
                   key={idx}
                   onClick={() => handleSend(action.query)}
                   className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all whitespace-nowrap"
@@ -329,25 +329,24 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
             <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                  <div className={`max-w-[85%] rounded-[2rem] p-5 text-sm shadow-sm ${
-                    msg.role === 'user' 
-                      ? 'bg-[#10b981] text-black font-semibold rounded-tr-none' 
+                  <div className={`max-w-[85%] rounded-[2rem] p-5 text-sm shadow-sm ${msg.role === 'user'
+                      ? 'bg-[#10b981] text-black font-semibold rounded-tr-none'
                       : 'bg-[#1a1a1a] text-gray-200 rounded-tl-none border border-white/5'
-                  }`}>
+                    }`}>
                     <MessageContent text={msg.text} />
                   </div>
                 </div>
               ))}
-              
+
               {isLoading && (
                 <div className="flex justify-start animate-fade-in">
                   <div className="bg-[#1a1a1a] rounded-[2rem] rounded-tl-none p-5 border border-white/5 flex items-center gap-4">
-                     <div className="flex gap-1.5 items-end h-3">
-                        <span className="w-1.5 bg-[#10b981]/60 rounded-full animate-typing-1"></span>
-                        <span className="w-1.5 bg-[#10b981]/60 rounded-full animate-typing-2"></span>
-                        <span className="w-1.5 bg-[#10b981]/60 rounded-full animate-typing-3"></span>
-                     </div>
-                     <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest italic">Savara escribiendo...</span>
+                    <div className="flex gap-1.5 items-end h-3">
+                      <span className="w-1.5 bg-[#10b981]/60 rounded-full animate-typing-1"></span>
+                      <span className="w-1.5 bg-[#10b981]/60 rounded-full animate-typing-2"></span>
+                      <span className="w-1.5 bg-[#10b981]/60 rounded-full animate-typing-3"></span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest italic">Savara escribiendo...</span>
                   </div>
                 </div>
               )}
@@ -357,17 +356,17 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
             {/* Input Area */}
             <div className="p-4 bg-black/40 border-t border-white/5">
               <div className="relative flex items-center">
-                <input 
-                  type="text" 
-                  value={input} 
-                  onChange={(e) => setInput(e.target.value)} 
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()} 
-                  placeholder="Escribe tu duda aquí..." 
-                  className="w-full bg-[#111] border border-white/10 rounded-2xl pl-6 pr-14 py-4 text-sm text-white focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-gray-600" 
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Escribe tu duda aquí..."
+                  className="w-full bg-[#111] border border-white/10 rounded-2xl pl-6 pr-14 py-4 text-sm text-white focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-gray-600"
                 />
-                <button 
-                  onClick={() => handleSend()} 
-                  disabled={!input.trim() || isLoading} 
+                <button
+                  onClick={() => handleSend()}
+                  disabled={!input.trim() || isLoading}
                   className="absolute right-2 p-2.5 bg-[#10b981] rounded-xl text-black shadow-lg disabled:opacity-20 transition-all active:scale-90"
                 >
                   <Send size={18} strokeWidth={2.5} />
@@ -379,8 +378,8 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
 
         {/* Launcher Button */}
         {!isOpen && (
-          <button 
-            onClick={() => setIsOpen(true)} 
+          <button
+            onClick={() => setIsOpen(true)}
             className="w-16 h-16 rounded-2xl bg-[#10b981] text-black shadow-[0_15px_45px_rgba(16,185,129,0.3)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all group overflow-hidden"
           >
             <MessageCircle size={28} strokeWidth={2.5} />
