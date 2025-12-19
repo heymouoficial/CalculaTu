@@ -16,7 +16,7 @@ ESTRUCTURA DE RESPUESTA:
 - Si mencionas pagos, usa [[BINANCE]] o [[PAGO_MOVIL]] para que el sistema muestre la tarjeta.
 - Sé breve, amable y profesional. Usa negritas para resaltar puntos clave.`;
 
-const LIVE_TEXT_MODEL = 'gemini-live-2.5-flash-preview';
+const LIVE_TEXT_MODEL = 'gemini-2.0-flash-exp';
 
 // --- Audio Helpers (PCM raw streams) ---
 function decode(base64: string) {
@@ -133,7 +133,7 @@ export class SavaraLiveClient {
         - Savara Pro Lifetime: $10 (Pago único, oferta válida). Regular $15.`;
 
     this.sessionPromise = ai.live.connect({
-      model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+      model: 'gemini-2.0-flash-exp',
       callbacks: {
         onopen: () => { this.startAudioInput(); },
         onmessage: async (message: LiveServerMessage) => {
@@ -223,7 +223,7 @@ export const connectLandingLiveChat = async (callbacks: {
 export const createChatSession = (): Chat => {
   const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   return ai.chats.create({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-2.0-flash-exp',
     config: {
       systemInstruction: LANDING_SYSTEM_INSTRUCTION,
     },
