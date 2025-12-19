@@ -114,7 +114,7 @@ export class SavaraLiveClient {
 
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
     const systemInstruction = `Eres Savara, la inteligencia de CalculaTu. Tu tono es humano, cálido y experto.
         GUÍA DE OPERACIÓN:
@@ -204,7 +204,7 @@ export const connectLandingLiveChat = async (callbacks: {
   onerror?: () => void;
   onopen?: () => void;
 }) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   return ai.live.connect({
     model: LIVE_TEXT_MODEL,
     callbacks: {
@@ -221,7 +221,7 @@ export const connectLandingLiveChat = async (callbacks: {
 };
 
 export const createChatSession = (): Chat => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   return ai.chats.create({
     model: 'gemini-3-pro-preview',
     config: {
