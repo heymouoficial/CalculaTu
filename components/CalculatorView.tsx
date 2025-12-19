@@ -22,24 +22,25 @@ interface HistoryEntry {
 
 export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const [items, setItems] = useState<ShoppingItem[]>([]);
-  
+
   // Voucher Modal States
   const [showVoucher, setShowVoucher] = useState(false);
   const [viewingHistoryEntry, setViewingHistoryEntry] = useState<HistoryEntry | null>(null);
 
   // App States
   const [currentDateDisplay, setCurrentDateDisplay] = useState('');
-  
+
   // Modes & License
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const license = useAppStore(s => s.license);
   const setLicense = useAppStore(s => s.setLicense);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  
+
   // Settings Drawer State
   const [activeTab, setActiveTab] = useState<'config' | 'history' | 'license'>('config');
-  const [budget, setBudget] = useState('');
+  const budgetLimit = useAppStore(s => s.budgetLimit);
+  const setBudgetLimit = useAppStore(s => s.setBudgetLimit);
   const rates = useAppStore(s => s.rates);
   const setRatesTemporarily = useAppStore(s => s.setRatesTemporarily);
   const clearTemporaryRates = useAppStore(s => s.clearTemporaryRates);
@@ -47,14 +48,14 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const machineId = useAppStore(s => s.machineId);
   const [activationToken, setActivationToken] = useState('');
-  
+
   // Copy Feedback State
   const [copiedState, setCopiedState] = useState<string | null>(null);
 
   // Manual Input State
   const [inputName, setInputName] = useState('');
   const [inputPrice, setInputPrice] = useState('');
-  const [inputQuantity, setInputQuantity] = useState(''); 
+  const [inputQuantity, setInputQuantity] = useState('');
   const [inputCurrency, setInputCurrency] = useState<'USD' | 'EUR' | 'VES'>('USD');
 
   const liveClientRef = useRef<SavaraLiveClient | null>(null);
@@ -72,10 +73,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       if (item.currency === 'USD') usd = item.price * item.quantity;
       else if (item.currency === 'EUR') usd = (item.price * 1.08) * item.quantity;
       else if (item.currency === 'VES') usd = (item.price / rates.USD) * item.quantity;
-      return { 
-        usd: acc.usd + usd, 
-        bs: acc.bs + (usd * rates.USD), 
-        eur: acc.eur + ((usd * rates.USD) / rates.EUR) 
+      return {
+        usd: acc.usd + usd,
+        bs: acc.bs + (usd * rates.USD),
+        eur: acc.eur + ((usd * rates.USD) / rates.EUR)
       };
     }, { usd: 0, bs: 0, eur: 0 });
   };
@@ -86,7 +87,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const handleAddItem = () => {
     if (!inputName.trim() || !inputPrice) return;
     const qty = inputQuantity ? parseFloat(inputQuantity) : 1;
-    
+
     const newItem: ShoppingItem = {
       id: Date.now().toString(),
       name: inputName,
@@ -95,11 +96,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       quantity: qty > 0 ? qty : 1
     };
     setItems(prev => [newItem, ...prev]);
-    
+
     // Reset inputs
     setInputName('');
     setInputPrice('');
-    setInputQuantity(''); 
+    setInputQuantity('');
   };
 
   const handleFinish = () => {
@@ -174,7 +175,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   };
 
   const getCurrencyDisplay = (curr: 'USD' | 'EUR' | 'VES') => {
-    switch(curr) {
+    switch (curr) {
       case 'USD': return { symbol: '$', label: 'USD', color: 'text-blue-400' };
       case 'EUR': return { symbol: '€', label: 'EUR', color: 'text-purple-400' };
       case 'VES': return { symbol: 'Bs', label: 'VES', color: 'text-emerald-400' };
@@ -197,12 +198,12 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         const client = new SavaraLiveClient({
           onToolCall: async (name: string, args: any) => {
             if (name === 'addItem') {
-              const newItem: ShoppingItem = { 
-                id: Date.now().toString(), 
-                name: args.name, 
-                price: Number(args.price), 
-                currency: args.currency as any, 
-                quantity: Number(args.quantity) || 1 
+              const newItem: ShoppingItem = {
+                id: Date.now().toString(),
+                name: args.name,
+                price: Number(args.price),
+                currency: args.currency as any,
+                quantity: Number(args.quantity) || 1
               };
               setItems(prev => [newItem, ...prev]);
               return `Listo, añadí ${args.name}.`;
@@ -245,19 +246,19 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Determine what data to show in Voucher
   const voucherItems = viewingHistoryEntry ? viewingHistoryEntry.items : items;
-  const voucherTotals = viewingHistoryEntry 
+  const voucherTotals = viewingHistoryEntry
     ? { bs: viewingHistoryEntry.totalBs, usd: viewingHistoryEntry.totalUsd, eur: viewingHistoryEntry.totalEur }
     : currentTotals;
-  const voucherDate = viewingHistoryEntry 
-    ? `${viewingHistoryEntry.date} ${viewingHistoryEntry.time}` 
+  const voucherDate = viewingHistoryEntry
+    ? `${viewingHistoryEntry.date} ${viewingHistoryEntry.time}`
     : new Date().toLocaleString('es-VE');
 
   return (
     <div className="h-screen bg-black flex flex-col font-sans overflow-hidden select-none relative">
-      
+
       {/* HEADER BAR */}
       <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
-        
+
         {/* Left: Back & Brand */}
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="p-2.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-white/10 transition-all">
@@ -274,15 +275,15 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
           {items.length > 0 && (
-            <button 
-              onClick={handleFinish} 
+            <button
+              onClick={handleFinish}
               className="p-2.5 bg-emerald-500 text-black rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:scale-105 transition-all animate-fade-in"
             >
               <ReceiptText size={18} strokeWidth={2.5} />
             </button>
           )}
-          <button 
-            onClick={() => setIsSettingsOpen(true)} 
+          <button
+            onClick={() => setIsSettingsOpen(true)}
             className="p-2.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:rotate-90 duration-500"
           >
             <Settings size={18} />
@@ -299,7 +300,28 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
           </span>
           <span className="text-2xl font-bold text-emerald-500 italic">Bs.</span>
         </div>
-        
+
+        {/* Budget Progress Bar */}
+        {budgetLimit > 0 && (
+          <div className="w-full max-w-[280px] mt-2 mb-4 px-4">
+            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
+              <span className="text-gray-500">Presupuesto</span>
+              <span className={currentTotals.usd > budgetLimit ? 'text-red-500' : 'text-emerald-500'}>
+                {Math.round((currentTotals.usd / budgetLimit) * 100)}%
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div
+                className={`h-full transition-all duration-500 ${currentTotals.usd > budgetLimit ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-emerald-500'}`}
+                style={{ width: `${Math.min(100, (currentTotals.usd / budgetLimit) * 100)}%` }}
+              />
+            </div>
+            <p className="text-center text-[9px] text-gray-600 mt-2 font-mono">
+              Quedan ${(budgetLimit - currentTotals.usd).toFixed(2)} de ${budgetLimit.toFixed(2)}
+            </p>
+          </div>
+        )}
+
         {/* Currency Pills */}
         <div className="flex gap-4">
           <div className="bg-[#111] border border-white/5 rounded-full px-5 py-2 flex items-center gap-2">
@@ -352,10 +374,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                   <p className="text-sm font-bold text-emerald-400 font-mono">
+                  <p className="text-sm font-bold text-emerald-400 font-mono">
                     {((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
                   </p>
-                  <button 
+                  <button
                     onClick={() => setItems(items.filter(i => i.id !== item.id))}
                     className="p-2 text-gray-600 hover:text-red-400 transition-colors"
                   >
@@ -370,58 +392,58 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
       {/* BOTTOM DOCK AREA */}
       <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center z-[60]">
-        
+
         {/* MANUAL MODE DOCK */}
         {!isVoiceMode && (
           <div className="w-full max-w-md bg-[#111]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-3 shadow-2xl animate-fade-in-up">
-            
+
             {/* Row 1: Qty & Name */}
             <div className="flex gap-2 mb-2">
-              <input 
-                type="number" 
+              <input
+                type="number"
                 value={inputQuantity}
                 onChange={(e) => setInputQuantity(e.target.value)}
-                placeholder="Cant." 
+                placeholder="Cant."
                 className="w-16 bg-black/40 border border-white/10 rounded-xl py-3 text-center text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 transition-all font-mono text-sm"
               />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={inputName}
                 onChange={(e) => setInputName(e.target.value)}
-                placeholder="Nombre del producto..." 
+                placeholder="Nombre del producto..."
                 className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 transition-all"
               />
             </div>
 
             {/* Row 2: Controls & Price Group */}
             <div className="flex gap-2 h-12">
-               
-               {/* Currency + Price Input Hybrid */}
-               <div className="flex-1 flex bg-black/40 border border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500/50 transition-colors">
-                 <button 
-                   onClick={cycleCurrency}
-                   className="h-full px-3 bg-white/5 border-r border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center gap-1.5 min-w-[70px]"
-                 >
-                   <span className={`font-mono font-bold text-lg ${currDisplay.color}`}>{currDisplay.symbol}</span>
-                   <span className="text-[10px] font-bold text-gray-500 pt-1">{currDisplay.label}</span>
-                 </button>
-                 <input 
-                   type="number" 
-                   value={inputPrice}
-                   onChange={(e) => setInputPrice(e.target.value)}
-                   placeholder="0.00" 
-                   className="flex-1 w-full bg-transparent border-none px-3 text-white font-mono text-lg placeholder:text-gray-700 focus:ring-0 outline-none"
-                 />
-               </div>
 
-               {/* Add Button */}
-               <button 
-                 onClick={handleAddItem}
-                 disabled={!inputName || !inputPrice}
-                 className="aspect-square h-full bg-emerald-500 rounded-xl text-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-95 hover:bg-emerald-400 transition-all flex items-center justify-center disabled:opacity-50 disabled:shadow-none"
-               >
-                 <Plus size={26} strokeWidth={3} />
-               </button>
+              {/* Currency + Price Input Hybrid */}
+              <div className="flex-1 flex bg-black/40 border border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500/50 transition-colors">
+                <button
+                  onClick={cycleCurrency}
+                  className="h-full px-3 bg-white/5 border-r border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center gap-1.5 min-w-[70px]"
+                >
+                  <span className={`font-mono font-bold text-lg ${currDisplay.color}`}>{currDisplay.symbol}</span>
+                  <span className="text-[10px] font-bold text-gray-500 pt-1">{currDisplay.label}</span>
+                </button>
+                <input
+                  type="number"
+                  value={inputPrice}
+                  onChange={(e) => setInputPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="flex-1 w-full bg-transparent border-none px-3 text-white font-mono text-lg placeholder:text-gray-700 focus:ring-0 outline-none"
+                />
+              </div>
+
+              {/* Add Button */}
+              <button
+                onClick={handleAddItem}
+                disabled={!inputName || !inputPrice}
+                className="aspect-square h-full bg-emerald-500 rounded-xl text-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-95 hover:bg-emerald-400 transition-all flex items-center justify-center disabled:opacity-50 disabled:shadow-none"
+              >
+                <Plus size={26} strokeWidth={3} />
+              </button>
             </div>
           </div>
         )}
@@ -441,19 +463,21 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 </p>
               </div>
             </div>
-            <button 
+            <button
               onClick={toggleSavara}
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 transform active:scale-90 ${
-                isListening 
-                  ? 'bg-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.6)]' 
-                  : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-              }`}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 transform active:scale-90 relative ${isListening
+                ? 'bg-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.7)]'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
+                }`}
             >
               {isListening ? (
-                <div className="flex gap-1 items-end h-5">
-                  <div className="w-1 bg-black rounded-full animate-voice-1"></div>
-                  <div className="w-1 bg-black rounded-full animate-voice-2"></div>
-                  <div className="w-1 bg-black rounded-full animate-voice-3"></div>
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute inset-0 rounded-2xl animate-ping bg-black/20" />
+                  <div className="flex gap-1 items-end h-5 relative z-10">
+                    <div className="w-1 bg-black rounded-full animate-voice-1"></div>
+                    <div className="w-1 bg-black rounded-full animate-voice-2"></div>
+                    <div className="w-1 bg-black rounded-full animate-voice-3"></div>
+                  </div>
                 </div>
               ) : (
                 <Mic size={24} />
@@ -467,10 +491,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       {showVoucher && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="bg-white text-black w-full max-w-[340px] shadow-2xl overflow-hidden relative animate-slide-up rounded-sm">
-            
+
             {/* Thermal Paper Texture Simulation */}
             <div className="p-6 font-mono text-xs relative">
-              
+
               {/* Header */}
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-black tracking-tighter mb-1 font-sans">CALCULATU</h2>
@@ -506,7 +530,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 <span className="text-lg font-black">TOTAL</span>
                 <span className="text-2xl font-black tracking-tighter">Bs {voucherTotals.bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              
+
               <div className="flex justify-end gap-3 text-gray-500 text-[10px] font-bold border-b-2 border-dashed border-gray-300 pb-4 mb-4">
                 <span>REF: $ {voucherTotals.usd.toFixed(2)}</span>
                 <span>EUR {voucherTotals.eur.toFixed(2)}</span>
@@ -514,27 +538,27 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
               {/* Footer */}
               <div className="text-center">
-                 <p className="font-bold text-[10px] uppercase mb-1">¡Gracias por su compra!</p>
-                 <p className="text-[9px] text-gray-400">
-                    {viewingHistoryEntry ? 'Reimpresión Digital' : 'Guardado en Historial • Copia Cliente'}
-                 </p>
-                 
-                 {/* Fake Barcode */}
-                 <div className="mt-4 flex justify-center gap-1 opacity-40 h-8 items-end">
-                   {[...Array(20)].map((_, i) => (
-                     <div key={i} className="bg-black w-0.5" style={{ height: Math.random() > 0.5 ? '100%' : '70%', width: Math.random() * 3 + 1 }}></div>
-                   ))}
-                 </div>
+                <p className="font-bold text-[10px] uppercase mb-1">¡Gracias por su compra!</p>
+                <p className="text-[9px] text-gray-400">
+                  {viewingHistoryEntry ? 'Reimpresión Digital' : 'Guardado en Historial • Copia Cliente'}
+                </p>
+
+                {/* Fake Barcode */}
+                <div className="mt-4 flex justify-center gap-1 opacity-40 h-8 items-end">
+                  {[...Array(20)].map((_, i) => (
+                    <div key={i} className="bg-black w-0.5" style={{ height: Math.random() > 0.5 ? '100%' : '70%', width: Math.random() * 3 + 1 }}></div>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Actions */}
-            <button 
+            <button
               onClick={handleCloseVoucher}
               className="w-full py-4 bg-black text-white font-bold uppercase tracking-widest text-xs hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
             >
-               {viewingHistoryEntry ? <X size={16} /> : <Check size={16} />} 
-               {viewingHistoryEntry ? 'Cerrar Recibo' : 'Finalizar y Guardar'}
+              {viewingHistoryEntry ? <X size={16} /> : <Check size={16} />}
+              {viewingHistoryEntry ? 'Cerrar Recibo' : 'Finalizar y Guardar'}
             </button>
           </div>
         </div>
@@ -543,28 +567,28 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       {/* SETTINGS DRAWER */}
       {isSettingsOpen && (
         <>
-          <div 
+          <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[70] animate-fade-in"
             onClick={() => setIsSettingsOpen(false)}
           />
           <div className="absolute bottom-0 left-0 right-0 bg-[#121212] border-t border-white/10 rounded-t-[2.5rem] p-6 z-[80] animate-slide-up shadow-2xl h-[70vh] flex flex-col">
             <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-6 shrink-0"></div>
-            
+
             {/* TABS HEADER */}
             <div className="flex bg-white/5 p-1 rounded-xl mb-6 shrink-0">
-              <button 
+              <button
                 onClick={() => setActiveTab('config')}
                 className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'config' ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-white'}`}
               >
                 Config
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('history')}
                 className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'history' ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-white'}`}
               >
                 Historial
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('license')}
                 className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'license' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-gray-500 hover:text-white'}`}
               >
@@ -574,7 +598,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
             {/* SCROLLABLE CONTENT AREA */}
             <div className="flex-1 overflow-y-auto custom-scroll pb-6">
-              
+
               {/* === CONFIG TAB === */}
               {activeTab === 'config' && (
                 <div className="space-y-6 animate-fade-in">
@@ -586,10 +610,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                       </div>
                       <div>
                         <h4 className="font-bold text-white text-sm">Savara AI</h4>
-                      <p className="text-[10px] text-gray-500">Asistente de Voz {license.active ? '(Activo)' : '(Requiere Licencia)'}</p>
+                        <p className="text-[10px] text-gray-500">Asistente de Voz {license.active ? '(Activo)' : '(Requiere Licencia)'}</p>
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={() => license.active && setIsVoiceMode(!isVoiceMode)}
                       disabled={!license.active}
                       className={`w-12 h-7 rounded-full transition-colors relative ${isVoiceMode && license.active ? 'bg-emerald-500' : 'bg-white/10'}`}
@@ -604,8 +628,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 bg-black/40 border border-white/10 rounded-xl">
                         <label className="text-[10px] text-blue-400 font-bold block mb-1">TASA USD</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={rates.USD}
                           onChange={(e) => setRatesTemporarily({ ...rates, USD: parseFloat(e.target.value) || 0 })}
                           className="w-full bg-transparent text-white font-mono font-bold text-lg outline-none"
@@ -613,8 +637,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                       </div>
                       <div className="p-3 bg-black/40 border border-white/10 rounded-xl">
                         <label className="text-[10px] text-purple-400 font-bold block mb-1">TASA EUR</label>
-                         <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={rates.EUR}
                           onChange={(e) => setRatesTemporarily({ ...rates, EUR: parseFloat(e.target.value) || 0 })}
                           className="w-full bg-transparent text-white font-mono font-bold text-lg outline-none"
@@ -639,11 +663,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <h5 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Límite de Presupuesto</h5>
                     <div className="p-4 bg-black/40 border border-white/10 rounded-xl flex items-center gap-3">
                       <CreditCard size={20} className="text-gray-500" />
-                      <input 
-                        type="number" 
-                        placeholder="Monto máximo ($)" 
-                        value={budget}
-                        onChange={(e) => setBudget(e.target.value)}
+                      <input
+                        type="number"
+                        placeholder="Monto máximo ($)"
+                        value={budgetLimit || ''}
+                        onChange={(e) => setBudgetLimit(parseFloat(e.target.value) || 0)}
                         className="flex-1 bg-transparent text-white font-mono text-sm outline-none placeholder:text-gray-600"
                       />
                     </div>
@@ -661,30 +685,30 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                       {history.map((entry) => (
-                         <div key={entry.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-colors">
-                           <div>
-                             <div className="flex items-center gap-2 mb-1">
-                               <span className="text-xs font-bold text-white">{entry.date}</span>
-                               <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">{entry.time}</span>
-                             </div>
-                             <p className="text-[10px] text-gray-400">{entry.itemCount} productos</p>
-                           </div>
-                           <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <p className="text-sm font-bold text-emerald-400 font-mono">Bs {entry.totalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</p>
-                                <p className="text-[10px] text-gray-500 font-mono">$ {entry.totalUsd.toFixed(2)}</p>
-                              </div>
-                              <button 
-                                onClick={() => { setViewingHistoryEntry(entry); setShowVoucher(true); }}
-                                className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
-                                title="Ver Recibo Ecológico"
-                              >
-                                <ReceiptText size={16} />
-                              </button>
-                           </div>
-                         </div>
-                       ))}
+                      {history.map((entry) => (
+                        <div key={entry.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-colors">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-white">{entry.date}</span>
+                              <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">{entry.time}</span>
+                            </div>
+                            <p className="text-[10px] text-gray-400">{entry.itemCount} productos</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-emerald-400 font-mono">Bs {entry.totalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</p>
+                              <p className="text-[10px] text-gray-500 font-mono">$ {entry.totalUsd.toFixed(2)}</p>
+                            </div>
+                            <button
+                              onClick={() => { setViewingHistoryEntry(entry); setShowVoucher(true); }}
+                              className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
+                              title="Ver Recibo Ecológico"
+                            >
+                              <ReceiptText size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -693,7 +717,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               {/* === LICENSE TAB === */}
               {activeTab === 'license' && (
                 <div className="space-y-6 animate-fade-in">
-                  
+
                   {/* Machine ID Card */}
                   <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-black border border-emerald-500/30 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-3 opacity-20">
@@ -702,7 +726,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">Huella Digital del Dispositivo</p>
                     <div className="flex items-center gap-3 mb-1">
                       <code className="text-2xl font-mono font-bold text-white tracking-wider">{machineId}</code>
-                      <button 
+                      <button
                         onClick={() => navigator.clipboard.writeText(machineId)}
                         className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
                       >
@@ -714,39 +738,39 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
                   {/* Payment Info */}
                   <div className="grid grid-cols-2 gap-3">
-                     {/* Binance Card */}
-                     <div className="p-3 rounded-xl bg-[#F0B90B]/10 border border-[#F0B90B]/20 flex flex-col justify-center relative group">
-                        <div className="absolute top-3 right-3">
-                            <button 
-                                onClick={() => handleCopyText('binance', '53820365')}
-                                className="p-1.5 rounded-lg bg-[#F0B90B]/20 text-[#F0B90B] hover:bg-[#F0B90B] hover:text-black transition-colors"
-                            >
-                                {copiedState === 'binance' ? <Check size={12} /> : <Copy size={12} />}
-                            </button>
-                        </div>
-                       <p className="text-[10px] text-[#F0B90B] font-black uppercase mb-1">Binance Pay</p>
-                       <p className="text-xs text-white font-mono font-bold truncate w-[80%]">MultiversaGroup</p>
-                       <p className="text-[10px] text-white/70 font-mono">ID: 53820365</p>
-                     </div>
-                     
-                     {/* Pago Movil Card */}
-                     <div className="p-3 rounded-xl bg-[#207e5c]/10 border border-[#207e5c]/20 flex flex-col justify-center relative group">
-                        <div className="absolute top-3 right-3">
-                            <button 
-                                onClick={() => handleCopyText('pagomovil', '04125322257\nV16619748\n0134')}
-                                className="p-1.5 rounded-lg bg-[#207e5c]/20 text-[#207e5c] hover:bg-[#207e5c] hover:text-white transition-colors"
-                            >
-                                {copiedState === 'pagomovil' ? <Check size={12} /> : <Copy size={12} />}
-                            </button>
-                        </div>
-                       <p className="text-[10px] text-[#207e5c] font-black uppercase mb-1">Pago Móvil</p>
-                       <p className="text-xs text-white font-mono font-bold">0412 532 2257</p>
-                       <p className="text-[10px] text-white/70 font-mono">V16619748 • Banesco</p>
-                     </div>
+                    {/* Binance Card */}
+                    <div className="p-3 rounded-xl bg-[#F0B90B]/10 border border-[#F0B90B]/20 flex flex-col justify-center relative group">
+                      <div className="absolute top-3 right-3">
+                        <button
+                          onClick={() => handleCopyText('binance', '53820365')}
+                          className="p-1.5 rounded-lg bg-[#F0B90B]/20 text-[#F0B90B] hover:bg-[#F0B90B] hover:text-black transition-colors"
+                        >
+                          {copiedState === 'binance' ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#F0B90B] font-black uppercase mb-1">Binance Pay</p>
+                      <p className="text-xs text-white font-mono font-bold truncate w-[80%]">MultiversaGroup</p>
+                      <p className="text-[10px] text-white/70 font-mono">ID: 53820365</p>
+                    </div>
+
+                    {/* Pago Movil Card */}
+                    <div className="p-3 rounded-xl bg-[#207e5c]/10 border border-[#207e5c]/20 flex flex-col justify-center relative group">
+                      <div className="absolute top-3 right-3">
+                        <button
+                          onClick={() => handleCopyText('pagomovil', '04125322257\nV16619748\n0134')}
+                          className="p-1.5 rounded-lg bg-[#207e5c]/20 text-[#207e5c] hover:bg-[#207e5c] hover:text-white transition-colors"
+                        >
+                          {copiedState === 'pagomovil' ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#207e5c] font-black uppercase mb-1">Pago Móvil</p>
+                      <p className="text-xs text-white font-mono font-bold">0412 532 2257</p>
+                      <p className="text-[10px] text-white/70 font-mono">V16619748 • Banesco</p>
+                    </div>
                   </div>
 
                   {/* Action Button */}
-                  <button 
+                  <button
                     onClick={sendActivationMessage}
                     className="w-full py-4 rounded-xl bg-[#25D366] text-black font-bold uppercase tracking-wide shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
                   >
@@ -761,14 +785,14 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         placeholder="Ingresa tu Token de Activación"
                         value={activationToken}
                         onChange={(e) => setActivationToken(e.target.value)}
                         className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50"
                       />
-                      <button 
+                      <button
                         onClick={validateToken}
                         className="px-4 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
                       >
@@ -776,14 +800,14 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                       </button>
                     </div>
                     <p className="text-[10px] text-gray-500 text-center leading-relaxed">
-                       Este token te lo proporcionamos nosotros después de validar tu pago vía WhatsApp, normalmente respondemos en minutos.
+                      Este token te lo proporcionamos nosotros después de validar tu pago vía WhatsApp, normalmente respondemos en minutos.
                     </p>
                   </div>
 
                 </div>
               )}
             </div>
-            
+
           </div>
         </>
       )}

@@ -48,9 +48,24 @@ export async function getAuthEmail(): Promise<string | null> {
   return data.user?.email ?? null;
 }
 
-export async function signInAdmin(email: string, password: string) {
+export async function signInAdmin(email: string) {
   if (!supabase) throw new Error('Supabase not configured');
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: false,
+    }
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function verifyOtp(email: string, token: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'email'
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -58,5 +73,6 @@ export async function signOut() {
   if (!supabase) return;
   await supabase.auth.signOut();
 }
+
 
 

@@ -107,25 +107,30 @@ export class SavaraLiveClient {
   async connect() {
     this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    
+
     // Low Latency Fix: Resume contexts immediately
     if (this.inputContext.state === 'suspended') await this.inputContext.resume();
     if (this.outputContext.state === 'suspended') await this.outputContext.resume();
 
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    
+
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const systemInstruction = `Eres Savara, la inteligencia de CalculaTu. Tu tono es humano, cálido y experto.
-        GUÍA DE PRODUCTO:
-        - CalculaTu: App para gestionar compras sin estrés con conversión inmediata a tasas BCV.
-        - Cómo funciona: El usuario suma precios en USD/EUR y la app convierte a Bs automáticamente.
-        - Características: Savara AI (voz), Modo Bunker (offline), Historial de compras, Tasa real BCV.
-        - Planes: 
-          1. Gratis: Calculadora manual básica.
-          2. Savara Pro Mensual: $1 al mes.
-          3. Savara Pro Lifetime: $10 Pago único DE POR VIDA (Oferta hasta 31 Enero, luego $15).
-        - Pagos: Binance Pay y Pago Móvil.`;
+        GUÍA DE OPERACIÓN:
+        1. El usuario dirá cosas como "Savara, agrega dos harinas pan a 1.25 cada una".
+        2. EXTRAE: name, price, quantity, currency.
+        3. SIEMPRE detecta la moneda:
+           - "un dólar", "uno con veinte", "uno punto cinco", "cada una" -> currency: 'USD'
+           - "dos euros", "1.50 euros" -> currency: 'EUR'
+           - "cien bolívares", "mil soberanos", "en bss" -> currency: 'VES'
+        4. Si no especifica moneda pero el monto es pequeño (ej. < 10), asume USD. 
+        5. Llama a addItem() para cada producto detectado.
+        6. Responde confirmando brevemente: "Vale, dos harinas pan agregadas."
+        
+        TASAS Y PLANES:
+        - CalculaTu convierte automáticamente USD/EUR a Bs usando la tasa BCV oficial.
+        - Savara Pro Lifetime: $10 (Pago único, oferta válida). Regular $15.`;
 
     this.sessionPromise = ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-09-2025',

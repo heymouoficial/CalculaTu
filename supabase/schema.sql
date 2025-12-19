@@ -61,3 +61,4 @@ using ((auth.jwt() ->> 'email') = 'multiversagroup@gmail.com')
 with check ((auth.jwt() ->> 'email') = 'multiversagroup@gmail.com');
 
 
+

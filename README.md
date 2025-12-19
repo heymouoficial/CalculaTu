@@ -92,3 +92,4 @@ Copyright © 2025–2026 **MultiversaGroup**.
 **All rights reserved.** No se concede licencia de uso, copia, modificación o distribución sin autorización expresa por escrito.
 
 
+

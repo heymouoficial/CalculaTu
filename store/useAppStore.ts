@@ -16,11 +16,13 @@ type AppState = {
   baseRates: typeof RATES;
   rates: typeof RATES; // effective rates (baseRates unless user override is active)
   ratesOverrideExpiresAt?: string | null;
+  budgetLimit: number; // in USD
   license: LicenseState;
 
   setBaseRates: (rates: typeof RATES) => void;
   setRatesTemporarily: (rates: typeof RATES) => void; // 24h cache
   clearTemporaryRates: () => void;
+  setBudgetLimit: (limit: number) => void;
   setLicense: (license: LicenseState) => void;
   clearLicense: () => void;
 };
@@ -89,6 +91,25 @@ function persistLicense(license: LicenseState) {
   }
 }
 
+const BUDGET_STORAGE_KEY = 'calculatu_budget_v1';
+
+function readStoredBudget(): number {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(BUDGET_STORAGE_KEY) : null;
+    return raw ? parseFloat(raw) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function persistBudget(limit: number) {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.setItem(BUDGET_STORAGE_KEY, limit.toString());
+  } catch {
+    // ignore
+  }
+}
+
 export const useAppStore = create<AppState>((set) => ({
   machineId: getOrCreateMachineId(),
   baseRates: RATES,
@@ -102,6 +123,7 @@ export const useAppStore = create<AppState>((set) => ({
     const o = readRatesOverride(id);
     return o?.expiresAt ?? null;
   })(),
+  budgetLimit: readStoredBudget(),
   license: readStoredLicense(),
 
   setBaseRates: (baseRates) =>
@@ -125,6 +147,12 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => {
       persistRatesOverride(state.machineId, null);
       return { rates: state.baseRates, ratesOverrideExpiresAt: null };
+    }),
+
+  setBudgetLimit: (limit) =>
+    set(() => {
+      persistBudget(limit);
+      return { budgetLimit: limit };
     }),
 
   setLicense: (license) =>
