@@ -96,3 +96,6 @@ on public.contracts
 for select
 to anon, authenticated
 using (true);
+
+
+
