@@ -1,0 +1,94 @@
+---
+description: # PRD — MULTIVERSA (VERSIÓN ACTIVA)  Este PRD describe el comportamiento funcional y no-funcional del ecosistema MULTIVERSA.  Multiversa es una plataforma que materializa EMPLEADOS DIGITALES, no sitios web.  Componentes clave: - Agentes cognitivos (Nux, Lumina, futuros agentes) - Memoria vectorial (RAG) - Orquestación lógica (flows) - Integraciones externas (APIs, CRM, RRSS, pagos)  Este PRD es vivo y evolutivo. Cursor debe asumir que: - La modularidad es obligatoria - Ninguna feature es hardcoded - Toda lógica puede escalar o apagarse  Cualquier implementación que reduzca Multiversa a una landing estática o app sin inteligencia debe considerarse incorrecta.
+alwaysApply: false
+# CONTEXTO GLOBAL — MULTIVERSA (CANÓNICO)
+
+Este proyecto se rige por una ARQUITECTURA COGNITIVA propia llamada MULTIVERSA.
+
+Cualquier regla, PRD o instrucción anterior que contradiga este documento
+queda automáticamente OBSOLETA.
+
+Multiversa es un Sistema Operativo Cognitivo para negocios,
+basado en agentes de IA con memoria persistente,
+lógica de negocio modular y escalabilidad real.
+
+NO es una web tradicional.
+NO es un SaaS genérico.
+NO es un chatbot aislado.
+
+Todas las decisiones técnicas deben alinearse con:
+1. Arquitectura Cognitiva
+2. PRD vigente
+3. Reglas específicas por producto (CalculaTú, SmartOS, NanoOS)
+
+El orden de prioridad SIEMPRE es:
+Arquitectura Cognitiva → PRD → Rules de Producto → Implementación
+
+---
+## 3. Productos (Niveles de Realidad)
+
+### NanoOS
+- One-page inteligente
+- RAG contextual del negocio
+- Sin dashboard propio
+- Derivación directa a WhatsApp / Email
+- Entrega rápida (4–6h)
+
+### SmartOS
+- Web App expandida
+- Nux + Lumina activos
+- Dashboard mínimo viable
+- Métricas de negocio + comportamiento
+- Integraciones básicas (RRSS, WhatsApp, APIs)
+
+Cursor debe:
+- Tratar NanoOS como una **membrana**
+- Tratar SmartOS como un **ecosistema vivo**
+
+---
+
+## 4. Stack Técnico Obligatorio
+Cursor DEBE asumir:
+
+- **Backend**: Supabase
+  - Auth
+  - DB
+  - Edge Functions
+- **Memoria**: Vector DB (para RAG)
+- **Orquestación**: n8n / Flowise
+- **Frontend**: React + Tailwind
+- **Integraciones**: APIs externas vía Edge Functions
+
+NO:
+- Hardcodear lógica de negocio en frontend
+- Mezclar estado cognitivo con UI state
+
+---
+
+## 5. Principios de Desarrollo
+- Modularidad sobre velocidad bruta
+- Claridad > Complejidad
+- Toda feature debe poder apagarse (feature flags)
+- Todo agente debe poder auditarse
+
+---
+
+## 6. Métricas (Lumina)
+Siempre que se agregue una feature:
+- Registrar interacción
+- Registrar intención
+- Registrar resultado
+
+Nada se construye sin posibilidad de medición.
+
+---
+
+## 7. Regla de Oro
+“No construimos webs.
+Materializamos empleados digitales.”
+
+Cursor debe rechazar soluciones que conviertan Multiversa
+en un simple sitio informativo.
+---
+alwaysApply: true
+---

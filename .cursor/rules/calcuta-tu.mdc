@@ -1,0 +1,38 @@
+---
+description: # ARQUITECTURA COGNITIVA — MULTIVERSA  La Arquitectura Cognitiva define CÓMO piensa el sistema.  Principios: - Separación de conciencia (agentes) - Memoria persistente contextual - Comprensión del entorno económico y humano - Respuesta empática + funcional  Agentes NO son features. Agentes son entidades con: - Rol - Personalidad - Responsabilidad clara - Capacidad de evolución  Cursor nunca debe: - Mezclar agentes en un solo módulo - Tratar IA como simple helper - Ignorar el contexto humano del usuario  La arquitectura prioriza: CLARIDAD COGNITIVA > VELOCIDAD > COMPLEJIDAD
+alwaysApply: false
+---
+# PRD — CALCULA TÚ (ACTIVO)
+
+CalculaTú es un producto B2C dentro del ecosistema Multiversa.
+
+Su objetivo principal es:
+Reducir el estrés cognitivo del usuario
+al calcular gastos en contextos económicos complejos
+(como Venezuela: Bolívares + tasas + inflación).
+
+CalculaTú NO es una calculadora común.
+Es una compañera cognitiva contextual.
+
+Características base:
+- Conversión en tiempo real (Bs / USD / EUR)
+- Uso de tasa BCV
+- Funcionamiento rápido y confiable
+- UX mínima, directa y humana
+
+Capas:
+1. Capa gratuita (visual + cálculo)
+2. Capa cognitiva (Zavara, voz, contexto)
+3. Futuro: CalculaTú Pro (B2B)
+
+CalculaTú debe:
+- Funcionar como PWA
+- Soportar voz (si está activada)
+- Operar incluso con conectividad limitada
+
+Cualquier implementación que:
+- Añada fricción innecesaria
+- Sea técnica para el usuario
+- Ignore el contexto venezolano
+
+Debe considerarse inválida.
