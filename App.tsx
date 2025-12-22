@@ -5,6 +5,7 @@ import { DemoCard } from './components/DemoCard';
 import { ChatWidget } from './components/ChatWidget';
 import { CalculatorView } from './components/CalculatorView';
 import { InstallBanner } from './components/InstallBanner';
+import { Logo } from './components/Logo';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
 import { fetchGlobalRates } from './services/ratesService';
@@ -116,7 +117,7 @@ const App: React.FC = () => {
       <nav className="fixed top-0 w-full z-40 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]"><Calculator size={20} className="text-black" /></div>
+            <Logo size={36} />
             <div className="flex flex-col"><span className="font-bold text-lg leading-none tracking-tight">CalculaTú</span><span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{currentDate}</span></div>
           </div>
           <button onClick={toggleCurrency} className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl px-3 py-1.5 border border-white/5 transition-all">
@@ -283,7 +284,7 @@ const App: React.FC = () => {
 
         <footer className="text-center border-t border-white/5 pt-12 pb-6">
           <div className="flex items-center justify-center gap-2 mb-4 opacity-50">
-            <Calculator size={16} />
+            <Logo size={20} />
             <span className="font-semibold">CalculaTú</span>
           </div>
           <p className="text-gray-600 text-sm italic">© 2025-2026 MultiversaGroup. Hecho con ❤️ en Venezuela.</p>

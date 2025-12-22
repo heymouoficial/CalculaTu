@@ -10,6 +10,7 @@ import { OnboardingFlow, useOnboarding } from './OnboardingFlow';
 import { FeedbackButton } from './FeedbackForm';
 import { BUILD_VERSION } from '../config';
 import { Confetti } from './Confetti';
+import { Logo } from './Logo';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -326,6 +327,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
           <button onClick={onBack} className="p-2.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-white/10 transition-all">
             <ArrowLeft size={18} />
           </button>
+          <Logo size={32} />
           <div className="flex flex-col">
             <span className="text-sm font-black tracking-tight text-white leading-none">CalculaTú</span>
             <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider flex items-center gap-1">
