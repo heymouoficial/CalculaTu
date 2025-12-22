@@ -260,8 +260,12 @@ export class SavaraLiveClient {
     try {
       this.logState('connect:start');
 
-      this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      // Use browser's native sample rate, we'll resample to 16kHz
+      this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+
+      console.log(`[Savara Live] Input context sample rate: ${this.inputContext.sampleRate}Hz`);
+      console.log(`[Savara Live] Output context sample rate: ${this.outputContext.sampleRate}Hz`);
       this.logState('connect:audioContexts-created');
 
       if (this.inputContext.state === 'suspended') await this.inputContext.resume();
@@ -305,8 +309,10 @@ GUÍA DE OPERACIÓN:
       callbacks: {
         onopen: () => {
           this.wsState = 'open';
+          console.log('[Savara Live] WebSocket opened successfully');
           this.logState('websocket:opened');
-          this.startAudioInput();
+          // Small delay before starting audio to ensure connection is stable
+          setTimeout(() => this.startAudioInput(), 500);
         },
         onmessage: async (message: LiveServerMessage) => {
           const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
@@ -358,30 +364,50 @@ GUÍA DE OPERACIÓN:
   }
 
   private startAudioInput() {
-    if (!this.inputContext || !this.stream) return;
+    if (!this.inputContext || !this.stream) {
+      console.error('[Savara Live] Cannot start audio input - missing inputContext or stream');
+      return;
+    }
 
     const actualSampleRate = this.inputContext.sampleRate;
-    console.log(`[Savara Live] Audio input started, mic sample rate: ${actualSampleRate}Hz`);
+    console.log(`[Savara Live] Starting audio input, mic sample rate: ${actualSampleRate}Hz, target: 16000Hz`);
 
     const source = this.inputContext.createMediaStreamSource(this.stream);
-    this.processor = this.inputContext.createScriptProcessor(4096, 1, 1);
+    // Larger buffer for more stable processing
+    this.processor = this.inputContext.createScriptProcessor(8192, 1, 1);
 
     let chunkCount = 0;
+    let lastSendTime = Date.now();
+
     this.processor.onaudioprocess = (e) => {
       const inputData = e.inputBuffer.getChannelData(0);
-      const pcmBlob = createBlob(inputData, actualSampleRate);
 
-      if (chunkCount < 3) {
-        console.log(`[Savara Live] Sending audio chunk ${chunkCount + 1}, bytes: ${pcmBlob.data.length}`);
+      // Check if audio has any signal
+      const maxAmplitude = Math.max(...Array.from(inputData).map(Math.abs));
+
+      // Skip silent frames to reduce bandwidth
+      if (maxAmplitude < 0.001) return;
+
+      const pcmBlob = createBlob(inputData, actualSampleRate);
+      const now = Date.now();
+
+      if (chunkCount < 5) {
+        console.log(`[Savara Live] Audio chunk ${chunkCount + 1}: bytes=${pcmBlob.data.length}, maxAmp=${maxAmplitude.toFixed(4)}, timeSinceLast=${now - lastSendTime}ms`);
       }
       chunkCount++;
+      lastSendTime = now;
 
       this.sessionPromise?.then(session => {
-        session.sendRealtimeInput({ media: pcmBlob });
+        if (session && this.wsState === 'open') {
+          session.sendRealtimeInput({ media: pcmBlob });
+        }
+      }).catch(err => {
+        console.error('[Savara Live] Error sending audio:', err);
       });
     };
     source.connect(this.processor);
     this.processor.connect(this.inputContext.destination);
+    console.log('[Savara Live] Audio pipeline connected');
   }
 
   async disconnect() {
