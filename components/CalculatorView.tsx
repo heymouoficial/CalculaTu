@@ -30,8 +30,18 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   // App States
   const [currentDateDisplay, setCurrentDateDisplay] = useState('');
 
-  // Modes & License
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  // Modes & License - Persist isVoiceMode to avoid manual reactivation
+  const [isVoiceMode, setIsVoiceMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('savara_voice_mode') === 'true';
+    }
+    return false;
+  });
+
+  // Track isVoiceMode changes to persist
+  useEffect(() => {
+    localStorage.setItem('savara_voice_mode', isVoiceMode.toString());
+  }, [isVoiceMode]);
   const license = useAppStore(s => s.license);
   const setLicense = useAppStore(s => s.setLicense);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1005,7 +1015,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                           {copiedState === 'machineId' ? <><Check size={18} /> ¡Copiado!</> : <><Copy size={18} /> Tocar para Copiar</>}
                         </button>
                       </div>
-                      <p className="text-[10px] text-gray-500">Toca el ID para seleccionarlo, luego usa "Copiar" del menú.</p>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-[10px] text-gray-500">Este ID es único para tu navegador actual.</p>
+                        <p className="text-[9px] text-emerald-500/70 font-medium italic">⚠️ Tu licencia está vinculada exclusivamente a este navegador. Si cambias de navegador o dispositivo, contacta a soporte.</p>
+                      </div>
                     </div>
                   )}
 
