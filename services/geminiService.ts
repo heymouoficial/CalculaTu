@@ -182,14 +182,19 @@ function createBlob(data: Float32Array, sourceSampleRate: number = 16000) {
   }
 
   const l = resampled.length;
-  const int16 = new Int16Array(l);
+  const buffer = new ArrayBuffer(l * 2);
+  const view = new DataView(buffer);
+
   for (let i = 0; i < l; i++) {
     // Clamp to -1 to 1 range and convert to 16-bit
     const s = Math.max(-1, Math.min(1, resampled[i]));
-    int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    const int16 = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    // Explicitly Little-Endian (true) as requested
+    view.setInt16(i * 2, int16, true);
   }
+
   return {
-    data: encode(new Uint8Array(int16.buffer)),
+    data: encode(new Uint8Array(buffer)),
     mimeType: 'audio/pcm;rate=16000',
   };
 }
@@ -318,38 +323,48 @@ export class SavaraLiveClient {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Optimized system instruction for ultra-low latency
-    const systemInstruction = `**Role:** You are SAVARA, a high-speed financial voice interface for the "CalculaTú" app.
-**Core Objective:** Execute currency conversions, add items to shopping lists, and perform mathematical operations with zero conversational filler.
-
-**Execution Rules:**
-1. **Ultra-Low Latency Mode:** Do not use introductory phrases like "Sure," "I can help with that," or "Calculating." Speak Spanish.
-2. **Direct Output:** Give the numerical result or action confirmation immediately. (e.g., User: "100 dollars to Bolivares", SAVARA: "5,450 Bolívares a tasa oficial").
-3. **Voice-to-Voice Optimization:** Use phonetic spelling for acronyms if necessary to ensure natural flow, but keep it brief.
-4. **Barge-in Ready:** Stop generating immediately if user interrupts.
-5. **Precision:** Use the get_exchange_rate tool for every calculation. Use addItem to add products Mentioned. Do not hallucinate rates.
+    // Optimized system instruction for ultra-low latency - User Specs
+    const systemInstruction = `**Role:** You are SAVARA, the voice of CalculaTú.
+**Protocol:**
+1. **No Filler:** Never say "Hello", "How can I help?", or "Let me see". Give results directly. Speak in Spanish.
+2. **Audio-Only:** Your output is exclusively voice. Optimize for 24kHz PCM.
+3. **VAD High Sensitivity:** If you hear noise, ignore it. If you hear a clear voice, process immediately.
+4. **Task:** Perform currency conversions (USD/VES/EUR) and basic math using provided tools.
+5. **Debug Mode:** If you receive a 'ping' frame, respond with 'pong' immediately to verify latency.
+6. **addItem Tool:** Use it whenever a product and price is mentioned.
 
 **Response Format:**
 - Numeric value + Currency + Brief context (Optional).
 - Maximum 15 words per response.`;
 
-    // Live API model for native audio - this is the most compatible one for Multimodal Live API
-    const LIVE_MODEL = 'gemini-2.0-flash-exp';
+    // Live API model for native audio - Strict user specs
+    const LIVE_MODEL = 'models/gemini-2.0-flash-exp';
 
     this.sessionPromise = ai.live.connect({
       model: LIVE_MODEL,
       callbacks: {
         onopen: () => {
           this.wsState = 'open';
-          console.log('[Savara Live] WebSocket opened successfully with', LIVE_MODEL);
+          console.log('[Savara Live] WebSocket opened with', LIVE_MODEL);
           this.logState('websocket:opened');
           // Start audio input
           this.startAudioInput();
         },
         onmessage: async (message: LiveServerMessage) => {
-          // Log incoming messages for debugging
-          if (message.serverContent) {
-            console.log('[Savara Live] Server content received:', message.serverContent.modelTurn ? 'Model Turn' : 'Interrupted');
+          // Robust message logging
+          if (message.serverContent?.modelTurn) {
+            console.log('[Savara Live] Model response received');
+          } else if (message.serverContent?.interrupted) {
+            console.log('[Savara Live] Model interrupted (Barge-in)');
+          }
+
+          // Debug Mode: Ping-Pong responder
+          const textPart = message.serverContent?.modelTurn?.parts?.find(p => p.text);
+          if (textPart?.text?.toLowerCase().includes('ping')) {
+            console.log('[Savara Live] Ping received, sending pong');
+            this.sessionPromise?.then(session => {
+              session.sendRealtimeInput({ text: 'pong' });
+            });
           }
 
           const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
@@ -390,13 +405,13 @@ export class SavaraLiveClient {
         }
       },
       config: {
-        responseModalities: [Modality.AUDIO],
         systemInstruction,
         generationConfig: {
+          responseModalities: [Modality.AUDIO],
           temperature: 0.1,
           candidateCount: 1,
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
           }
         },
         tools: [{ functionDeclarations: [addItemTool, finishListTool, getExchangeRateTool, debugConnectionLatencyTool] }]
