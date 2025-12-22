@@ -382,17 +382,21 @@ GUÍA DE OPERACIÓN:
     this.processor.onaudioprocess = (e) => {
       const inputData = e.inputBuffer.getChannelData(0);
 
-      // Check if audio has any signal
-      const maxAmplitude = Math.max(...Array.from(inputData).map(Math.abs));
-
-      // Skip silent frames to reduce bandwidth
-      if (maxAmplitude < 0.001) return;
+      // Calculate max amplitude for diagnostics
+      let maxAmplitude = 0;
+      for (let i = 0; i < inputData.length; i++) {
+        const abs = Math.abs(inputData[i]);
+        if (abs > maxAmplitude) maxAmplitude = abs;
+      }
 
       const pcmBlob = createBlob(inputData, actualSampleRate);
       const now = Date.now();
 
-      if (chunkCount < 5) {
-        console.log(`[Savara Live] Audio chunk ${chunkCount + 1}: bytes=${pcmBlob.data.length}, maxAmp=${maxAmplitude.toFixed(4)}, timeSinceLast=${now - lastSendTime}ms`);
+      // Log first 10 chunks to diagnose
+      if (chunkCount < 10) {
+        console.log(`[Savara Live] Audio chunk ${chunkCount + 1}: bytes=${pcmBlob.data.length}, maxAmp=${maxAmplitude.toFixed(4)}, interval=${now - lastSendTime}ms`);
+      } else if (chunkCount === 10) {
+        console.log('[Savara Live] Audio streaming... (further logs suppressed)');
       }
       chunkCount++;
       lastSendTime = now;
