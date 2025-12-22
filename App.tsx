@@ -4,6 +4,7 @@ import { COLORS } from './constants';
 import { DemoCard } from './components/DemoCard';
 import { ChatWidget } from './components/ChatWidget';
 import { CalculatorView } from './components/CalculatorView';
+import { InstallBanner } from './components/InstallBanner';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
 import { fetchGlobalRates } from './services/ratesService';
@@ -91,15 +92,15 @@ const App: React.FC = () => {
       .then((r) => {
         if (r) setBaseRates({ USD: r.USD, EUR: r.EUR });
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const toggleCurrency = () => setShowEuro(!showEuro);
-  
+
   const handlePlanClick = (planName: string) => {
-    setChatTrigger({ 
-      open: true, 
-      message: `¡Hola Savara! 👋 Estoy interesado en activar el plan **${planName}**. ¿Me ayudas con los métodos de pago?` 
+    setChatTrigger({
+      open: true,
+      message: `¡Hola Savara! 👋 Estoy interesado en activar el plan **${planName}**. ¿Me ayudas con los métodos de pago?`
     });
   };
 
@@ -126,12 +127,12 @@ const App: React.FC = () => {
       </nav>
 
       <main className="relative pt-24 px-4 pb-20 max-w-6xl mx-auto">
-        
+
         {/* HERO SECTION */}
         <section className="flex flex-col md:flex-row items-center gap-12 md:gap-20 mb-32">
           <div className="flex-1 text-center md:text-left space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2 animate-pulse"><Star size={14} className="fill-current" /><span>Lo nuevo de Multiversa</span></div>
-            <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight">Mercado sin <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)]">Estrés.</span></h1>
+            <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight">Mercado sin <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)]">Estrés.</span></h1>
             <p className="text-gray-400 text-lg md:text-xl max-w-lg mx-auto md:mx-0 leading-relaxed">Tu <strong>Asistente de Mercado</strong> personal. Deja de pelear con la calculadora y empieza a usar tu voz con <span className="text-purple-400 font-semibold">Savara AI</span>.</p>
             <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center md:justify-start">
               <button onClick={() => setCurrentView('calculator')} className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all flex items-center justify-center gap-2">Comenzar Gratis <Download size={20} /></button>
@@ -148,25 +149,25 @@ const App: React.FC = () => {
             <p className="text-gray-400 max-w-2xl mx-auto">Hacer mercado en Venezuela es un deporte extremo. Nosotros te damos el equipo adecuado.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <FeatureCard 
+            <FeatureCard
               icon={<BrainCircuit size={24} />}
               title="Cero Matemáticas"
               pain="Odio sacar la cuenta de $3.50 x 36.5 y luego sumarle el IVA..."
               solution="CalculaTu convierte todo a Bs automáticamente a tasa oficial."
             />
-            <FeatureCard 
+            <FeatureCard
               icon={<Clock size={24} />}
               title="Manos Libres"
               pain="Es incómodo escribir en el celular mientras empujo el carrito."
               solution="Solo dile a Savara: 'Agrega harina y queso' y listo."
             />
-            <FeatureCard 
+            <FeatureCard
               icon={<WifiOff size={24} />}
               title="Modo Bunker"
               pain="En el supermercado nunca tengo señal de datos."
               solution="Nuestra tecnología funciona perfecto sin internet."
             />
-             <FeatureCard 
+            <FeatureCard
               icon={<Leaf size={24} />}
               title="100% Ecológico"
               pain="Esos papelitos térmicos se borran y contaminan."
@@ -181,9 +182,9 @@ const App: React.FC = () => {
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Planes Transparentes</h2>
             <p className="text-gray-400">Sin letras chiquitas. Elige cómo quieres ahorrar.</p>
           </div>
-          
+
           <div className="grid md:grid-cols-3 gap-8 items-end max-w-5xl mx-auto">
-            
+
             {/* FREE TIER */}
             <div className="p-8 rounded-3xl bg-[#0a0a0a]/60 border border-white/5 flex flex-col h-[420px]">
               <div className="mb-6">
@@ -201,7 +202,7 @@ const App: React.FC = () => {
 
             {/* MONTHLY TIER */}
             <div className="p-8 rounded-3xl bg-[#111] border border-white/10 flex flex-col h-[460px] relative">
-               <div className="mb-6">
+              <div className="mb-6">
                 <h3 className="text-lg font-bold text-emerald-400 mb-2">Pro Mensual</h3>
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-1">
@@ -264,17 +265,17 @@ const App: React.FC = () => {
 
         {/* FAQ SECTION */}
         <section className="max-w-3xl mx-auto mb-20">
-           <div className="text-center mb-10">
+          <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold mb-2">Preguntas Frecuentes</h2>
           </div>
           <div className="bg-white/5 border border-white/5 rounded-3xl p-6 md:p-8">
             {FAQS.map((faq, idx) => (
-              <FaqItem 
-                key={idx} 
-                question={faq.question} 
-                answer={faq.answer} 
-                isOpen={openFaqIndex === idx} 
-                onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)} 
+              <FaqItem
+                key={idx}
+                question={faq.question}
+                answer={faq.answer}
+                isOpen={openFaqIndex === idx}
+                onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)}
               />
             ))}
           </div>
@@ -289,6 +290,7 @@ const App: React.FC = () => {
         </footer>
       </main>
       <ChatWidget defaultOpen={chatTrigger.open} initialMessage={chatTrigger.message} onClose={() => setChatTrigger({ open: false })} />
+      <InstallBanner />
     </div>
   );
 };
