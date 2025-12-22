@@ -365,10 +365,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          {items.length > 0 && (
+          {items.length > 0 && license.active && (
             <button
               onClick={handleFinish}
               className="p-2.5 bg-emerald-500 text-black rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:scale-105 transition-all animate-fade-in"
+              title="Generar Voucher (Pro)"
             >
               <ReceiptText size={18} strokeWidth={2.5} />
             </button>
@@ -427,15 +428,18 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       </div>
 
       {/* Rates Bar */}
-      <div className="w-full border-y border-white/5 bg-black/40 py-3 flex justify-center gap-8 items-center text-xs font-black uppercase tracking-widest text-gray-500">
-        <div className="flex gap-2 items-center">
-          <DollarSign size={16} className="text-emerald-400" />
-          <span className="text-white font-mono">Bs {rates.USD.toFixed(2)}</span>
-        </div>
-        <div className="h-3 w-px bg-white/10"></div>
-        <div className="flex gap-2 items-center">
-          <Euro size={16} className="text-purple-400" />
-          <span className="text-white font-mono">Bs {rates.EUR.toFixed(2).replace('.', ',')}</span>
+      <div className="w-full border-y border-white/5 bg-black/40 py-2 flex flex-col items-center gap-1">
+        <span className="text-[10px] text-emerald-400/70 font-medium tracking-wider">Tasas en tiempo real • BCV</span>
+        <div className="flex justify-center gap-8 items-center text-xs font-black uppercase tracking-widest text-gray-500">
+          <div className="flex gap-2 items-center">
+            <DollarSign size={16} className="text-emerald-400" />
+            <span className="text-white font-mono">Bs {rates.USD.toFixed(2)}</span>
+          </div>
+          <div className="h-3 w-px bg-white/10"></div>
+          <div className="flex gap-2 items-center">
+            <Euro size={16} className="text-purple-400" />
+            <span className="text-white font-mono">Bs {rates.EUR.toFixed(2).replace('.', ',')}</span>
+          </div>
         </div>
       </div>
 
