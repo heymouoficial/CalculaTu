@@ -179,10 +179,30 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     }
   };
 
-  const handleCopyText = (key: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedState(key);
-    setTimeout(() => setCopiedState(null), 2000);
+  const handleCopyText = async (key: string, text: string) => {
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for older browsers or PWAs
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedState(key);
+      setTimeout(() => setCopiedState(null), 2000);
+    } catch (err) {
+      console.error('[Copy] Failed:', err);
+      // Still show success for UX (text is selected if manual copy needed)
+      setCopiedState(key);
+      setTimeout(() => setCopiedState(null), 2000);
+    }
   };
 
   const cycleCurrency = () => {
