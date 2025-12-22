@@ -147,24 +147,7 @@ function encode(bytes: Uint8Array) {
   return btoa(binary);
 }
 
-async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
-): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-    }
-  }
-  return buffer;
-}
 
 function createBlob(data: Float32Array, sourceSampleRate: number = 16000) {
   // Resample to 16kHz if needed (Gemini Live API requires 16kHz)
@@ -294,6 +277,11 @@ export class SavaraLiveClient {
     try {
       this.logState('connect:start');
 
+      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+        console.error('[Savara Live] Not in a Secure Context (HTTPS or localhost). Microphone access will be denied.');
+        throw new Error('Insecure Context: Savara requiere HTTPS');
+      }
+
       // Use browser's native sample rate, we'll resample to 16kHz
       this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -302,8 +290,14 @@ export class SavaraLiveClient {
       console.log(`[Savara Live] Output context sample rate: ${this.outputContext.sampleRate}Hz`);
       this.logState('connect:audioContexts-created');
 
-      if (this.inputContext.state === 'suspended') await this.inputContext.resume();
-      if (this.outputContext.state === 'suspended') await this.outputContext.resume();
+      if (this.inputContext.state === 'suspended') {
+        console.log('[Savara Live] Resuming input context...');
+        await this.inputContext.resume();
+      }
+      if (this.outputContext.state === 'suspended') {
+        console.log('[Savara Live] Resuming output context...');
+        await this.outputContext.resume();
+      }
       this.logState('connect:audioContexts-resumed');
 
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -340,6 +334,7 @@ export class SavaraLiveClient {
     // Live API model for native audio - Strict user specs
     const LIVE_MODEL = 'models/gemini-2.0-flash-exp';
 
+    console.log('[Savara Live] Initializing GenAI with model:', LIVE_MODEL);
     this.sessionPromise = ai.live.connect({
       model: LIVE_MODEL,
       callbacks: {
@@ -347,15 +342,19 @@ export class SavaraLiveClient {
           this.wsState = 'open';
           console.log('[Savara Live] WebSocket opened with', LIVE_MODEL);
           this.logState('websocket:opened');
-          // Start audio input
-          this.startAudioInput();
+          // NOTE: Do NOT call startAudioInput here - wait for session to resolve
         },
         onmessage: async (message: LiveServerMessage) => {
-          // Robust message logging
+          // Detailed message logging
           if (message.serverContent?.modelTurn) {
-            console.log('[Savara Live] Model response received');
+            const parts = message.serverContent.modelTurn.parts || [];
+            console.log(`[Savara Live] Model response received, parts: ${parts.length}`);
           } else if (message.serverContent?.interrupted) {
             console.log('[Savara Live] Model interrupted (Barge-in)');
+          }
+
+          if (message.toolCall) {
+            console.log('[Savara Live] Tool call message received:', JSON.stringify(message.toolCall));
           }
 
           // Debug Mode: Ping-Pong responder
@@ -363,31 +362,36 @@ export class SavaraLiveClient {
           if (textPart?.text?.toLowerCase().includes('ping')) {
             console.log('[Savara Live] Ping received, sending pong');
             this.sessionPromise?.then(session => {
-              session.sendRealtimeInput({ text: 'pong' });
+              session.sendRealtimeInput([{ text: 'pong' }]);
             });
           }
 
-          const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+          // Improved audio part detection: search all parts
+          const audioPart = message.serverContent?.modelTurn?.parts?.find(p => p.inlineData?.data);
+          const audioData = audioPart?.inlineData?.data;
+
           if (audioData && this.outputContext) {
             console.log('[Savara Live] Audio response received, bytes:', audioData.length);
-            this.nextStartTime = Math.max(this.nextStartTime, this.outputContext.currentTime);
-            const audioBuffer = await decodeAudioData(decode(audioData), this.outputContext, 24000, 1);
-            const source = this.outputContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(this.outputContext.destination);
-            source.start(this.nextStartTime);
-            this.nextStartTime += audioBuffer.duration;
-            this.sources.add(source);
+            this.decodeAudioData(audioData).then(buffer => {
+              this.playAudioBuffer(buffer);
+            }).catch(err => {
+              console.error('[Savara Live] Error decoding audio:', err);
+            });
           }
           if (message.toolCall) {
-            console.log('[Savara Live] Tool calls:', message.toolCall.functionCalls.map(f => f.name));
+            console.log('[Savara Live] Executing tools:', message.toolCall.functionCalls.map(f => f.name));
             for (const fc of message.toolCall.functionCalls) {
-              const result = await this.config.onToolCall(fc.name, fc.args);
-              this.sessionPromise?.then(session => {
-                session.sendToolResponse({
-                  functionResponses: { id: fc.id, name: fc.name, response: { result: result } }
+              try {
+                const result = await this.config.onToolCall(fc.name, fc.args);
+                console.log(`[Savara Live] Tool ${fc.name} result:`, result);
+                this.sessionPromise?.then(session => {
+                  session.sendToolResponse({
+                    functionResponses: [{ id: fc.id, name: fc.name, response: { result: result } }]
+                  });
                 });
-              });
+              } catch (toolErr) {
+                console.error(`[Savara Live] Error executing tool ${fc.name}:`, toolErr);
+              }
             }
           }
         },
@@ -399,26 +403,38 @@ export class SavaraLiveClient {
         },
         onerror: (err: any) => {
           this.wsState = 'error';
-          console.error('[Savara Live] WebSocket error:', err);
+          // Enhanced error logging for debugging
+          console.error('[Savara Live] WebSocket error - FULL DETAILS:', {
+            message: err?.message || 'No message',
+            code: err?.code || 'No code',
+            type: err?.type || typeof err,
+            raw: err
+          });
           this.logState('websocket:error');
           this.config.onClose();
         }
       },
+      // Config object with flat structure (per deprecation warning, fields should be at this level, not nested in generationConfig)
       config: {
         systemInstruction,
-        generationConfig: {
-          responseModalities: [Modality.AUDIO],
-          temperature: 0.1,
-          candidateCount: 1,
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
-          }
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
         },
         tools: [{ functionDeclarations: [addItemTool, finishListTool, getExchangeRateTool, debugConnectionLatencyTool] }]
       }
     }).then((session) => {
       this.session = session;
+      console.log('[Savara Live] Session resolved successfully, starting audio input');
+      this.logState('session:resolved');
+      // Start audio input AFTER session is fully resolved
+      this.startAudioInput();
       return session;
+    }).catch((err) => {
+      console.error('[Savara Live] Session connection FAILED:', err);
+      this.wsState = 'error';
+      this.config.onClose();
+      throw err;
     });
   }
 
@@ -462,7 +478,10 @@ export class SavaraLiveClient {
 
       this.sessionPromise?.then(session => {
         if (session && this.wsState === 'open') {
-          session.sendRealtimeInput({ media: pcmBlob });
+          // Revert to media object format which is the standard for @google/genai SDK
+          session.sendRealtimeInput({
+            media: pcmBlob
+          });
         }
       }).catch(err => {
         console.error('[Savara Live] Error sending audio:', err);
@@ -471,6 +490,46 @@ export class SavaraLiveClient {
     source.connect(this.processor);
     this.processor.connect(this.inputContext.destination);
     console.log('[Savara Live] Audio pipeline connected');
+  }
+
+  private async decodeAudioData(base64: string): Promise<AudioBuffer> {
+    if (!this.outputContext) throw new Error('No output context');
+    const data = decode(base64);
+    const dataInt16 = new Int16Array(data.buffer);
+    const numChannels = 1;
+    const sampleRate = 24000; // Gemini response rate
+    const frameCount = dataInt16.length / numChannels;
+    const buffer = this.outputContext.createBuffer(numChannels, frameCount, sampleRate);
+
+    for (let channel = 0; channel < numChannels; channel++) {
+      const channelData = buffer.getChannelData(channel);
+      for (let i = 0; i < frameCount; i++) {
+        channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+      }
+    }
+    return buffer;
+  }
+
+  private playAudioBuffer(buffer: AudioBuffer) {
+    if (!this.outputContext) return;
+
+    // Schedule playback to be gapless
+    const now = this.outputContext.currentTime;
+    if (this.nextStartTime < now) {
+      this.nextStartTime = now + 0.05; // Small buffer for network jitter
+    }
+
+    const source = this.outputContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.outputContext.destination);
+    source.start(this.nextStartTime);
+
+    this.nextStartTime += buffer.duration;
+    this.sources.add(source);
+
+    source.onended = () => {
+      this.sources.delete(source);
+    };
   }
 
   async disconnect() {

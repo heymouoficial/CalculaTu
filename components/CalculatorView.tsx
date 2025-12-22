@@ -286,6 +286,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       setIsListening(false);
     } else {
       setIsListening(true);
+      showToast('Iniciando Savara Pro...', 'success');
       try {
         const client = new SavaraLiveClient({
           onToolCall: async (name: string, args: any) => {
@@ -318,8 +319,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
         // Log initial state after connection
         console.log('[Savara] Connected, state:', client.getState());
-      } catch (e) {
+        showToast('Savara Pro activa 🎙️', 'success');
+      } catch (e: any) {
         console.error('[Savara] Connection error:', e);
+        showToast(`Error de conexión: ${e.message || 'Desconocido'}`, 'error');
         setIsListening(false);
         // Log state on error
         if (liveClientRef.current) {

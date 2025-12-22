@@ -19,7 +19,20 @@ export const InstallBanner: React.FC = () => {
         }
 
         // Check if user dismissed previously (respect for 7 days)
+        // BUT only if the app was NOT uninstalled (standalone mode is false now but was true before)
         const dismissed = localStorage.getItem('pwa_install_dismissed');
+        const wasInstalled = localStorage.getItem('pwa_was_installed');
+
+        // If app was previously installed but now is not in standalone mode, user uninstalled - show banner again
+        if (wasInstalled === 'true') {
+            // App was installed before, check if it's still installed
+            if (!window.matchMedia('(display-mode: standalone)').matches) {
+                // User uninstalled - clear the dismiss flag to show banner again
+                localStorage.removeItem('pwa_install_dismissed');
+                localStorage.removeItem('pwa_was_installed');
+            }
+        }
+
         if (dismissed) {
             const dismissedAt = parseInt(dismissed, 10);
             const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -42,6 +55,8 @@ export const InstallBanner: React.FC = () => {
             setIsInstalled(true);
             setShowBanner(false);
             setDeferredPrompt(null);
+            // Mark that the app was installed so we can detect uninstall later
+            localStorage.setItem('pwa_was_installed', 'true');
         });
 
         return () => {
