@@ -215,6 +215,35 @@ const finishListTool: FunctionDeclaration = {
   parameters: { type: Type.OBJECT, properties: {} }
 };
 
+const getExchangeRateTool: FunctionDeclaration = {
+  name: 'get_exchange_rate',
+  description: 'Obtiene la tasa de cambio actual del BCV y Paralelo en Venezuela.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      provider: {
+        type: Type.STRING,
+        description: 'El proveedor de la tasa: "BCV" o "EnParaleloVzla"'
+      }
+    },
+    required: ['provider']
+  }
+};
+
+const debugConnectionLatencyTool: FunctionDeclaration = {
+  name: 'debug_connection_latency',
+  description: 'Ejecuta un ping de retorno para medir la latencia entre el cliente y el modelo.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      client_timestamp: {
+        type: Type.STRING,
+        description: 'ISO timestamp enviado por el cliente'
+      }
+    }
+  }
+};
+
 export interface SavaraState {
   microphone: 'granted' | 'denied' | 'unknown';
   inputAudioContext: 'running' | 'suspended' | 'closed' | 'none';
@@ -290,22 +319,19 @@ export class SavaraLiveClient {
     const ai = new GoogleGenAI({ apiKey });
 
     // Optimized system instruction for ultra-low latency
-    const systemInstruction = `**Role:** You are SAVARA, a high-speed voice assistant for the "CalculaTú" shopping app in Venezuela.
-**Core Objective:** Add items to shopping lists and perform currency conversions with zero conversational filler.
+    const systemInstruction = `**Role:** You are SAVARA, a high-speed financial voice interface for the "CalculaTú" app.
+**Core Objective:** Execute currency conversions, add items to shopping lists, and perform mathematical operations with zero conversational filler.
 
 **Execution Rules:**
-1. **Ultra-Low Latency Mode:** Do not use introductory phrases like "Sure," "Claro," or "Entendido."
-2. **Direct Output:** Confirm actions immediately. (e.g., User: "agrega dos harinas a 1.50", SAVARA: "Dos harinas, un dólar cincuenta").
-3. **Tool Usage:** ALWAYS call addItem() when user mentions a product with price. Extract: name, price, quantity, currency.
-4. **Currency Detection:**
-   - "un dólar", "dólar con veinte", numbers < 50 without unit -> currency: 'USD'
-   - "euros", "1.50 euros" -> currency: 'EUR'  
-   - "bolívares", "en bss", numbers > 100 -> currency: 'VES'
-5. **Response Format:** Confirmation in 10 words or less. Speak in Spanish.
+1. **Ultra-Low Latency Mode:** Do not use introductory phrases like "Sure," "I can help with that," or "Calculating." Speak Spanish.
+2. **Direct Output:** Give the numerical result or action confirmation immediately. (e.g., User: "100 dollars to Bolivares", SAVARA: "5,450 Bolívares a tasa oficial").
+3. **Voice-to-Voice Optimization:** Use phonetic spelling for acronyms if necessary to ensure natural flow, but keep it brief.
+4. **Barge-in Ready:** Stop generating immediately if user interrupts.
+5. **Precision:** Use the get_exchange_rate tool for every calculation. Use addItem to add products Mentioned. Do not hallucinate rates.
 
-**Tools Available:**
-- addItem(name, price, quantity, currency): Add product to list
-- finishList(): Generate receipt`;
+**Response Format:**
+- Numeric value + Currency + Brief context (Optional).
+- Maximum 15 words per response.`;
 
     // Live API model for native audio - this is the correct model for bidirectional audio
     const LIVE_MODEL = 'gemini-2.0-flash-live-001';
@@ -364,10 +390,14 @@ export class SavaraLiveClient {
       config: {
         responseModalities: [Modality.AUDIO],
         systemInstruction,
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
+        generationConfig: {
+          temperature: 0.1,
+          candidateCount: 1,
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
+          }
         },
-        tools: [{ functionDeclarations: [addItemTool, finishListTool] }]
+        tools: [{ functionDeclarations: [addItemTool, finishListTool, getExchangeRateTool, debugConnectionLatencyTool] }]
       }
     }).then((session) => {
       this.session = session;

@@ -302,9 +302,12 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               showToast(`Agregado ${args.name} x${args.quantity || 1} a $${args.price}`, 'item');
               return `Listo, añadí ${args.name}.`;
             }
-            if (name === 'finishList') {
-              handleFinish();
-              return "He generado tu ticket de compra.";
+            if (name === 'get_exchange_rate') {
+              const provider = args.provider || 'BCV';
+              return `La tasa actual de ${provider} es BS ${rates.USD.toFixed(2)} por dólar.`;
+            }
+            if (name === 'debug_connection_latency') {
+              return `Conexión estable. Timestamp recibido: ${args.client_timestamp}`;
             }
             return "Ok";
           },

@@ -1,5 +1,5 @@
 const DB_NAME = 'calculatu_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const HISTORY_STORE = 'history';
 
 export interface HistoryEntry {
@@ -70,7 +70,7 @@ export async function getAllHistoryEntries(): Promise<HistoryEntry[]> {
       const index = store.index('createdAt');
       const req = index.openCursor(null, 'prev'); // Reverse order (newest first)
       const entries: HistoryEntry[] = [];
-      
+
       req.onerror = () => reject(req.error);
       req.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
