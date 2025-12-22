@@ -149,35 +149,16 @@ function encode(bytes: Uint8Array) {
 
 
 
-function createBlob(data: Float32Array, sourceSampleRate: number = 16000) {
-  // Resample to 16kHz if needed (Gemini Live API requires 16kHz)
-  const targetSampleRate = 16000;
-  let resampled = data;
-
-  if (sourceSampleRate !== targetSampleRate) {
-    const ratio = sourceSampleRate / targetSampleRate;
-    const newLength = Math.floor(data.length / ratio);
-    resampled = new Float32Array(newLength);
-    for (let i = 0; i < newLength; i++) {
-      const srcIndex = Math.floor(i * ratio);
-      resampled[i] = data[srcIndex];
-    }
-  }
-
-  const l = resampled.length;
-  const buffer = new ArrayBuffer(l * 2);
-  const view = new DataView(buffer);
-
+function createBlob(data: Float32Array) {
+  // SIMPLIFIED: Since inputContext is now 16kHz, no resampling needed
+  // This matches the working Google AI Studio code exactly
+  const l = data.length;
+  const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
-    // Clamp to -1 to 1 range and convert to 16-bit
-    const s = Math.max(-1, Math.min(1, resampled[i]));
-    const int16 = s < 0 ? s * 0x8000 : s * 0x7FFF;
-    // Explicitly Little-Endian (true) as requested
-    view.setInt16(i * 2, int16, true);
+    int16[i] = data[i] * 32768;
   }
-
   return {
-    data: encode(new Uint8Array(buffer)),
+    data: encode(new Uint8Array(int16.buffer)),
     mimeType: 'audio/pcm;rate=16000',
   };
 }
@@ -282,8 +263,9 @@ export class SavaraLiveClient {
         throw new Error('Insecure Context: Savara requiere HTTPS');
       }
 
-      // Use browser's native sample rate, we'll resample to 16kHz
-      this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // CRITICAL FIX: Force inputContext to 16kHz to avoid resampling issues
+      // This matches the working Google AI Studio code exactly
+      this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
       console.log(`[Savara Live] Input context sample rate: ${this.inputContext.sampleRate}Hz`);
@@ -331,8 +313,8 @@ export class SavaraLiveClient {
 - Numeric value + Currency + Brief context (Optional).
 - Maximum 15 words per response.`;
 
-    // Live API model for native audio - Strict user specs
-    const LIVE_MODEL = 'models/gemini-2.0-flash-exp';
+    // CRITICAL FIX: Use the exact model name that works in Google AI Studio
+    const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
     console.log('[Savara Live] Initializing GenAI with model:', LIVE_MODEL);
     this.sessionPromise = ai.live.connect({
@@ -448,8 +430,8 @@ export class SavaraLiveClient {
     console.log(`[Savara Live] Starting audio input, mic sample rate: ${actualSampleRate}Hz, target: 16000Hz`);
 
     const source = this.inputContext.createMediaStreamSource(this.stream);
-    // Larger buffer for more stable processing
-    this.processor = this.inputContext.createScriptProcessor(8192, 1, 1);
+    // CRITICAL FIX: Reduced buffer size from 8192 to 2048 for lower latency (matches working code)
+    this.processor = this.inputContext.createScriptProcessor(2048, 1, 1);
 
     let chunkCount = 0;
     let lastSendTime = Date.now();
@@ -464,7 +446,7 @@ export class SavaraLiveClient {
         if (abs > maxAmplitude) maxAmplitude = abs;
       }
 
-      const pcmBlob = createBlob(inputData, actualSampleRate);
+      const pcmBlob = createBlob(inputData);
       const now = Date.now();
 
       // Log first 10 chunks to diagnose
