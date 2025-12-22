@@ -117,7 +117,7 @@ const App: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]"><Calculator size={20} className="text-black" /></div>
-            <div className="flex flex-col"><span className="font-bold text-lg leading-none tracking-tight">CalculaTu</span><span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{currentDate}</span></div>
+            <div className="flex flex-col"><span className="font-bold text-lg leading-none tracking-tight">CalculaTú</span><span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{currentDate}</span></div>
           </div>
           <button onClick={toggleCurrency} className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl px-3 py-1.5 border border-white/5 transition-all">
             <div className="text-right"><div className="text-[10px] text-gray-400 font-medium uppercase">Tasa BCV</div><div className="text-sm font-mono font-bold text-emerald-400">{showEuro ? `€ ${rates.EUR}` : `$ ${rates.USD}`}</div></div>
@@ -153,7 +153,7 @@ const App: React.FC = () => {
               icon={<BrainCircuit size={24} />}
               title="Cero Matemáticas"
               pain="Odio sacar la cuenta de $3.50 x 36.5 y luego sumarle el IVA..."
-              solution="CalculaTu convierte todo a Bs automáticamente a tasa oficial."
+              solution="CalculaTú convierte todo a Bs automáticamente a tasa oficial."
             />
             <FeatureCard
               icon={<Clock size={24} />}
@@ -284,7 +284,7 @@ const App: React.FC = () => {
         <footer className="text-center border-t border-white/5 pt-12 pb-6">
           <div className="flex items-center justify-center gap-2 mb-4 opacity-50">
             <Calculator size={16} />
-            <span className="font-semibold">CalculaTu</span>
+            <span className="font-semibold">CalculaTú</span>
           </div>
           <p className="text-gray-600 text-sm italic">© 2025-2026 MultiversaGroup. Hecho con ❤️ en Venezuela.</p>
         </footer>

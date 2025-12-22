@@ -3,7 +3,7 @@ export const BUILD_VERSION = 'v0.9.0-beta';
 export const BUILD_DATE = '2024-12-22';
 
 // App Name
-export const APP_NAME = 'CalculaTu';
+export const APP_NAME = 'CalculaTú';
 
 // Feature Flags
 export const FEATURES = {

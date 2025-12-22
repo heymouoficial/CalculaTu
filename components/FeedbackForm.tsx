@@ -64,7 +64,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
                         <ThumbsUp className="w-8 h-8 text-emerald-400" />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">¡Gracias!</h3>
-                    <p className="text-gray-400">Tu feedback nos ayuda a mejorar CalculaTu.</p>
+                    <p className="text-gray-400">Tu feedback nos ayuda a mejorar CalculaTú.</p>
                 </div>
             </div>
         );

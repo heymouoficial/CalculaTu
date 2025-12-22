@@ -1,6 +1,6 @@
 {
-  "name": "CalculaTu",
-  "short_name": "CalculaTu",
+  "name": "CalculaTú",
+  "short_name": "CalculaTú",
   "description": "Tu bolsillo inteligente: calcula compras y convierte a tasa BCV.",
   "start_url": "/",
   "scope": "/",

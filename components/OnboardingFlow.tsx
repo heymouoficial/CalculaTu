@@ -12,7 +12,7 @@ interface OnboardingSlide {
 const SLIDES: OnboardingSlide[] = [
     {
         icon: <Calculator size={48} />,
-        title: "¡Bienvenido a CalculaTu!",
+        title: "¡Bienvenido a CalculaTú!",
         description: "Tu asistente de mercado personal. Vamos a mostrarte cómo sacarle el máximo provecho.",
         highlight: "Solo toma 30 segundos",
         accentColor: "emerald",
@@ -34,7 +34,7 @@ const SLIDES: OnboardingSlide[] = [
     {
         icon: <Smartphone size={48} />,
         title: "Instala la App",
-        description: "Agrega CalculaTu a tu pantalla de inicio para acceso rápido y mejor rendimiento offline.",
+        description: "Agrega CalculaTú a tu pantalla de inicio para acceso rápido y mejor rendimiento offline.",
         highlight: "Funciona como app nativa",
         accentColor: "teal",
     },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send } from 'lucide-react';
+import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign } from 'lucide-react';
 import { RATES, SAVARA_AVATAR } from '../constants';
 import { ShoppingItem } from '../types';
 import { SavaraLiveClient } from '../services/geminiService';
@@ -9,6 +9,7 @@ import { generateDiagnosticReport, formatDiagnosticReport } from '../utils/diagn
 import { OnboardingFlow, useOnboarding } from './OnboardingFlow';
 import { FeedbackButton } from './FeedbackForm';
 import { BUILD_VERSION } from '../config';
+import { Confetti } from './Confetti';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -57,6 +58,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Copy Feedback State
   const [copiedState, setCopiedState] = useState<string | null>(null);
+
+  // Confetti State for license activation celebration
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Manual Input State
   const [inputName, setInputName] = useState('');
@@ -172,6 +176,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
           token,
         },
       });
+
+      // Show confetti celebration!
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3500);
 
       alert("¡Licencia Activada! Savara desbloqueada.");
     } catch {
@@ -319,7 +327,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
             <ArrowLeft size={18} />
           </button>
           <div className="flex flex-col">
-            <span className="text-sm font-black tracking-tight text-white leading-none">CalculaTu</span>
+            <span className="text-sm font-black tracking-tight text-white leading-none">CalculaTú</span>
             <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider flex items-center gap-1">
               <Calendar size={8} /> {currentDateDisplay}
             </span>
@@ -392,12 +400,12 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       {/* Rates Bar */}
       <div className="w-full border-y border-white/5 bg-black/40 py-3 flex justify-center gap-8 items-center text-xs font-black uppercase tracking-widest text-gray-500">
         <div className="flex gap-2 items-center">
-          <span>Tasa USD</span>
+          <DollarSign size={16} className="text-emerald-400" />
           <span className="text-white font-mono">Bs {rates.USD.toFixed(2)}</span>
         </div>
         <div className="h-3 w-px bg-white/10"></div>
         <div className="flex gap-2 items-center">
-          <span>Tasa EUR</span>
+          <Euro size={16} className="text-purple-400" />
           <span className="text-white font-mono">Bs {rates.EUR.toFixed(2).replace('.', ',')}</span>
         </div>
       </div>
@@ -458,7 +466,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 value={inputQuantity}
                 onChange={(e) => setInputQuantity(e.target.value)}
                 placeholder="Cant."
-                className="w-16 bg-black/40 border border-white/10 rounded-xl py-3 text-center text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 transition-all font-mono text-sm"
+                className="w-20 bg-black/40 border border-white/10 rounded-xl px-3 py-3 text-center text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 transition-all font-mono text-sm"
               />
               <input
                 type="text"
@@ -817,17 +825,17 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <div className="absolute top-0 right-0 p-3 opacity-20">
                       <Fingerprint size={64} className="text-emerald-500" />
                     </div>
-                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">Huella Digital del Dispositivo</p>
-                    <div className="flex items-center gap-3 mb-1">
-                      <code className="text-2xl font-mono font-bold text-white tracking-wider">{machineId}</code>
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3">Huella Digital del Dispositivo</p>
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <code className="text-xl font-mono font-bold text-white tracking-wider truncate flex-1">{machineId}</code>
                       <button
                         onClick={() => handleCopyText('machineId', machineId)}
-                        className={`p-1.5 rounded-lg transition-all ${copiedState === 'machineId'
-                          ? 'bg-emerald-500 text-black scale-110'
-                          : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${copiedState === 'machineId'
+                          ? 'bg-emerald-500 text-black'
+                          : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black active:scale-95'
                           }`}
                       >
-                        {copiedState === 'machineId' ? <Check size={14} /> : <Copy size={14} />}
+                        {copiedState === 'machineId' ? <><Check size={18} /> Copiado</> : <><Copy size={18} /> Copiar</>}
                       </button>
                     </div>
                     <p className="text-[10px] text-gray-500">Este ID es único para tu dispositivo.</p>
@@ -999,7 +1007,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                         }
 
                         // Try to send via WhatsApp
-                        const whatsappText = `Reporte CalculaTu\n\nTipo: ${supportIssueType}\nMensaje: ${supportMessage || 'N/A'}\n\nUIC: ${diagnostic.uic}\n\nDiagnóstico:\n${formatDiagnosticReport(diagnostic)}`;
+                        const whatsappText = `Reporte CalculaTú\n\nTipo: ${supportIssueType}\nMensaje: ${supportMessage || 'N/A'}\n\nUIC: ${diagnostic.uic}\n\nDiagnóstico:\n${formatDiagnosticReport(diagnostic)}`;
                         window.open(`https://wa.me/584142949498?text=${encodeURIComponent(whatsappText)}`, '_blank');
 
                         alert('Reporte generado. Se abrirá WhatsApp para enviarlo.');
@@ -1050,6 +1058,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
       {/* Onboarding Flow for first-time users */}
       {showOnboarding && <OnboardingFlow onComplete={completeOnboarding} />}
+
+      {/* Confetti celebration for license activation */}
+      <Confetti show={showConfetti} />
     </div>
   );
 };
