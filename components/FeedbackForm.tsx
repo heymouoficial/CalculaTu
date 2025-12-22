@@ -16,7 +16,8 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
     const [sent, setSent] = useState(false);
 
     const handleSubmit = async () => {
-        if (!message.trim()) return;
+        // Rating is required, message is optional
+        if (rating === 0) return;
 
         setIsSending(true);
 
@@ -24,7 +25,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
         const feedback = {
             type,
             rating,
-            message: message.trim(),
+            message: message.trim() || '(Sin comentario)',
             version: BUILD_VERSION,
             buildDate: BUILD_DATE,
             userAgent: navigator.userAgent,
@@ -107,8 +108,8 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
                                 key={opt.value}
                                 onClick={() => setType(opt.value as FeedbackType)}
                                 className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-all ${type === opt.value
-                                        ? 'bg-purple-500 text-white'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                    ? 'bg-purple-500 text-white'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
                                     }`}
                             >
                                 {opt.label}
@@ -117,10 +118,10 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
                     </div>
                 </div>
 
-                {/* Rating */}
+                {/* Rating - REQUIRED */}
                 <div className="mb-5">
                     <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 block">
-                        ¿Qué tan útil te parece? (Opcional)
+                        ¿Qué tan útil te parece? *
                     </label>
                     <div className="flex gap-1 justify-center">
                         {[1, 2, 3, 4, 5].map(star => (
@@ -134,18 +135,19 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
                             </button>
                         ))}
                     </div>
+                    {rating === 0 && <p className="text-center text-[10px] text-red-400 mt-1">Selecciona una puntuación</p>}
                 </div>
 
-                {/* Message */}
+                {/* Message - OPTIONAL */}
                 <div className="mb-5">
                     <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 block">
-                        Tu mensaje
+                        Tu mensaje (opcional)
                     </label>
                     <textarea
                         value={message}
                         onChange={e => setMessage(e.target.value)}
                         placeholder="Cuéntanos qué piensas, qué podemos mejorar, o reporta un problema..."
-                        rows={4}
+                        rows={3}
                         className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500/50 resize-none"
                     />
                 </div>
@@ -153,7 +155,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
                 {/* Submit */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!message.trim() || isSending}
+                    disabled={rating === 0 || isSending}
                     className="w-full py-3 rounded-xl bg-purple-500 text-white font-bold flex items-center justify-center gap-2 hover:bg-purple-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isSending ? (
@@ -186,10 +188,10 @@ export const FeedbackButton: React.FC = () => {
         <>
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-24 left-4 z-40 w-12 h-12 rounded-full bg-purple-500/90 text-white shadow-lg shadow-purple-500/30 flex items-center justify-center hover:bg-purple-400 transition-all active:scale-95"
+                className="fixed top-20 left-3 z-40 w-10 h-10 rounded-full bg-purple-500/80 text-white shadow-lg shadow-purple-500/20 flex items-center justify-center hover:bg-purple-400 hover:scale-110 transition-all active:scale-95"
                 title="Enviar Feedback"
             >
-                <MessageSquare size={22} />
+                <MessageSquare size={18} />
             </button>
 
             {isOpen && <FeedbackForm onClose={() => setIsOpen(false)} />}

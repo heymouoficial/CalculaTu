@@ -399,26 +399,48 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
           <span className="text-2xl font-bold text-emerald-500 italic">Bs.</span>
         </div>
 
-        {/* Budget Progress Bar */}
-        {budgetLimit > 0 && (
-          <div className="w-full max-w-[280px] mt-2 mb-4 px-4">
-            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
-              <span className="text-gray-500">Presupuesto</span>
-              <span className={currentTotals.usd > budgetLimit ? 'text-red-500' : 'text-emerald-500'}>
-                {Math.round((currentTotals.usd / budgetLimit) * 100)}%
-              </span>
+        {/* Budget Progress Bar - Enhanced with gradient */}
+        {budgetLimit > 0 && (() => {
+          const percentage = Math.min(100, (currentTotals.usd / budgetLimit) * 100);
+          const isOver = currentTotals.usd > budgetLimit;
+          const remaining = budgetLimit - currentTotals.usd;
+
+          // Progressive color based on percentage
+          const getBarColor = () => {
+            if (isOver) return 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]';
+            if (percentage > 80) return 'bg-gradient-to-r from-yellow-500 to-red-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]';
+            if (percentage > 50) return 'bg-gradient-to-r from-emerald-500 to-yellow-500';
+            return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]';
+          };
+
+          const getTextColor = () => {
+            if (isOver) return 'text-red-400';
+            if (percentage > 80) return 'text-yellow-400';
+            return 'text-emerald-400';
+          };
+
+          return (
+            <div className="w-full max-w-[280px] mt-2 mb-4 px-4">
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
+                <span className="text-gray-500">Presupuesto</span>
+                <span className={getTextColor()}>
+                  {Math.round(percentage)}%
+                </span>
+              </div>
+              <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/10">
+                <div
+                  className={`h-full transition-all duration-500 rounded-full ${getBarColor()}`}
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
+              <p className={`text-center text-[10px] mt-2 font-mono ${isOver ? 'text-red-400 font-bold' : 'text-gray-500'}`}>
+                {isOver
+                  ? `¡Excediste ${Math.abs(remaining).toFixed(2)} USD!`
+                  : `Quedan $${remaining.toFixed(2)} de $${budgetLimit.toFixed(2)}`}
+              </p>
             </div>
-            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <div
-                className={`h-full transition-all duration-500 ${currentTotals.usd > budgetLimit ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-emerald-500'}`}
-                style={{ width: `${Math.min(100, (currentTotals.usd / budgetLimit) * 100)}%` }}
-              />
-            </div>
-            <p className="text-center text-[9px] text-gray-600 mt-2 font-mono">
-              Quedan ${(budgetLimit - currentTotals.usd).toFixed(2)} de ${budgetLimit.toFixed(2)}
-            </p>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Currency Pills */}
         <div className="flex gap-4">
