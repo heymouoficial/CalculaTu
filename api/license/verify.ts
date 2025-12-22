@@ -29,8 +29,11 @@ export default async function handler(req: any, res: any) {
 
     const plan = payload.plan === 'lifetime' ? 'lifetime' : 'monthly';
     const exp = typeof payload.exp === 'number' ? new Date(payload.exp * 1000).toISOString() : null;
+    
+    // Extract features from payload (default to ['voice'] for Pro plans)
+    const features = Array.isArray(payload.features) ? payload.features as string[] : ['voice'];
 
-    return json(res, 200, { valid: true, plan, expiresAt: exp });
+    return json(res, 200, { valid: true, plan, expiresAt: exp, features });
   } catch (e: any) {
     return json(res, 200, { valid: false, error: 'Token inválido o expirado' });
   }

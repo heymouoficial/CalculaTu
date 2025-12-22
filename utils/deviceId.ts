@@ -1,16 +1,68 @@
-const MACHINE_ID_STORAGE_KEY = 'calculatu_machine_id_v1';
+const DB_NAME = 'calculatu_db';
+const DB_VERSION = 1;
+const UIC_STORE = 'identity';
 
-function safeGetLocalStorageItem(key: string): string | null {
+interface UICRecord {
+  uic: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+async function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      reject(new Error('IndexedDB not available'));
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(UIC_STORE)) {
+        db.createObjectStore(UIC_STORE, { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+async function getUICFromIndexedDB(): Promise<string | null> {
   try {
-    return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+    if (typeof window === 'undefined' || !window.indexedDB) return null;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(UIC_STORE, 'readonly');
+      const store = tx.objectStore(UIC_STORE);
+      const req = store.get('uic');
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        const data = req.result;
+        resolve(data?.uic || null);
+      };
+    });
   } catch {
     return null;
   }
 }
 
-function safeSetLocalStorageItem(key: string, value: string) {
+async function saveUICToIndexedDB(uic: string): Promise<void> {
   try {
-    if (typeof window !== 'undefined') window.localStorage.setItem(key, value);
+    if (typeof window === 'undefined' || !window.indexedDB) return;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(UIC_STORE, 'readwrite');
+      const store = tx.objectStore(UIC_STORE);
+      const now = new Date().toISOString();
+      const record: UICRecord & { id: string } = {
+        id: 'uic',
+        uic,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const req = store.put(record);
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => resolve();
+    });
   } catch {
     // ignore
   }
@@ -50,16 +102,73 @@ function fingerprintString(): string {
   ].join('|');
 }
 
-export function getOrCreateMachineId(): string {
-  const existing = safeGetLocalStorageItem(MACHINE_ID_STORAGE_KEY);
-  if (existing) return existing;
+// Legacy fallback: check localStorage for migration
+const MACHINE_ID_STORAGE_KEY = 'calculatu_machine_id_v1';
 
+function safeGetLocalStorageItem(key: string): string | null {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeRemoveLocalStorageItem(key: string) {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
+export async function getOrCreateUIC(): Promise<string> {
+  // 1. Try IndexedDB first (primary source)
+  const existingFromIDB = await getUICFromIndexedDB();
+  if (existingFromIDB) return existingFromIDB;
+
+  // 2. Legacy migration: check localStorage and migrate
+  const legacyId = safeGetLocalStorageItem(MACHINE_ID_STORAGE_KEY);
+  if (legacyId) {
+    await saveUICToIndexedDB(legacyId);
+    safeRemoveLocalStorageItem(MACHINE_ID_STORAGE_KEY); // Cleanup
+    return legacyId;
+  }
+
+  // 3. Generate new UIC
   const fp = fingerprintString();
   const hash = fnv1a64(fp);
   const base36 = hash.toString(36).toUpperCase();
-  const id = `M-${base36.slice(0, 10).padEnd(10, '0')}`;
-  safeSetLocalStorageItem(MACHINE_ID_STORAGE_KEY, id);
-  return id;
+  const uic = `M-${base36.slice(0, 10).padEnd(10, '0')}`;
+  await saveUICToIndexedDB(uic);
+  return uic;
+}
+
+// Synchronous fallback for Zustand initialization (returns promise-wrapped value)
+let cachedUIC: string | null = null;
+let uicPromise: Promise<string> | null = null;
+
+export function getOrCreateMachineId(): string {
+  // For Zustand store init, we need synchronous value
+  // Cache will be populated async on first call
+  if (cachedUIC) return cachedUIC;
+  
+  if (!uicPromise) {
+    uicPromise = getOrCreateUIC().then((uic) => {
+      cachedUIC = uic;
+      return uic;
+    });
+  }
+  
+  // Return placeholder that will be updated when promise resolves
+  // Store will re-render when UIC is available
+  return cachedUIC || 'M-LOADING...';
+}
+
+// Initialize UIC cache on module load
+if (typeof window !== 'undefined') {
+  getOrCreateUIC().then((uic) => {
+    cachedUIC = uic;
+  });
 }
 
 

@@ -1,23 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar } from 'lucide-react';
+import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send } from 'lucide-react';
 import { RATES, SAVARA_AVATAR } from '../constants';
 import { ShoppingItem } from '../types';
 import { SavaraLiveClient } from '../services/geminiService';
+import { saveHistoryEntry, getAllHistoryEntries, deleteHistoryEntry, HistoryEntry } from '../utils/historyDB';
 import { useAppStore } from '../store/useAppStore';
+import { generateDiagnosticReport, formatDiagnosticReport } from '../utils/diagnostics';
 
 interface CalculatorViewProps {
   onBack: () => void;
-}
-
-interface HistoryEntry {
-  id: string;
-  date: string;
-  time: string;
-  totalBs: number;
-  totalUsd: number;
-  totalEur: number;
-  itemCount: number;
-  items: ShoppingItem[]; // Saved items to reconstruct the voucher
 }
 
 export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
@@ -38,7 +29,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const [isListening, setIsListening] = useState(false);
 
   // Settings Drawer State
-  const [activeTab, setActiveTab] = useState<'config' | 'history' | 'license'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'history' | 'license' | 'support'>('config');
+  const [supportIssueType, setSupportIssueType] = useState<string>('');
+  const [supportMessage, setSupportMessage] = useState('');
   const budgetLimit = useAppStore(s => s.budgetLimit);
   const setBudgetLimit = useAppStore(s => s.setBudgetLimit);
   const rates = useAppStore(s => s.rates);
@@ -47,6 +40,13 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const ratesOverrideExpiresAt = useAppStore(s => s.ratesOverrideExpiresAt);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const machineId = useAppStore(s => s.machineId);
+
+  // Load history from IndexedDB on mount
+  useEffect(() => {
+    getAllHistoryEntries().then((entries) => {
+      setHistory(entries);
+    });
+  }, []);
   const [activationToken, setActivationToken] = useState('');
 
   // Copy Feedback State
@@ -110,11 +110,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     }
   };
 
-  const handleCloseVoucher = () => {
+  const handleCloseVoucher = async () => {
     // Only save if we are closing a NEW voucher, not viewing history
     if (!viewingHistoryEntry) {
       const date = new Date();
-      const newEntry: HistoryEntry = {
+      const newEntry: Omit<HistoryEntry, 'createdAt'> = {
         id: Date.now().toString(),
         date: date.toLocaleDateString('es-VE'),
         time: date.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
@@ -124,6 +124,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         itemCount: items.length,
         items: [...items] // Deep copy items
       };
+
+      // Save to IndexedDB
+      await saveHistoryEntry(newEntry);
       setHistory(prev => [newEntry, ...prev]);
       setItems([]); // Clear list after "saving"
     }
@@ -149,11 +152,19 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         return;
       }
 
+      const features = Array.isArray(data.features) ? data.features : ['voice'];
+
       setLicense({
         active: true,
         plan: data.plan,
         expiresAt: data.expiresAt ?? null,
         token,
+        featureToken: {
+          uic: machineId,
+          features,
+          expiresAt: data.expiresAt ?? null,
+          token,
+        },
       });
 
       alert("¡Licencia Activada! Savara desbloqueada.");
@@ -186,7 +197,16 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Toggle Savara Logic
   const toggleSavara = async () => {
-    if (!license.active) return; // Guard clause
+    // FASE 3: Validate Feature Token before initializing Savara
+    if (!license.active || !license.featureToken) {
+      alert('Savara requiere una licencia activa con feature "voice".');
+      return;
+    }
+
+    if (!license.featureToken.features.includes('voice')) {
+      alert('Tu licencia no incluye la feature "voice". Contacta soporte.');
+      return;
+    }
 
     if (isListening) {
       await liveClientRef.current?.disconnect();
@@ -218,8 +238,16 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         });
         await client.connect();
         liveClientRef.current = client;
+
+        // Log initial state after connection
+        console.log('[Savara] Connected, state:', client.getState());
       } catch (e) {
+        console.error('[Savara] Connection error:', e);
         setIsListening(false);
+        // Log state on error
+        if (liveClientRef.current) {
+          console.log('[Savara] Error state:', liveClientRef.current.getState());
+        }
       }
     }
   };
@@ -575,24 +603,30 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
             <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-6 shrink-0"></div>
 
             {/* TABS HEADER */}
-            <div className="flex bg-white/5 p-1 rounded-xl mb-6 shrink-0">
+            <div className="grid grid-cols-2 gap-1 bg-white/5 p-1 rounded-xl mb-6 shrink-0">
               <button
                 onClick={() => setActiveTab('config')}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'config' ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                className={`py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'config' ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-white'}`}
               >
                 Config
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'history' ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                className={`py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'history' ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-white'}`}
               >
                 Historial
               </button>
               <button
                 onClick={() => setActiveTab('license')}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'license' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-gray-500 hover:text-white'}`}
+                className={`py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'license' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-gray-500 hover:text-white'}`}
               >
                 Licencia
+              </button>
+              <button
+                onClick={() => setActiveTab('support')}
+                className={`py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${activeTab === 'support' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-gray-500 hover:text-white'}`}
+              >
+                Soporte
               </button>
             </div>
 
@@ -718,6 +752,40 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               {activeTab === 'license' && (
                 <div className="space-y-6 animate-fade-in">
 
+                  {/* License Status - Only show if license is active */}
+                  {license.active && (
+                    <div className={`p-6 rounded-2xl border relative overflow-hidden ${license.plan === 'lifetime'
+                      ? 'bg-gradient-to-br from-purple-900/30 to-black border-purple-500/40'
+                      : 'bg-gradient-to-br from-emerald-900/30 to-black border-emerald-500/40'
+                      }`}>
+                      <div className="absolute top-0 right-0 p-3 opacity-20">
+                        {license.plan === 'lifetime' ? (
+                          <span className="text-5xl">💎</span>
+                        ) : (
+                          <Check size={64} className="text-emerald-500" />
+                        )}
+                      </div>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${license.plan === 'lifetime' ? 'text-purple-400' : 'text-emerald-400'
+                        }`}>
+                        {license.plan === 'lifetime' ? 'Licencia Lifetime' : 'Licencia Mensual'}
+                      </p>
+                      <p className="text-xl font-bold text-white mb-2">
+                        {license.plan === 'lifetime'
+                          ? '¡Gracias por confiar en nosotros!'
+                          : '✅ Licencia Activada'}
+                      </p>
+                      <p className={`text-sm ${license.plan === 'lifetime' ? 'text-purple-300' : 'text-emerald-300'}`}>
+                        {license.plan === 'lifetime'
+                          ? 'Tu licencia no vence nunca. Disfruta de Savara sin límites.'
+                          : `Próxima renovación: ${license.expiresAt
+                            ? new Date(license.expiresAt).toLocaleDateString('es-VE', {
+                              day: 'numeric', month: 'long', year: 'numeric'
+                            })
+                            : 'No definida'}`}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Machine ID Card */}
                   <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-black border border-emerald-500/30 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-3 opacity-20">
@@ -727,10 +795,13 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <div className="flex items-center gap-3 mb-1">
                       <code className="text-2xl font-mono font-bold text-white tracking-wider">{machineId}</code>
                       <button
-                        onClick={() => navigator.clipboard.writeText(machineId)}
-                        className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
+                        onClick={() => handleCopyText('machineId', machineId)}
+                        className={`p-1.5 rounded-lg transition-all ${copiedState === 'machineId'
+                          ? 'bg-emerald-500 text-black scale-110'
+                          : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black'
+                          }`}
                       >
-                        <Copy size={14} />
+                        {copiedState === 'machineId' ? <Check size={14} /> : <Copy size={14} />}
                       </button>
                     </div>
                     <p className="text-[10px] text-gray-500">Este ID es único para tu dispositivo.</p>
@@ -804,6 +875,122 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     </p>
                   </div>
 
+                </div>
+              )}
+
+              {/* === SUPPORT TAB === */}
+              {activeTab === 'support' && (
+                <div className="space-y-6 animate-fade-in">
+                  <div className="p-6 rounded-2xl bg-blue-900/20 border border-blue-500/30">
+                    <div className="flex items-center gap-3 mb-4">
+                      <HelpCircle size={24} className="text-blue-400" />
+                      <h3 className="text-sm font-black uppercase tracking-widest text-blue-400">Soporte & Reportes</h3>
+                    </div>
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      Reporta problemas técnicos. No necesitas escribir datos técnicos, nuestro sistema los detecta automáticamente.
+                    </p>
+                  </div>
+
+                  {/* Issue Type Selector */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                      Tipo de Problema
+                    </label>
+                    <select
+                      value={supportIssueType}
+                      onChange={(e) => setSupportIssueType(e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500/50"
+                    >
+                      <option value="">Selecciona un tipo...</option>
+                      <option value="voice">Savara (Voz) no funciona</option>
+                      <option value="license">Problema con licencia</option>
+                      <option value="calculation">Error en cálculos</option>
+                      <option value="offline">Problemas offline</option>
+                      <option value="other">Otro problema</option>
+                    </select>
+                  </div>
+
+                  {/* Optional Message */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                      Mensaje (Opcional)
+                    </label>
+                    <textarea
+                      value={supportMessage}
+                      onChange={(e) => setSupportMessage(e.target.value)}
+                      placeholder="Describe brevemente qué pasó..."
+                      rows={4}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 resize-none"
+                    />
+                  </div>
+
+                  {/* Send Report Button */}
+                  <button
+                    onClick={async () => {
+                      if (!supportIssueType) {
+                        alert('Por favor selecciona un tipo de problema.');
+                        return;
+                      }
+
+                      try {
+                        const diagnostic = await generateDiagnosticReport();
+                        const report = {
+                          issueType: supportIssueType,
+                          message: supportMessage || '(Sin mensaje)',
+                          diagnostic: formatDiagnosticReport(diagnostic),
+                          timestamp: new Date().toISOString(),
+                        };
+
+                        // Store in IndexedDB for offline sending
+                        try {
+                          if (typeof window !== 'undefined' && window.indexedDB) {
+                            const db = await new Promise<IDBDatabase>((resolve, reject) => {
+                              const req = indexedDB.open('calculatu_db', 1);
+                              req.onsuccess = () => resolve(req.result);
+                              req.onerror = () => reject(req.error);
+                              req.onupgradeneeded = (e) => {
+                                const db = (e.target as IDBOpenDBRequest).result;
+                                if (!db.objectStoreNames.contains('support_reports')) {
+                                  db.createObjectStore('support_reports', { keyPath: 'id', autoIncrement: true });
+                                }
+                              };
+                            });
+
+                            const tx = db.transaction('support_reports', 'readwrite');
+                            const store = tx.objectStore('support_reports');
+                            await new Promise((resolve, reject) => {
+                              const req = store.add({ ...report, id: Date.now() });
+                              req.onsuccess = () => resolve(req.result);
+                              req.onerror = () => reject(req.error);
+                            });
+                          }
+                        } catch (dbErr) {
+                          console.error('Error storing report:', dbErr);
+                        }
+
+                        // Try to send via WhatsApp
+                        const whatsappText = `Reporte CalculaTu\n\nTipo: ${supportIssueType}\nMensaje: ${supportMessage || 'N/A'}\n\nUIC: ${diagnostic.uic}\n\nDiagnóstico:\n${formatDiagnosticReport(diagnostic)}`;
+                        window.open(`https://wa.me/584142949498?text=${encodeURIComponent(whatsappText)}`, '_blank');
+
+                        alert('Reporte generado. Se abrirá WhatsApp para enviarlo.');
+                        setSupportIssueType('');
+                        setSupportMessage('');
+                      } catch (err) {
+                        console.error('Error generating report:', err);
+                        alert('Hubo un error generando el reporte. Intenta de nuevo.');
+                      }
+                    }}
+                    className="w-full py-4 rounded-xl bg-blue-500 text-white font-bold uppercase tracking-wide shadow-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Send size={20} /> Enviar Reporte
+                  </button>
+
+                  {/* Diagnostic Info */}
+                  <div className="p-4 rounded-xl bg-black/40 border border-white/5">
+                    <p className="text-[10px] text-gray-500 text-center leading-relaxed">
+                      El diagnóstico se genera automáticamente y no incluye datos personales. Se almacena localmente para envío offline si es necesario.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

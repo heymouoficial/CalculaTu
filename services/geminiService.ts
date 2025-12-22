@@ -1,6 +1,14 @@
-import { GoogleGenAI, Chat, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
+/**
+ * Gemini Service - Redesigned Chat Implementation
+ * Uses @google/genai SDK with the correct API methods
+ */
 
-const LANDING_SYSTEM_INSTRUCTION = `Eres Savara, la voz oficial de CalculaTu.
+import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
+
+// ==================== LANDING CHAT (Text-based) ====================
+
+const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTu.
+
 CONOCIMIENTO OBLIGATORIO:
 1. ¿Qué es CalculaTu?: App inteligente para controlar gastos del mercado. Convierte USD/EUR a Bs usando tasa BCV.
 2. Cómo funciona: Sumas productos, Savara convierte y te da el total. Funciona con voz o teclado.
@@ -14,11 +22,112 @@ CONOCIMIENTO OBLIGATORIO:
 
 ESTRUCTURA DE RESPUESTA:
 - Si mencionas pagos, usa [[BINANCE]] o [[PAGO_MOVIL]] para que el sistema muestre la tarjeta.
-- Sé breve, amable y profesional. Usa negritas para resaltar puntos clave.`;
+- Sé breve, amable y profesional. Usa negritas para resaltar puntos clave.
+- Responde siempre en español.`;
 
-const LIVE_TEXT_MODEL = 'gemini-2.0-flash-exp';
+// Chat model - gemini-2.5-flash is the current stable model per official docs
+const CHAT_MODEL = 'gemini-2.5-flash';
 
-// --- Audio Helpers (PCM raw streams) ---
+// Store for conversation history
+interface ConversationMessage {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
+class SavaraChat {
+  private ai: GoogleGenAI;
+  private history: ConversationMessage[] = [];
+
+  constructor(apiKey: string) {
+    this.ai = new GoogleGenAI({ apiKey });
+  }
+
+  async sendMessage(userMessage: string): Promise<string> {
+    // Add user message to history
+    this.history.push({
+      role: 'user',
+      parts: [{ text: userMessage }]
+    });
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: CHAT_MODEL,
+        contents: this.history,
+        config: {
+          systemInstruction: SAVARA_SYSTEM_PROMPT,
+          maxOutputTokens: 1000,
+        }
+      });
+
+      const responseText = response.text || "Perdona, ¿me repites eso?";
+
+      // Add model response to history
+      this.history.push({
+        role: 'model',
+        parts: [{ text: responseText }]
+      });
+
+      return responseText;
+    } catch (error: any) {
+      console.error('[Savara Chat] Error:', error?.message || error);
+
+      // Remove the failed user message from history
+      this.history.pop();
+
+      throw error;
+    }
+  }
+
+  clearHistory() {
+    this.history = [];
+  }
+}
+
+// Singleton instance
+let chatInstance: SavaraChat | null = null;
+
+/**
+ * Creates or returns the chat instance
+ */
+export const createChatSession = (): SavaraChat => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.error('[Savara Chat] API KEY no encontrada.');
+    console.error('[Savara Chat] Verifica que .env.local tenga: VITE_GEMINI_API_KEY=tu_key');
+    throw new Error('VITE_GEMINI_API_KEY no configurada');
+  }
+
+  if (!chatInstance) {
+    chatInstance = new SavaraChat(apiKey);
+    console.log('[Savara Chat] Nueva sesión creada');
+  }
+
+  return chatInstance;
+};
+
+/**
+ * Sends a message and returns the response
+ */
+export const sendMessageToGemini = async (chat: SavaraChat, message: string): Promise<string> => {
+  try {
+    console.log('[Savara Chat] Enviando:', message);
+    const response = await chat.sendMessage(message);
+    console.log('[Savara Chat] Respuesta:', response.substring(0, 100) + '...');
+    return response;
+  } catch (error: any) {
+    console.error('[Savara Chat] Error completo:', {
+      name: error?.name,
+      message: error?.message,
+      status: error?.status,
+    });
+    return "Me desconecté un segundo, pero ya estoy aquí. ¿En qué te ayudo?";
+  }
+};
+
+// ==================== SAVARA LIVE VOICE (Pro Feature) ====================
+
+// Audio Helpers
 function decode(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -90,8 +199,18 @@ const finishListTool: FunctionDeclaration = {
   parameters: { type: Type.OBJECT, properties: {} }
 };
 
+export interface SavaraState {
+  microphone: 'granted' | 'denied' | 'unknown';
+  inputAudioContext: 'running' | 'suspended' | 'closed' | 'none';
+  outputAudioContext: 'running' | 'suspended' | 'closed' | 'none';
+  websocket: 'open' | 'closed' | 'error' | 'none';
+  license: boolean;
+  timestamp: string;
+}
+
 export class SavaraLiveClient {
   private sessionPromise: Promise<any> | null = null;
+  private session: any = null;
   private inputContext: AudioContext | null = null;
   private outputContext: AudioContext | null = null;
   private stream: MediaStream | null = null;
@@ -99,43 +218,80 @@ export class SavaraLiveClient {
   private nextStartTime = 0;
   private config: any;
   private sources = new Set<AudioBufferSourceNode>();
+  private wsState: 'open' | 'closed' | 'error' | 'none' = 'none';
 
   constructor(config: any) {
     this.config = config;
   }
 
+  getState(): SavaraState {
+    return {
+      microphone: this.stream?.active ? 'granted' : 'denied',
+      inputAudioContext: this.inputContext ? (this.inputContext.state as any) : 'none',
+      outputAudioContext: this.outputContext ? (this.outputContext.state as any) : 'none',
+      websocket: this.wsState,
+      license: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private logState(operation: string) {
+    const state = this.getState();
+    console.log(`[Savara Live] ${operation}:`, state);
+  }
+
   async connect() {
-    this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-    this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    try {
+      this.logState('connect:start');
 
-    // Low Latency Fix: Resume contexts immediately
-    if (this.inputContext.state === 'suspended') await this.inputContext.resume();
-    if (this.outputContext.state === 'suspended') await this.outputContext.resume();
+      this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      this.logState('connect:audioContexts-created');
 
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (this.inputContext.state === 'suspended') await this.inputContext.resume();
+      if (this.outputContext.state === 'suspended') await this.outputContext.resume();
+      this.logState('connect:audioContexts-resumed');
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.logState('connect:microphone-granted');
+    } catch (err) {
+      console.error('[Savara Live] Error during connect setup:', err);
+      this.logState('connect:error');
+      throw err;
+    }
+
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+    if (!apiKey) {
+      console.error('[Savara Live] API KEY no encontrada.');
+      throw new Error('VITE_GEMINI_API_KEY no configurada');
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `Eres Savara, la inteligencia de CalculaTu. Tu tono es humano, cálido y experto.
-        GUÍA DE OPERACIÓN:
-        1. El usuario dirá cosas como "Savara, agrega dos harinas pan a 1.25 cada una".
-        2. EXTRAE: name, price, quantity, currency.
-        3. SIEMPRE detecta la moneda:
-           - "un dólar", "uno con veinte", "uno punto cinco", "cada una" -> currency: 'USD'
-           - "dos euros", "1.50 euros" -> currency: 'EUR'
-           - "cien bolívares", "mil soberanos", "en bss" -> currency: 'VES'
-        4. Si no especifica moneda pero el monto es pequeño (ej. < 10), asume USD. 
-        5. Llama a addItem() para cada producto detectado.
-        6. Responde confirmando brevemente: "Vale, dos harinas pan agregadas."
-        
-        TASAS Y PLANES:
-        - CalculaTu convierte automáticamente USD/EUR a Bs usando la tasa BCV oficial.
-        - Savara Pro Lifetime: $10 (Pago único, oferta válida). Regular $15.`;
+GUÍA DE OPERACIÓN:
+1. El usuario dirá cosas como "Savara, agrega dos harinas pan a 1.25 cada una".
+2. EXTRAE: name, price, quantity, currency.
+3. SIEMPRE detecta la moneda:
+   - "un dólar", "uno con veinte" -> currency: 'USD'
+   - "dos euros", "1.50 euros" -> currency: 'EUR'
+   - "cien bolívares", "en bss" -> currency: 'VES'
+4. Si no especifica moneda pero el monto es pequeño, asume USD.
+5. Llama a addItem() para cada producto detectado.
+6. Responde confirmando brevemente.`;
+
+    // Live API model for voice - per official docs for audio
+    const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
     this.sessionPromise = ai.live.connect({
-      model: 'gemini-2.0-flash-exp',
+      model: LIVE_MODEL,
       callbacks: {
-        onopen: () => { this.startAudioInput(); },
+        onopen: () => {
+          this.wsState = 'open';
+          this.logState('websocket:opened');
+          this.startAudioInput();
+        },
         onmessage: async (message: LiveServerMessage) => {
           const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audioData && this.outputContext) {
@@ -159,8 +315,17 @@ export class SavaraLiveClient {
             }
           }
         },
-        onclose: () => this.config.onClose(),
-        onerror: () => this.config.onClose()
+        onclose: () => {
+          this.wsState = 'closed';
+          this.logState('websocket:closed');
+          this.config.onClose();
+        },
+        onerror: (err: any) => {
+          this.wsState = 'error';
+          console.error('[Savara Live] WebSocket error:', err);
+          this.logState('websocket:error');
+          this.config.onClose();
+        }
       },
       config: {
         responseModalities: [Modality.AUDIO],
@@ -170,13 +335,15 @@ export class SavaraLiveClient {
         },
         tools: [{ functionDeclarations: [addItemTool, finishListTool] }]
       }
+    }).then((session) => {
+      this.session = session;
+      return session;
     });
   }
 
   private startAudioInput() {
     if (!this.inputContext || !this.stream) return;
     const source = this.inputContext.createMediaStreamSource(this.stream);
-    // Latency Optimization: Reduced buffer size from 4096 to 2048
     this.processor = this.inputContext.createScriptProcessor(2048, 1, 1);
     this.processor.onaudioprocess = (e) => {
       const inputData = e.inputBuffer.getChannelData(0);
@@ -190,51 +357,23 @@ export class SavaraLiveClient {
   }
 
   async disconnect() {
+    this.logState('disconnect:start');
+
     if (this.processor) this.processor.disconnect();
     if (this.stream) this.stream.getTracks().forEach(t => t.stop());
-    if (this.inputContext) await this.inputContext.close();
-    if (this.outputContext) await this.outputContext.close();
-    this.sessionPromise?.then(session => session.close());
+
+    try {
+      if (this.inputContext) await this.inputContext.close();
+      if (this.outputContext) await this.outputContext.close();
+      if (this.session) await this.session.close();
+    } catch (err) {
+      console.error('[Savara Live] Error during disconnect:', err);
+    }
+
+    this.wsState = 'closed';
+    this.logState('disconnect:complete');
   }
 }
 
-export const connectLandingLiveChat = async (callbacks: {
-  onmessage: (message: LiveServerMessage) => void;
-  onclose?: () => void;
-  onerror?: () => void;
-  onopen?: () => void;
-}) => {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
-  return ai.live.connect({
-    model: LIVE_TEXT_MODEL,
-    callbacks: {
-      onopen: callbacks.onopen,
-      onmessage: callbacks.onmessage,
-      onclose: callbacks.onclose,
-      onerror: callbacks.onerror,
-    },
-    config: {
-      responseModalities: [Modality.TEXT],
-      systemInstruction: LANDING_SYSTEM_INSTRUCTION,
-    },
-  });
-};
-
-export const createChatSession = (): Chat => {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
-  return ai.chats.create({
-    model: 'gemini-2.0-flash-exp',
-    config: {
-      systemInstruction: LANDING_SYSTEM_INSTRUCTION,
-    },
-  });
-};
-
-export const sendMessageToGemini = async (chat: Chat, message: string): Promise<string> => {
-  try {
-    const response = await chat.sendMessage({ message });
-    return response.text || "Perdona, ¿me repites eso?";
-  } catch (error) {
-    return "Me desconecté un segundo, pero ya estoy aquí. ¿En qué te ayudo?";
-  }
-};
+// Export the Chat type for TypeScript
+export type { SavaraChat };

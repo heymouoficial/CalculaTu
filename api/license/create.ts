@@ -40,9 +40,11 @@ export default async function handler(req: any, res: any) {
   if (!deviceId) return json(res, 400, { error: 'deviceId is required' });
 
   const expiresAt = computeExpiry(plan, body.months);
+  // Pro plans include voice feature by default
   const payload = {
     plan,
     deviceId,
+    features: ['voice'], // Feature tokens: Pro includes voice
   };
 
   const encoder = new TextEncoder();

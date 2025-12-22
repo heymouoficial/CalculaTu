@@ -1,14 +1,22 @@
 import { create } from 'zustand';
 import { RATES } from '../constants';
-import { getOrCreateMachineId } from '../utils/deviceId';
+import { getOrCreateMachineId, getOrCreateUIC } from '../utils/deviceId';
 
 export type LicensePlan = 'monthly' | 'lifetime';
+
+export type FeatureToken = {
+  uic: string;
+  features: string[]; // e.g., ['voice']
+  expiresAt: string | null;
+  token: string;
+};
 
 export type LicenseState = {
   active: boolean;
   plan?: LicensePlan;
   expiresAt?: string | null;
   token?: string | null;
+  featureToken?: FeatureToken | null; // Feature token with specific features
 };
 
 type AppState = {
@@ -71,15 +79,17 @@ function persistRatesOverride(machineId: string, override: RatesOverride | null)
 function readStoredLicense(): LicenseState {
   try {
     const raw = typeof window !== 'undefined' ? window.localStorage.getItem(LICENSE_STORAGE_KEY) : null;
-    if (!raw) return { active: false, expiresAt: null, token: null };
+    if (!raw) return { active: false, expiresAt: null, token: null, featureToken: null };
     const parsed = JSON.parse(raw) as LicenseState;
     if (parsed?.expiresAt) {
       const exp = Date.parse(parsed.expiresAt);
-      if (Number.isFinite(exp) && Date.now() > exp) return { active: false, expiresAt: parsed.expiresAt, token: parsed.token ?? null };
+      if (Number.isFinite(exp) && Date.now() > exp) {
+        return { active: false, expiresAt: parsed.expiresAt, token: parsed.token ?? null, featureToken: null };
+      }
     }
-    return { ...parsed, active: !!parsed.active };
+    return { ...parsed, active: !!parsed.active, featureToken: parsed.featureToken ?? null };
   } catch {
-    return { active: false, expiresAt: null, token: null };
+    return { active: false, expiresAt: null, token: null, featureToken: null };
   }
 }
 
@@ -110,8 +120,14 @@ function persistBudget(limit: number) {
   }
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  machineId: getOrCreateMachineId(),
+export const useAppStore = create<AppState>((set) => {
+  // Initialize UIC async and update store when ready
+  getOrCreateUIC().then((uic) => {
+    set({ machineId: uic });
+  });
+  
+  return {
+    machineId: getOrCreateMachineId(), // Sync fallback (will update when async completes)
   baseRates: RATES,
   rates: (() => {
     const id = getOrCreateMachineId();
@@ -162,10 +178,12 @@ export const useAppStore = create<AppState>((set) => ({
     }),
   clearLicense: () =>
     set(() => {
-      const license: LicenseState = { active: false, expiresAt: null, token: null };
+      const license: LicenseState = { active: false, expiresAt: null, token: null, featureToken: null };
       persistLicense(license);
       return { license };
     }),
-}));
+
+  };
+});
 
 

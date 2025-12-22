@@ -1,37 +1,31 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { devLicenseApiPlugin } from './dev/licenseApiPlugin';
 
-function resolveGeminiApiKey() {
-  // Prefer GEMINI_API_KEY (Vercel), but support common variants.
-  return (
-    process.env.GEMINI_API_KEY ||
-    process.env.VITE_GEMINI_API_KEY ||
-    process.env.API_KEY ||
-    ''
-  );
-}
-
-export default defineConfig(() => {
-  const apiKey = resolveGeminiApiKey();
+export default defineConfig(({ mode }) => {
   const rootDir = path.dirname(fileURLToPath(import.meta.url));
+  const env = loadEnv(mode, rootDir, '');
 
   return {
     server: {
       port: 3000,
       host: '0.0.0.0',
     },
-    plugins: [react()],
-    define: {
-      // Keep contract used by Google AI Studio generated code.
-      'process.env.API_KEY': JSON.stringify(apiKey),
-      'process.env.GEMINI_API_KEY': JSON.stringify(apiKey),
-    },
+    plugins: [
+      react(),
+      // Mock Vercel license APIs for local development
+      mode === 'development' && devLicenseApiPlugin(),
+    ].filter(Boolean),
     resolve: {
       alias: {
         '@': rootDir,
       },
+    },
+    // Compatibilidad con código antiguo de Google AI Studio
+    define: {
+      'process.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
     },
   };
 });

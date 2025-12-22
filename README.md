@@ -33,7 +33,9 @@
 
 ### Frontend (Vercel → Environment Variables)
 
-- **`GEMINI_API_KEY`**: clave de Gemini (se inyecta en build para el cliente).
+- **`GEMINI_API_KEY`** o **`VITE_GEMINI_API_KEY`**: clave de Gemini (se inyecta en build para el cliente). 
+  - ⚠️ **IMPORTANTE**: Si usas `GEMINI_API_KEY`, Vite la mapea automáticamente a `VITE_GEMINI_API_KEY` en el cliente.
+  - Si prefieres usar directamente `VITE_GEMINI_API_KEY`, también funciona.
 - **`VITE_SUPABASE_URL`**: URL del proyecto Supabase.
 - **`VITE_SUPABASE_ANON_KEY`**: anon key de Supabase.
 
