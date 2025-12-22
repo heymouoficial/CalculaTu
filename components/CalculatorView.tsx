@@ -6,6 +6,9 @@ import { SavaraLiveClient } from '../services/geminiService';
 import { saveHistoryEntry, getAllHistoryEntries, deleteHistoryEntry, HistoryEntry } from '../utils/historyDB';
 import { useAppStore } from '../store/useAppStore';
 import { generateDiagnosticReport, formatDiagnosticReport } from '../utils/diagnostics';
+import { OnboardingFlow, useOnboarding } from './OnboardingFlow';
+import { FeedbackButton } from './FeedbackForm';
+import { BUILD_VERSION } from '../config';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -40,6 +43,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const ratesOverrideExpiresAt = useAppStore(s => s.ratesOverrideExpiresAt);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const machineId = useAppStore(s => s.machineId);
+
+  // Onboarding for first-time users
+  const { showOnboarding, completeOnboarding } = useOnboarding();
 
   // Load history from IndexedDB on mount
   useEffect(() => {
@@ -1013,6 +1019,17 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         .animate-fade-in-up { animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
         .custom-scroll::-webkit-scrollbar { display: none; }
       `}</style>
+
+      {/* Feedback Button */}
+      <FeedbackButton />
+
+      {/* Version Badge */}
+      <div className="fixed bottom-2 right-2 z-30 text-[10px] text-gray-600 font-mono bg-black/50 px-2 py-0.5 rounded">
+        {BUILD_VERSION}
+      </div>
+
+      {/* Onboarding Flow for first-time users */}
+      {showOnboarding && <OnboardingFlow onComplete={completeOnboarding} />}
     </div>
   );
 };
