@@ -333,26 +333,28 @@ export class SavaraLiveClient {
 - Numeric value + Currency + Brief context (Optional).
 - Maximum 15 words per response.`;
 
-    // Live API model for native audio - this is the correct model for bidirectional audio
-    const LIVE_MODEL = 'gemini-2.0-flash-live-001';
+    // Live API model for native audio - this is the most compatible one for Multimodal Live API
+    const LIVE_MODEL = 'gemini-2.0-flash-exp';
 
     this.sessionPromise = ai.live.connect({
       model: LIVE_MODEL,
       callbacks: {
         onopen: () => {
           this.wsState = 'open';
-          console.log('[Savara Live] WebSocket opened successfully');
+          console.log('[Savara Live] WebSocket opened successfully with', LIVE_MODEL);
           this.logState('websocket:opened');
-          // Small delay before starting audio to ensure connection is stable
-          setTimeout(() => this.startAudioInput(), 500);
+          // Start audio input
+          this.startAudioInput();
         },
         onmessage: async (message: LiveServerMessage) => {
-          // Log all incoming messages for debugging
-          console.log('[Savara Live] Message received:', JSON.stringify(message).substring(0, 200));
+          // Log incoming messages for debugging
+          if (message.serverContent) {
+            console.log('[Savara Live] Server content received:', message.serverContent.modelTurn ? 'Model Turn' : 'Interrupted');
+          }
 
           const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audioData && this.outputContext) {
-            console.log('[Savara Live] Audio response received, playing...');
+            console.log('[Savara Live] Audio response received, bytes:', audioData.length);
             this.nextStartTime = Math.max(this.nextStartTime, this.outputContext.currentTime);
             const audioBuffer = await decodeAudioData(decode(audioData), this.outputContext, 24000, 1);
             const source = this.outputContext.createBufferSource();
@@ -363,7 +365,7 @@ export class SavaraLiveClient {
             this.sources.add(source);
           }
           if (message.toolCall) {
-            console.log('[Savara Live] Tool call received:', message.toolCall);
+            console.log('[Savara Live] Tool calls:', message.toolCall.functionCalls.map(f => f.name));
             for (const fc of message.toolCall.functionCalls) {
               const result = await this.config.onToolCall(fc.name, fc.args);
               this.sessionPromise?.then(session => {
