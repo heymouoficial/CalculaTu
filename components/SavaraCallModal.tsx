@@ -88,21 +88,32 @@ export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
                     <p className="text-emerald-400 text-sm">Asistente de Compras</p>
                 </div>
 
-                {/* Live Context Display */}
-                <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 w-full max-w-sm border border-white/10">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2 text-white/70 text-xs">
-                            <ShoppingBag size={14} />
-                            <span>{currentItems.length} productos</span>
+                {/* Live Context Display - Enhanced Spacing & Padding */}
+                <div className="bg-white/5 backdrop-blur-md rounded-[2rem] p-6 w-full max-w-sm border border-white/10 shadow-2xl">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3 text-white/70 text-sm">
+                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                                <ShoppingBag size={16} />
+                            </div>
+                            <span className="font-bold tracking-tight">{currentItems.length} productos</span>
                         </div>
-                        <div className="text-emerald-400 font-mono text-sm font-bold">
-                            Bs {currentTotals.bs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}
+                        <div className="text-emerald-400 font-mono text-xl font-black">
+                            Bs {currentTotals.bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                     </div>
-                    <div className="flex justify-between text-xs text-white/50">
-                        <span>$ {currentTotals.usd.toFixed(2)}</span>
-                        <span className="text-white/30">|</span>
-                        <span>Tasa: Bs {rates.USD.toFixed(2)}</span>
+
+                    <div className="h-px w-full bg-white/5 mb-5" />
+
+                    <div className="flex justify-between items-center text-sm font-medium">
+                        <div className="flex items-center gap-2 text-white/60">
+                            <span className="text-[10px] uppercase font-black text-white/30 tracking-widest">Ref</span>
+                            <span className="font-mono text-white/80">$ {currentTotals.usd.toFixed(2)}</span>
+                        </div>
+                        <span className="text-white/10">|</span>
+                        <div className="flex items-center gap-2 text-white/60">
+                            <span className="text-[10px] uppercase font-black text-white/30 tracking-widest">Tasa</span>
+                            <span className="font-mono text-white/80">Bs {rates.USD.toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -113,8 +124,8 @@ export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
                 <button
                     onClick={() => setIsMuted(!isMuted)}
                     className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isMuted
-                            ? 'bg-white/10 text-white'
-                            : 'bg-white/5 text-white/60 hover:bg-white/10'
+                        ? 'bg-white/10 text-white'
+                        : 'bg-white/5 text-white/60 hover:bg-white/10'
                         }`}
                 >
                     {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
