@@ -289,20 +289,26 @@ export class SavaraLiveClient {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const systemInstruction = `Eres Savara, la inteligencia de CalculaTu. Tu tono es humano, cálido y experto.
-GUÍA DE OPERACIÓN:
-1. El usuario dirá cosas como "Savara, agrega dos harinas pan a 1.25 cada una".
-2. EXTRAE: name, price, quantity, currency.
-3. SIEMPRE detecta la moneda:
-   - "un dólar", "uno con veinte" -> currency: 'USD'
-   - "dos euros", "1.50 euros" -> currency: 'EUR'
-   - "cien bolívares", "en bss" -> currency: 'VES'
-4. Si no especifica moneda pero el monto es pequeño, asume USD.
-5. Llama a addItem() para cada producto detectado.
-6. Responde confirmando brevemente.`;
+    // Optimized system instruction for ultra-low latency
+    const systemInstruction = `**Role:** You are SAVARA, a high-speed voice assistant for the "CalculaTú" shopping app in Venezuela.
+**Core Objective:** Add items to shopping lists and perform currency conversions with zero conversational filler.
 
-    // Live API model for voice - per official docs for audio
-    const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
+**Execution Rules:**
+1. **Ultra-Low Latency Mode:** Do not use introductory phrases like "Sure," "Claro," or "Entendido."
+2. **Direct Output:** Confirm actions immediately. (e.g., User: "agrega dos harinas a 1.50", SAVARA: "Dos harinas, un dólar cincuenta").
+3. **Tool Usage:** ALWAYS call addItem() when user mentions a product with price. Extract: name, price, quantity, currency.
+4. **Currency Detection:**
+   - "un dólar", "dólar con veinte", numbers < 50 without unit -> currency: 'USD'
+   - "euros", "1.50 euros" -> currency: 'EUR'  
+   - "bolívares", "en bss", numbers > 100 -> currency: 'VES'
+5. **Response Format:** Confirmation in 10 words or less. Speak in Spanish.
+
+**Tools Available:**
+- addItem(name, price, quantity, currency): Add product to list
+- finishList(): Generate receipt`;
+
+    // Live API model for native audio - this is the correct model for bidirectional audio
+    const LIVE_MODEL = 'gemini-2.0-flash-live-001';
 
     this.sessionPromise = ai.live.connect({
       model: LIVE_MODEL,
@@ -315,8 +321,12 @@ GUÍA DE OPERACIÓN:
           setTimeout(() => this.startAudioInput(), 500);
         },
         onmessage: async (message: LiveServerMessage) => {
+          // Log all incoming messages for debugging
+          console.log('[Savara Live] Message received:', JSON.stringify(message).substring(0, 200));
+
           const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audioData && this.outputContext) {
+            console.log('[Savara Live] Audio response received, playing...');
             this.nextStartTime = Math.max(this.nextStartTime, this.outputContext.currentTime);
             const audioBuffer = await decodeAudioData(decode(audioData), this.outputContext, 24000, 1);
             const source = this.outputContext.createBufferSource();
@@ -327,6 +337,7 @@ GUÍA DE OPERACIÓN:
             this.sources.add(source);
           }
           if (message.toolCall) {
+            console.log('[Savara Live] Tool call received:', message.toolCall);
             for (const fc of message.toolCall.functionCalls) {
               const result = await this.config.onToolCall(fc.name, fc.args);
               this.sessionPromise?.then(session => {
@@ -339,6 +350,7 @@ GUÍA DE OPERACIÓN:
         },
         onclose: () => {
           this.wsState = 'closed';
+          console.log('[Savara Live] WebSocket closed');
           this.logState('websocket:closed');
           this.config.onClose();
         },
@@ -353,7 +365,7 @@ GUÍA DE OPERACIÓN:
         responseModalities: [Modality.AUDIO],
         systemInstruction,
         speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
         },
         tools: [{ functionDeclarations: [addItemTool, finishListTool] }]
       }
