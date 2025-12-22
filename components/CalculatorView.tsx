@@ -11,6 +11,7 @@ import { FeedbackButton } from './FeedbackForm';
 import { BUILD_VERSION } from '../config';
 import { Confetti } from './Confetti';
 import { Logo } from './Logo';
+import { WhatsAppIcon, BinanceIcon, BanescoIcon } from './BrandIcons';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -591,8 +592,16 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
             <div className="p-6 font-mono text-xs relative">
 
               {/* Header */}
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-black tracking-tighter mb-1 font-sans">CALCULATU</h2>
+              <div className="text-center mb-6 relative">
+                {/* Close button */}
+                <button
+                  onClick={handleCloseVoucher}
+                  className="absolute -top-2 -right-2 w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors"
+                  title="Cerrar"
+                >
+                  <X size={16} className="text-gray-600" />
+                </button>
+                <h2 className="text-2xl font-black tracking-tighter mb-1 font-sans">CALCULATÚ</h2>
                 <p className="uppercase text-[10px] text-gray-500 font-bold tracking-widest">
                   {viewingHistoryEntry ? 'Copia de Recibo' : 'Resumen de Cuenta'}
                 </p>
@@ -667,7 +676,18 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
             onClick={() => setIsSettingsOpen(false)}
           />
           <div className="absolute bottom-0 left-0 right-0 bg-[#121212] border-t border-white/10 rounded-t-[2.5rem] p-6 z-[80] animate-slide-up shadow-2xl h-[70vh] flex flex-col">
-            <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-6 shrink-0"></div>
+            {/* Drawer Handle + Close Button */}
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <div className="w-10" /> {/* Spacer for centering */}
+              <div className="w-12 h-1 bg-white/20 rounded-full" />
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                title="Cerrar"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
             {/* TABS HEADER */}
             <div className="grid grid-cols-2 gap-1 bg-white/5 p-1 rounded-xl mb-6 shrink-0">
@@ -704,22 +724,30 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               {activeTab === 'config' && (
                 <div className="space-y-6 animate-fade-in">
                   {/* Savara Toggle */}
-                  <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${license.active ? 'bg-white/5 border-white/5' : 'bg-white/5 border-white/5 opacity-60'}`}>
+                  <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${license.active ? 'bg-white/5 border-white/5' : 'bg-amber-500/10 border-amber-500/20'}`}>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${license.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                         {license.active ? <Mic size={20} /> : <Lock size={20} />}
                       </div>
                       <div>
                         <h4 className="font-bold text-white text-sm">Savara AI</h4>
-                        <p className="text-[10px] text-gray-500">Asistente de Voz {license.active ? '(Activo)' : '(Requiere Licencia)'}</p>
+                        <p className={`text-[10px] ${license.active ? 'text-gray-400' : 'text-amber-400'}`}>
+                          {license.active ? 'Asistente de Voz Activo' : '¡Activa tu licencia Pro!'}
+                        </p>
                       </div>
                     </div>
                     <button
-                      onClick={() => license.active && setIsVoiceMode(!isVoiceMode)}
-                      disabled={!license.active}
-                      className={`w-12 h-7 rounded-full transition-colors relative ${isVoiceMode && license.active ? 'bg-emerald-500' : 'bg-white/10'}`}
+                      onClick={() => {
+                        if (license.active) {
+                          setIsVoiceMode(!isVoiceMode);
+                        } else {
+                          // Redirect to license tab
+                          setActiveTab('license');
+                        }
+                      }}
+                      className={`w-12 h-7 rounded-full transition-colors relative ${license.active && isVoiceMode ? 'bg-emerald-500' : license.active ? 'bg-white/10' : 'bg-amber-500/30'}`}
                     >
-                      <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform shadow-md ${isVoiceMode && license.active ? 'left-6' : 'left-1'}`} />
+                      <div className={`absolute top-1 w-5 h-5 rounded-full transition-transform shadow-md ${license.active && isVoiceMode ? 'bg-white left-6' : license.active ? 'bg-white left-1' : 'bg-amber-400 left-1'}`} />
                     </button>
                   </div>
 
@@ -887,7 +915,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <>
                       <div className="grid grid-cols-2 gap-3">
                         {/* Binance Card */}
-                        <div className="p-3 rounded-xl bg-[#F0B90B]/10 border border-[#F0B90B]/20 flex flex-col justify-center relative group">
+                        <div className="p-3 rounded-xl bg-[#F0B90B]/10 border border-[#F0B90B]/30 flex flex-col justify-center relative group">
                           <div className="absolute top-3 right-3">
                             <button
                               onClick={() => handleCopyText('binance', '53820365')}
@@ -896,33 +924,39 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                               {copiedState === 'binance' ? <Check size={12} /> : <Copy size={12} />}
                             </button>
                           </div>
-                          <p className="text-[10px] text-[#F0B90B] font-black uppercase mb-1">Binance Pay</p>
-                          <p className="text-xs text-white font-mono font-bold truncate w-[80%]">MultiversaGroup</p>
-                          <p className="text-[10px] text-white/70 font-mono">ID: 53820365</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <BinanceIcon size={16} className="text-[#F0B90B]" />
+                            <p className="text-[11px] text-[#F0B90B] font-black uppercase">Binance Pay</p>
+                          </div>
+                          <p className="text-sm text-white font-mono font-bold truncate">MultiversaGroup</p>
+                          <p className="text-[11px] text-gray-300 font-mono">ID: 53820365</p>
                         </div>
 
                         {/* Pago Movil Card */}
-                        <div className="p-3 rounded-xl bg-[#207e5c]/10 border border-[#207e5c]/20 flex flex-col justify-center relative group">
+                        <div className="p-3 rounded-xl bg-[#E31837]/10 border border-[#E31837]/30 flex flex-col justify-center relative group">
                           <div className="absolute top-3 right-3">
                             <button
                               onClick={() => handleCopyText('pagomovil', '04125322257\nV16619748\n0134')}
-                              className="p-1.5 rounded-lg bg-[#207e5c]/20 text-[#207e5c] hover:bg-[#207e5c] hover:text-white transition-colors"
+                              className="p-1.5 rounded-lg bg-[#E31837]/20 text-[#E31837] hover:bg-[#E31837] hover:text-white transition-colors"
                             >
                               {copiedState === 'pagomovil' ? <Check size={12} /> : <Copy size={12} />}
                             </button>
                           </div>
-                          <p className="text-[10px] text-[#207e5c] font-black uppercase mb-1">Pago Móvil</p>
-                          <p className="text-xs text-white font-mono font-bold">0412 532 2257</p>
-                          <p className="text-[10px] text-white/70 font-mono">V16619748 • Banesco</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <BanescoIcon size={16} />
+                            <p className="text-[11px] text-[#E31837] font-black uppercase">Pago Móvil</p>
+                          </div>
+                          <p className="text-sm text-white font-mono font-bold">0412 532 2257</p>
+                          <p className="text-[11px] text-gray-300 font-mono">V16619748 • Banesco</p>
                         </div>
                       </div>
 
                       {/* Action Button */}
                       <button
                         onClick={sendActivationMessage}
-                        className="w-full py-4 rounded-xl bg-[#25D366] text-black font-bold uppercase tracking-wide shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-4 rounded-xl bg-[#25D366] text-white font-bold uppercase tracking-wide shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-3"
                       >
-                        <MessageCircle size={20} /> Activar Licencia por WhatsApp
+                        <WhatsAppIcon size={22} /> Activar por WhatsApp
                       </button>
 
                       <div className="flex items-center gap-3 my-2">
