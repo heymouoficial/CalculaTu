@@ -807,73 +807,77 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <p className="text-[10px] text-gray-500">Este ID es único para tu dispositivo.</p>
                   </div>
 
-                  {/* Payment Info */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Binance Card */}
-                    <div className="p-3 rounded-xl bg-[#F0B90B]/10 border border-[#F0B90B]/20 flex flex-col justify-center relative group">
-                      <div className="absolute top-3 right-3">
-                        <button
-                          onClick={() => handleCopyText('binance', '53820365')}
-                          className="p-1.5 rounded-lg bg-[#F0B90B]/20 text-[#F0B90B] hover:bg-[#F0B90B] hover:text-black transition-colors"
-                        >
-                          {copiedState === 'binance' ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
+                  {/* Payment Info - Only show if license NOT active */}
+                  {!license.active && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Binance Card */}
+                        <div className="p-3 rounded-xl bg-[#F0B90B]/10 border border-[#F0B90B]/20 flex flex-col justify-center relative group">
+                          <div className="absolute top-3 right-3">
+                            <button
+                              onClick={() => handleCopyText('binance', '53820365')}
+                              className="p-1.5 rounded-lg bg-[#F0B90B]/20 text-[#F0B90B] hover:bg-[#F0B90B] hover:text-black transition-colors"
+                            >
+                              {copiedState === 'binance' ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-[#F0B90B] font-black uppercase mb-1">Binance Pay</p>
+                          <p className="text-xs text-white font-mono font-bold truncate w-[80%]">MultiversaGroup</p>
+                          <p className="text-[10px] text-white/70 font-mono">ID: 53820365</p>
+                        </div>
+
+                        {/* Pago Movil Card */}
+                        <div className="p-3 rounded-xl bg-[#207e5c]/10 border border-[#207e5c]/20 flex flex-col justify-center relative group">
+                          <div className="absolute top-3 right-3">
+                            <button
+                              onClick={() => handleCopyText('pagomovil', '04125322257\nV16619748\n0134')}
+                              className="p-1.5 rounded-lg bg-[#207e5c]/20 text-[#207e5c] hover:bg-[#207e5c] hover:text-white transition-colors"
+                            >
+                              {copiedState === 'pagomovil' ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-[#207e5c] font-black uppercase mb-1">Pago Móvil</p>
+                          <p className="text-xs text-white font-mono font-bold">0412 532 2257</p>
+                          <p className="text-[10px] text-white/70 font-mono">V16619748 • Banesco</p>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-[#F0B90B] font-black uppercase mb-1">Binance Pay</p>
-                      <p className="text-xs text-white font-mono font-bold truncate w-[80%]">MultiversaGroup</p>
-                      <p className="text-[10px] text-white/70 font-mono">ID: 53820365</p>
-                    </div>
 
-                    {/* Pago Movil Card */}
-                    <div className="p-3 rounded-xl bg-[#207e5c]/10 border border-[#207e5c]/20 flex flex-col justify-center relative group">
-                      <div className="absolute top-3 right-3">
-                        <button
-                          onClick={() => handleCopyText('pagomovil', '04125322257\nV16619748\n0134')}
-                          className="p-1.5 rounded-lg bg-[#207e5c]/20 text-[#207e5c] hover:bg-[#207e5c] hover:text-white transition-colors"
-                        >
-                          {copiedState === 'pagomovil' ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-[#207e5c] font-black uppercase mb-1">Pago Móvil</p>
-                      <p className="text-xs text-white font-mono font-bold">0412 532 2257</p>
-                      <p className="text-[10px] text-white/70 font-mono">V16619748 • Banesco</p>
-                    </div>
-                  </div>
-
-                  {/* Action Button */}
-                  <button
-                    onClick={sendActivationMessage}
-                    className="w-full py-4 rounded-xl bg-[#25D366] text-black font-bold uppercase tracking-wide shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
-                  >
-                    <MessageCircle size={20} /> Activar Licencia por WhatsApp
-                  </button>
-
-                  <div className="flex items-center gap-3 my-2">
-                    <div className="h-px flex-1 bg-white/10"></div>
-                    <span className="text-[10px] text-gray-500 uppercase">Validar Token</span>
-                    <div className="h-px flex-1 bg-white/10"></div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Ingresa tu Token de Activación"
-                        value={activationToken}
-                        onChange={(e) => setActivationToken(e.target.value)}
-                        className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50"
-                      />
+                      {/* Action Button */}
                       <button
-                        onClick={validateToken}
-                        className="px-4 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                        onClick={sendActivationMessage}
+                        className="w-full py-4 rounded-xl bg-[#25D366] text-black font-bold uppercase tracking-wide shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
                       >
-                        <Check size={20} />
+                        <MessageCircle size={20} /> Activar Licencia por WhatsApp
                       </button>
-                    </div>
-                    <p className="text-[10px] text-gray-500 text-center leading-relaxed">
-                      Este token te lo proporcionamos nosotros después de validar tu pago vía WhatsApp, normalmente respondemos en minutos.
-                    </p>
-                  </div>
+
+                      <div className="flex items-center gap-3 my-2">
+                        <div className="h-px flex-1 bg-white/10"></div>
+                        <span className="text-[10px] text-gray-500 uppercase">Validar Token</span>
+                        <div className="h-px flex-1 bg-white/10"></div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Ingresa tu Token de Activación"
+                            value={activationToken}
+                            onChange={(e) => setActivationToken(e.target.value)}
+                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50"
+                          />
+                          <button
+                            onClick={validateToken}
+                            className="px-4 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                          >
+                            <Check size={20} />
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-gray-500 text-center leading-relaxed">
+                          Este token te lo proporcionamos nosotros después de validar tu pago vía WhatsApp, normalmente respondemos en minutos.
+                        </p>
+                      </div>
+                    </>
+                  )}
 
                 </div>
               )}

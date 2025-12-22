@@ -13,7 +13,8 @@ function getEnv(name: string): string | undefined {
 
 function requirePortalKey(req: any): boolean {
   const expected = getEnv('PORTAL_KEY');
-  if (!expected) return true; // allow if not configured
+  // Allow if not configured or empty
+  if (!expected || expected.trim() === '') return true;
   const provided = String(req.headers['x-portality-key'] || req.headers['x-portal-key'] || '');
   return provided && provided === expected;
 }
@@ -27,40 +28,45 @@ function computeExpiry(plan: 'monthly' | 'lifetime', months?: number): Date | nu
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
-  if (!requirePortalKey(req)) return json(res, 401, { error: 'Unauthorized' });
+  try {
+    if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
+    if (!requirePortalKey(req)) return json(res, 401, { error: 'Unauthorized' });
 
-  const secret = getEnv('LICENSE_SIGNING_KEY');
-  if (!secret) return json(res, 500, { error: 'LICENSE_SIGNING_KEY is not set' });
+    const secret = getEnv('LICENSE_SIGNING_KEY');
+    if (!secret) return json(res, 500, { error: 'LICENSE_SIGNING_KEY is not set' });
 
-  const body = (await readJson(req)) as CreateBody;
-  const deviceId = String(body.deviceId || '').trim();
-  const plan = (body.plan === 'lifetime' ? 'lifetime' : 'monthly') as 'monthly' | 'lifetime';
+    const body = (await readJson(req)) as CreateBody;
+    const deviceId = String(body.deviceId || '').trim();
+    const plan = (body.plan === 'lifetime' ? 'lifetime' : 'monthly') as 'monthly' | 'lifetime';
 
-  if (!deviceId) return json(res, 400, { error: 'deviceId is required' });
+    if (!deviceId) return json(res, 400, { error: 'deviceId is required' });
 
-  const expiresAt = computeExpiry(plan, body.months);
-  // Pro plans include voice feature by default
-  const payload = {
-    plan,
-    deviceId,
-    features: ['voice'], // Feature tokens: Pro includes voice
-  };
+    const expiresAt = computeExpiry(plan, body.months);
+    // Pro plans include voice feature by default
+    const payload = {
+      plan,
+      deviceId,
+      features: ['voice'], // Feature tokens: Pro includes voice
+    };
 
-  const encoder = new TextEncoder();
-  const jwt = await new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-    .setIssuedAt()
-    .setSubject(deviceId)
-    .setExpirationTime(expiresAt ? Math.floor(expiresAt.getTime() / 1000) : undefined as any)
-    .sign(encoder.encode(secret));
+    const encoder = new TextEncoder();
+    const jwt = await new SignJWT(payload)
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+      .setIssuedAt()
+      .setSubject(deviceId)
+      .setExpirationTime(expiresAt ? Math.floor(expiresAt.getTime() / 1000) : undefined as any)
+      .sign(encoder.encode(secret));
 
-  return json(res, 200, {
-    token: jwt,
-    deviceId,
-    plan,
-    expiresAt: expiresAt ? expiresAt.toISOString() : null,
-  });
+    return json(res, 200, {
+      token: jwt,
+      deviceId,
+      plan,
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+    });
+  } catch (err: any) {
+    console.error('[license/create] Error:', err);
+    return json(res, 500, { error: err?.message || 'Internal server error' });
+  }
 }
 
 

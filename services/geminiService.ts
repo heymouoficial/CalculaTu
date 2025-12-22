@@ -166,11 +166,27 @@ async function decodeAudioData(
   return buffer;
 }
 
-function createBlob(data: Float32Array) {
-  const l = data.length;
+function createBlob(data: Float32Array, sourceSampleRate: number = 16000) {
+  // Resample to 16kHz if needed (Gemini Live API requires 16kHz)
+  const targetSampleRate = 16000;
+  let resampled = data;
+
+  if (sourceSampleRate !== targetSampleRate) {
+    const ratio = sourceSampleRate / targetSampleRate;
+    const newLength = Math.floor(data.length / ratio);
+    resampled = new Float32Array(newLength);
+    for (let i = 0; i < newLength; i++) {
+      const srcIndex = Math.floor(i * ratio);
+      resampled[i] = data[srcIndex];
+    }
+  }
+
+  const l = resampled.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
-    int16[i] = data[i] * 32768;
+    // Clamp to -1 to 1 range and convert to 16-bit
+    const s = Math.max(-1, Math.min(1, resampled[i]));
+    int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
   }
   return {
     data: encode(new Uint8Array(int16.buffer)),
@@ -343,11 +359,23 @@ GUÍA DE OPERACIÓN:
 
   private startAudioInput() {
     if (!this.inputContext || !this.stream) return;
+
+    const actualSampleRate = this.inputContext.sampleRate;
+    console.log(`[Savara Live] Audio input started, mic sample rate: ${actualSampleRate}Hz`);
+
     const source = this.inputContext.createMediaStreamSource(this.stream);
-    this.processor = this.inputContext.createScriptProcessor(2048, 1, 1);
+    this.processor = this.inputContext.createScriptProcessor(4096, 1, 1);
+
+    let chunkCount = 0;
     this.processor.onaudioprocess = (e) => {
       const inputData = e.inputBuffer.getChannelData(0);
-      const pcmBlob = createBlob(inputData);
+      const pcmBlob = createBlob(inputData, actualSampleRate);
+
+      if (chunkCount < 3) {
+        console.log(`[Savara Live] Sending audio chunk ${chunkCount + 1}, bytes: ${pcmBlob.data.length}`);
+      }
+      chunkCount++;
+
       this.sessionPromise?.then(session => {
         session.sendRealtimeInput({ media: pcmBlob });
       });

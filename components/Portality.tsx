@@ -4,6 +4,9 @@ import { useAppStore } from '../store/useAppStore';
 import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlobalRates, resetPassword, updatePassword } from '../services/ratesService';
 import { supabase } from '../services/supabaseClient';
 
+// PIN Gate - Security layer before showing admin panel
+const PORTALITY_PIN = import.meta.env.VITE_PORTALITY_PIN || '147258'; // Default PIN for development
+
 type CreateResponse = {
   token: string;
   deviceId: string;
@@ -24,6 +27,17 @@ function copyToClipboard(text: string) {
 }
 
 export const Portality: React.FC = () => {
+  // PIN Gate State
+  const [pinInput, setPinInput] = useState('');
+  const [isPinVerified, setIsPinVerified] = useState(() => {
+    // Check if PIN was verified in this session
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('portality_unlocked') === 'true';
+    }
+    return false;
+  });
+  const [pinError, setPinError] = useState('');
+
   const machineId = useAppStore(s => s.machineId);
   const [portalKey, setPortalKey] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('portality_key') || '' : ''));
   const [deviceId, setDeviceId] = useState(machineId);
@@ -50,20 +64,78 @@ export const Portality: React.FC = () => {
   const canGenerate = useMemo(() => !!deviceId.trim() && (!!portalKey.trim() || true), [deviceId, portalKey]);
   const isAdminAuthed = authEmail === 'multiversagroup@gmail.com';
 
+  // PIN verification handler
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput === PORTALITY_PIN) {
+      setIsPinVerified(true);
+      setPinError('');
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('portality_unlocked', 'true');
+      }
+    } else {
+      setPinError('PIN incorrecto');
+      setPinInput('');
+    }
+  };
+
+  // PIN Gate UI
+  if (!isPinVerified) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <form onSubmit={handlePinSubmit} className="p-8 rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 backdrop-blur-xl">
+            <div className="flex items-center justify-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <Lock className="w-8 h-8 text-emerald-400" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-white text-center mb-2">Acceso Restringido</h2>
+            <p className="text-gray-400 text-sm text-center mb-6">Ingresa el PIN de administrador</p>
+
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+              placeholder="• • • • • •"
+              className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-4 text-2xl text-white text-center tracking-[0.5em] placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 font-mono"
+              autoFocus
+            />
+
+            {pinError && (
+              <p className="text-red-400 text-sm text-center mt-3">{pinError}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={pinInput.length < 4}
+              className="w-full mt-6 py-3 rounded-xl bg-emerald-500 text-black font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-400 transition-colors"
+            >
+              Verificar
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     // Check if we're coming from a password recovery link
     if (supabase) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const type = hashParams.get('type');
-      
+
       if (accessToken && type === 'recovery') {
         setIsResettingPassword(true);
         // Clear hash from URL
         window.history.replaceState(null, '', window.location.pathname);
       }
     }
-    
+
     // Check session on mount and listen for auth changes
     const checkSession = async () => {
       try {
@@ -73,9 +145,9 @@ export const Portality: React.FC = () => {
         setAuthEmail(null);
       }
     };
-    
+
     checkSession();
-    
+
     // Listen for auth state changes (persistence)
     if (supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -91,12 +163,12 @@ export const Portality: React.FC = () => {
           setAuthEmail(null);
         }
       });
-      
+
       return () => {
         subscription.unsubscribe();
       };
     }
-    
+
     // Fetch rates regardless, but maybe only show them if auth
     fetchGlobalRates()
       .then((r) => {
@@ -174,7 +246,7 @@ export const Portality: React.FC = () => {
       setStatus('Por favor completa email y contraseña');
       return;
     }
-    
+
     setIsBusy(true);
     setStatus('');
     try {
@@ -194,7 +266,7 @@ export const Portality: React.FC = () => {
       setStatus('Por favor ingresa tu email');
       return;
     }
-    
+
     setIsBusy(true);
     setStatus('');
     try {
@@ -213,17 +285,17 @@ export const Portality: React.FC = () => {
       setStatus('Por favor completa ambos campos');
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setStatus('Las contraseñas no coinciden');
       return;
     }
-    
+
     if (newPassword.length < 6) {
       setStatus('La contraseña debe tener al menos 6 caracteres');
       return;
     }
-    
+
     setIsBusy(true);
     setStatus('');
     try {
@@ -354,113 +426,112 @@ export const Portality: React.FC = () => {
             ) : (
               <>
                 {!isRecoveringPassword ? (
-              <>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                    <Mail size={12} /> Email
-                  </label>
-                  <input
-                    type="email"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                    placeholder="multiversagroup@gmail.com"
-                    disabled={isBusy}
-                    autoComplete="email"
-                  />
-                </div>
+                  <>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                        <Mail size={12} /> Email
+                      </label>
+                      <input
+                        type="email"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
+                        placeholder="multiversagroup@gmail.com"
+                        disabled={isBusy}
+                        autoComplete="email"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                    <Key size={12} /> Contraseña
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pr-12 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                      placeholder="••••••••"
-                      disabled={isBusy}
-                      autoComplete="current-password"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-                    />
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                        <Key size={12} /> Contraseña
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pr-12 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
+                          placeholder="••••••••"
+                          disabled={isBusy}
+                          autoComplete="current-password"
+                          onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-white transition-colors"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
                     <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-white transition-colors"
-                      tabIndex={-1}
+                      onClick={handleAdminLogin}
+                      disabled={isBusy || !adminEmail.trim() || !adminPassword.trim()}
+                      className="w-full py-4 rounded-xl bg-emerald-500 text-black font-black uppercase tracking-widest text-xs hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      <LogIn size={16} /> {isBusy ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                     </button>
-                  </div>
-                </div>
 
-                <button
-                  onClick={handleAdminLogin}
-                  disabled={isBusy || !adminEmail.trim() || !adminPassword.trim()}
-                  className="w-full py-4 rounded-xl bg-emerald-500 text-black font-black uppercase tracking-widest text-xs hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
-                >
-                  <LogIn size={16} /> {isBusy ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-                </button>
+                    <button
+                      onClick={() => setIsRecoveringPassword(true)}
+                      disabled={isBusy}
+                      className="w-full py-2 text-[10px] text-gray-600 hover:text-gray-400 transition-colors"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsRecoveringPassword(false);
+                        setStatus('');
+                      }}
+                      className="mb-4 flex items-center gap-2 text-[10px] text-gray-500 hover:text-gray-400 transition-colors"
+                    >
+                      <ArrowLeft size={12} /> Volver al login
+                    </button>
 
-                <button
-                  onClick={() => setIsRecoveringPassword(true)}
-                  disabled={isBusy}
-                  className="w-full py-2 text-[10px] text-gray-600 hover:text-gray-400 transition-colors"
-                >
-                  ¿Olvidaste tu contraseña?
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => {
-                    setIsRecoveringPassword(false);
-                    setStatus('');
-                  }}
-                  className="mb-4 flex items-center gap-2 text-[10px] text-gray-500 hover:text-gray-400 transition-colors"
-                >
-                  <ArrowLeft size={12} /> Volver al login
-                </button>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                        <Mail size={12} /> Email para recuperación
+                      </label>
+                      <input
+                        type="email"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
+                        placeholder="multiversagroup@gmail.com"
+                        disabled={isBusy}
+                        autoComplete="email"
+                        onKeyDown={(e) => e.key === 'Enter' && handleRecoverPassword()}
+                      />
+                      <p className="text-[10px] text-gray-500 mt-2">
+                        Te enviaremos un enlace para restablecer tu contraseña.
+                      </p>
+                    </div>
 
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                    <Mail size={12} /> Email para recuperación
-                  </label>
-                  <input
-                    type="email"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                    placeholder="multiversagroup@gmail.com"
-                    disabled={isBusy}
-                    autoComplete="email"
-                    onKeyDown={(e) => e.key === 'Enter' && handleRecoverPassword()}
-                  />
-                  <p className="text-[10px] text-gray-500 mt-2">
-                    Te enviaremos un enlace para restablecer tu contraseña.
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleRecoverPassword}
-                  disabled={isBusy || !adminEmail.trim()}
-                  className="w-full py-4 rounded-xl bg-blue-500 text-white font-black uppercase tracking-widest text-xs hover:bg-blue-400 transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50 mt-2"
-                >
-                  {isBusy ? 'Enviando...' : 'Enviar enlace de recuperación'}
-                </button>
-              </>
+                    <button
+                      onClick={handleRecoverPassword}
+                      disabled={isBusy || !adminEmail.trim()}
+                      className="w-full py-4 rounded-xl bg-blue-500 text-white font-black uppercase tracking-widest text-xs hover:bg-blue-400 transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50 mt-2"
+                    >
+                      {isBusy ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                    </button>
+                  </>
                 )}
               </>
             )}
 
             {status && (
-              <div className={`mt-4 p-3 rounded-xl text-[10px] font-mono text-center ${
-                status.includes('exitoso') || status.includes('envió') 
+              <div className={`mt-4 p-3 rounded-xl text-[10px] font-mono text-center ${status.includes('exitoso') || status.includes('envió')
                   ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
                   : 'bg-red-500/10 border border-red-500/20 text-red-400'
-              }`}>
+                }`}>
                 {status}
               </div>
             )}
