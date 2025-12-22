@@ -77,6 +77,49 @@ export async function fetchGlobalRates(): Promise<GlobalRates | null> {
   return null;
 }
 
+/**
+ * Force refresh rates from Supabase, bypassing cache
+ * Used when user manually requests an update
+ */
+export async function forceRefreshRates(): Promise<GlobalRates | null> {
+  // Clear existing cache first
+  try {
+    localStorage.removeItem(RATES_CACHE_KEY);
+    console.log('[Rates] Cache cleared, fetching fresh rates...');
+  } catch {
+    // ignore
+  }
+
+  // Force fetch from Supabase
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('exchange_rates')
+      .select('usd, eur, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data) {
+      const rates: GlobalRates = {
+        USD: Number(data.usd),
+        EUR: Number(data.eur),
+        updatedAt: (data as any).updated_at ?? null,
+      };
+      // Update cache with fresh data
+      setCachedRates(rates);
+      console.log('[Rates] Fresh rates loaded:', rates);
+      return rates;
+    }
+    console.error('[Rates] Error fetching:', error);
+  } catch (err) {
+    console.error('[Rates] Network error:', err);
+  }
+
+  return null;
+}
+
 export async function upsertGlobalRates(params: { USD: number; EUR: number; source?: string }) {
   if (!supabase) throw new Error('Supabase not configured');
 

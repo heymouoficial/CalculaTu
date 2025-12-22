@@ -6,6 +6,7 @@ import { SavaraLiveClient } from '../services/geminiService';
 import { saveHistoryEntry, getAllHistoryEntries, deleteHistoryEntry, HistoryEntry } from '../utils/historyDB';
 import { useAppStore } from '../store/useAppStore';
 import { generateDiagnosticReport, formatDiagnosticReport } from '../utils/diagnostics';
+import { forceRefreshRates } from '../services/ratesService';
 import { OnboardingFlow, useOnboarding } from './OnboardingFlow';
 import { FeedbackButton } from './FeedbackForm';
 import { BUILD_VERSION } from '../config';
@@ -69,6 +70,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   // Config saved feedback
   const [configSaved, setConfigSaved] = useState(false);
   const [budgetCurrency, setBudgetCurrency] = useState<'USD' | 'EUR' | 'VES'>('USD');
+  const [isRefreshingRates, setIsRefreshingRates] = useState(false);
 
   // Manual Input State
   const [inputName, setInputName] = useState('');
@@ -461,7 +463,27 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
       {/* Rates Bar */}
       <div className="w-full border-y border-white/5 bg-black/40 py-2 flex flex-col items-center gap-1">
-        <span className="text-[10px] text-emerald-400/70 font-medium tracking-wider">Tasas en tiempo real • BCV</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-emerald-400/70 font-medium tracking-wider">Tasas en tiempo real • BCV</span>
+          <button
+            onClick={async () => {
+              setIsRefreshingRates(true);
+              const newRates = await forceRefreshRates();
+              if (newRates) {
+                setRatesTemporarily({ USD: newRates.USD, EUR: newRates.EUR });
+                showToast('Tasas actualizadas ✅', 'success');
+              } else {
+                showToast('Error al actualizar tasas', 'error');
+              }
+              setIsRefreshingRates(false);
+            }}
+            disabled={isRefreshingRates}
+            className="p-1 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50"
+            title="Actualizar tasas"
+          >
+            <RefreshCcw size={12} className={`text-emerald-400 ${isRefreshingRates ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
         <div className="flex justify-center gap-8 items-center text-xs font-black uppercase tracking-widest text-gray-500">
           <div className="flex gap-2 items-center">
             <DollarSign size={16} className="text-emerald-400" />
@@ -864,8 +886,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                       setTimeout(() => setConfigSaved(false), 2000);
                     }}
                     className={`w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wide transition-all flex items-center justify-center gap-2 ${configSaved
-                        ? 'bg-emerald-500 text-black'
-                        : 'bg-white/10 text-white hover:bg-emerald-500 hover:text-black'
+                      ? 'bg-emerald-500 text-black'
+                      : 'bg-white/10 text-white hover:bg-emerald-500 hover:text-black'
                       }`}
                   >
                     {configSaved ? <><Check size={18} /> Guardado</> : <><Save size={18} /> Guardar Cambios</>}
