@@ -136,6 +136,46 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     setInputQuantity('');
   };
 
+  // Voucher Interaction Handlers
+  const handleDownloadVoucher = async () => {
+    if (!voucherRef.current) return;
+    setIsDownloading(true);
+    try {
+      const dataUrl = await toJpeg(voucherRef.current, { quality: 0.95, backgroundColor: '#ffffff' });
+      const link = document.createElement('a');
+      link.download = `CalculaTu-Recibo-${Date.now()}.jpg`;
+      link.href = dataUrl;
+      link.click();
+      showToast('Recibo guardado como imagen ✅', 'success');
+    } catch (err) {
+      console.error('[Download] Failed:', err);
+      showToast('No pude generar la imagen del recibo', 'error');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleShareVoucher = async () => {
+    if (!voucherRef.current) return;
+    try {
+      const dataUrl = await toJpeg(voucherRef.current, { quality: 0.95, backgroundColor: '#ffffff' });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'recibo.jpg', { type: 'image/jpeg' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Mi Recibo de CalculaTu',
+          text: 'Aquí tienes mi lista de compras generada con CalculaTu.'
+        });
+      } else {
+        handleDownloadVoucher();
+      }
+    } catch (err) {
+      handleDownloadVoucher();
+    }
+  };
+
   const handleFinish = () => {
     if (items.length > 0) {
       setViewingHistoryEntry(null); // Ensure we are viewing current items
