@@ -189,29 +189,56 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   };
 
   const handleCopyText = async (key: string, text: string) => {
+    let success = false;
+
+    // Method 1: Modern clipboard API (works on HTTPS)
     try {
-      // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
-      } else {
-        // Fallback for older browsers or PWAs
+        success = true;
+      }
+    } catch (e) {
+      console.log('[Copy] Clipboard API failed, trying fallback...');
+    }
+
+    // Method 2: execCommand fallback (works on older browsers)
+    if (!success) {
+      try {
         const textarea = document.createElement('textarea');
         textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.left = '-9999px';
+        textarea.setAttribute('readonly', '');
+        textarea.style.cssText = 'position:fixed;left:-9999px;top:0;';
         document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
+
+        // iOS requires specific handling
+        const range = document.createRange();
+        const selection = window.getSelection();
+        range.selectNodeContents(textarea);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        textarea.setSelectionRange(0, 999999);
+
+        success = document.execCommand('copy');
         document.body.removeChild(textarea);
+      } catch (e) {
+        console.log('[Copy] execCommand failed:', e);
       }
-      setCopiedState(key);
-      setTimeout(() => setCopiedState(null), 2000);
-    } catch (err) {
-      console.error('[Copy] Failed:', err);
-      // Still show success for UX (text is selected if manual copy needed)
-      setCopiedState(key);
-      setTimeout(() => setCopiedState(null), 2000);
     }
+
+    // Method 3: Select the input element directly for manual copy
+    if (!success && key === 'machineId') {
+      const input = document.getElementById('machineId-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+        input.setSelectionRange(0, 999999);
+        // Show hint to user
+        alert('Texto seleccionado. Usa Copiar del menú o Ctrl+C / Cmd+C');
+      }
+    }
+
+    setCopiedState(key);
+    setTimeout(() => setCopiedState(null), 2500);
   };
 
   const cycleCurrency = () => {
@@ -828,19 +855,27 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                       <Fingerprint size={64} className="text-emerald-500" />
                     </div>
                     <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3">Huella Digital del Dispositivo</p>
-                    <div className="flex items-center justify-between gap-3 mb-1">
-                      <code className="text-xl font-mono font-bold text-white tracking-wider truncate flex-1">{machineId}</code>
+                    <div className="flex flex-col gap-2 mb-2">
+                      <input
+                        id="machineId-input"
+                        type="text"
+                        readOnly
+                        value={machineId}
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                        className="w-full bg-black/50 text-lg font-mono font-bold text-white tracking-wider px-3 py-2 rounded-lg border border-emerald-500/30 focus:border-emerald-500 focus:outline-none select-all"
+                      />
                       <button
                         onClick={() => handleCopyText('machineId', machineId)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${copiedState === 'machineId'
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all ${copiedState === 'machineId'
                           ? 'bg-emerald-500 text-black'
                           : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black active:scale-95'
                           }`}
                       >
-                        {copiedState === 'machineId' ? <><Check size={18} /> Copiado</> : <><Copy size={18} /> Copiar</>}
+                        {copiedState === 'machineId' ? <><Check size={18} /> ¡Copiado!</> : <><Copy size={18} /> Tocar para Copiar</>}
                       </button>
                     </div>
-                    <p className="text-[10px] text-gray-500">Este ID es único para tu dispositivo.</p>
+                    <p className="text-[10px] text-gray-500">Toca el ID para seleccionarlo, luego usa "Copiar" del menú.</p>
                   </div>
 
                   {/* Payment Info - Only show if license NOT active */}
