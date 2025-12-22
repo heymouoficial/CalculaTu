@@ -18,13 +18,40 @@ type VerifyResponse =
   | { valid: true; plan: 'monthly' | 'lifetime'; expiresAt: string | null }
   | { valid: false; error?: string };
 
-function copyToClipboard(text: string) {
+const handleCopyText = async (text: string) => {
+  let success = false;
+  // Method 1: Modern clipboard API
   try {
-    navigator.clipboard.writeText(text);
-  } catch {
-    // ignore
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      success = true;
+    }
+  } catch (e) {
+    console.log('[Portality] Clipboard API failed, trying fallback...');
   }
-}
+
+  // Method 2: execCommand fallback
+  if (!success) {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(textarea);
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.selectNodeContents(textarea);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      textarea.setSelectionRange(0, 999999);
+      success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+    } catch (e) {
+      console.log('[Portality] execCommand failed:', e);
+    }
+  }
+  return success;
+};
 
 export const Portality: React.FC = () => {
   // PIN Gate State
@@ -234,11 +261,15 @@ export const Portality: React.FC = () => {
     }
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!token) return;
-    copyToClipboard(token);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    const success = await handleCopyText(token);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } else {
+      setStatus('Error al copiar. Intenta seleccionar y copiar manualmente.');
+    }
   };
 
   const handleAdminLogin = async () => {
@@ -529,8 +560,8 @@ export const Portality: React.FC = () => {
 
             {status && (
               <div className={`mt-4 p-3 rounded-xl text-[10px] font-mono text-center ${status.includes('exitoso') || status.includes('envió')
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                  : 'bg-red-500/10 border border-red-500/20 text-red-400'
+                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                : 'bg-red-500/10 border border-red-500/20 text-red-400'
                 }`}>
                 {status}
               </div>
@@ -680,17 +711,32 @@ export const Portality: React.FC = () => {
                 </div>
 
                 {token && (
-                  <div className="mt-4 animate-fade-in relative group">
-                    <textarea
-                      readOnly
-                      value={token}
-                      className="w-full h-24 bg-black/60 border border-emerald-500/30 rounded-xl p-3 font-mono text-[10px] text-emerald-500/80 outline-none resize-none"
-                    />
+                  <div className="mt-4 animate-fade-in space-y-3">
+                    <div className="relative group">
+                      <textarea
+                        readOnly
+                        value={token}
+                        onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                        className="w-full h-24 bg-black/60 border border-emerald-500/30 rounded-xl p-3 font-mono text-[10px] text-emerald-500/80 outline-none resize-none focus:border-emerald-500 transition-colors"
+                      />
+                      <button
+                        onClick={handleCopy}
+                        className={`absolute top-2 right-2 p-2 rounded-lg transition-all shadow-lg ${copied ? 'bg-emerald-500 text-black' : 'bg-white/10 text-white hover:bg-emerald-500 hover:text-black'}`}
+                      >
+                        {copied ? <Check size={14} /> : <Copy size={14} />}
+                      </button>
+                    </div>
+
                     <button
                       onClick={handleCopy}
-                      className="absolute top-2 right-2 p-2 bg-emerald-500 text-black rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all ${copied ? 'bg-emerald-500 text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                        }`}
                     >
-                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                      {copied ? (
+                        <><Check size={14} /> ¡Copiado!</>
+                      ) : (
+                        <><Copy size={14} /> Copiar Token de Licencia</>
+                      )}
                     </button>
                   </div>
                 )}
