@@ -12,6 +12,8 @@ import { BUILD_VERSION } from '../config';
 import { Confetti } from './Confetti';
 import { Logo } from './Logo';
 import { WhatsAppIcon, BinanceIcon, BanescoIcon } from './BrandIcons';
+import { showToast, ToastContainer } from './Toast';
+import { SavaraCallModal } from './SavaraCallModal';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -183,9 +185,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3500);
 
-      alert("¡Licencia Activada! Savara desbloqueada.");
+      // Use non-blocking toast instead of alert
+      showToast('¡Licencia Activada! Savara desbloqueada.', 'success');
     } catch {
-      alert('No pude validar el token. Revisa tu conexión e intenta de nuevo.');
+      showToast('No pude validar el token. Revisa tu conexión.', 'error');
     }
   };
 
@@ -289,6 +292,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 quantity: Number(args.quantity) || 1
               };
               setItems(prev => [newItem, ...prev]);
+              // Show toast notification for added item
+              showToast(`Agregado ${args.name} x${args.quantity || 1} a $${args.price}`, 'item');
               return `Listo, añadí ${args.name}.`;
             }
             if (name === 'finishList') {
@@ -892,34 +897,36 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     </div>
                   )}
 
-                  {/* Machine ID Card */}
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-black border border-emerald-500/30 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-3 opacity-20">
-                      <Fingerprint size={64} className="text-emerald-500" />
+                  {/* Machine ID Card - Only show if NOT lifetime license */}
+                  {license.plan !== 'lifetime' && (
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-black border border-emerald-500/30 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-3 opacity-20">
+                        <Fingerprint size={64} className="text-emerald-500" />
+                      </div>
+                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3">Huella Digital del Dispositivo</p>
+                      <div className="flex flex-col gap-2 mb-2">
+                        <input
+                          id="machineId-input"
+                          type="text"
+                          readOnly
+                          value={machineId}
+                          onFocus={(e) => e.target.select()}
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                          className="w-full bg-black/50 text-lg font-mono font-bold text-white tracking-wider px-3 py-2 rounded-lg border border-emerald-500/30 focus:border-emerald-500 focus:outline-none select-all"
+                        />
+                        <button
+                          onClick={() => handleCopyText('machineId', machineId)}
+                          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all ${copiedState === 'machineId'
+                            ? 'bg-emerald-500 text-black'
+                            : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black active:scale-95'
+                            }`}
+                        >
+                          {copiedState === 'machineId' ? <><Check size={18} /> ¡Copiado!</> : <><Copy size={18} /> Tocar para Copiar</>}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-gray-500">Toca el ID para seleccionarlo, luego usa "Copiar" del menú.</p>
                     </div>
-                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3">Huella Digital del Dispositivo</p>
-                    <div className="flex flex-col gap-2 mb-2">
-                      <input
-                        id="machineId-input"
-                        type="text"
-                        readOnly
-                        value={machineId}
-                        onFocus={(e) => e.target.select()}
-                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                        className="w-full bg-black/50 text-lg font-mono font-bold text-white tracking-wider px-3 py-2 rounded-lg border border-emerald-500/30 focus:border-emerald-500 focus:outline-none select-all"
-                      />
-                      <button
-                        onClick={() => handleCopyText('machineId', machineId)}
-                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all ${copiedState === 'machineId'
-                          ? 'bg-emerald-500 text-black'
-                          : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black active:scale-95'
-                          }`}
-                      >
-                        {copiedState === 'machineId' ? <><Check size={18} /> ¡Copiado!</> : <><Copy size={18} /> Tocar para Copiar</>}
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-gray-500">Toca el ID para seleccionarlo, luego usa "Copiar" del menú.</p>
-                  </div>
+                  )}
 
                   {/* Payment Info - Only show if license NOT active */}
                   {!license.active && (
@@ -1147,6 +1154,19 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
       {/* Confetti celebration for license activation */}
       <Confetti show={showConfetti} />
+
+      {/* Toast notifications */}
+      <ToastContainer />
+
+      {/* Savara Call Modal */}
+      <SavaraCallModal
+        isOpen={isListening}
+        isListening={isListening}
+        currentItems={items}
+        currentTotals={currentTotals}
+        rates={rates}
+        onHangUp={toggleSavara}
+      />
     </div>
   );
 };
