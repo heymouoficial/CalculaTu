@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign } from 'lucide-react';
+import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign, Download, Image as ImageIcon } from 'lucide-react';
+import { toJpeg } from 'html-to-image';
 import { RATES, SAVARA_AVATAR } from '../constants';
 import { ShoppingItem } from '../types';
 import { SavaraLiveClient } from '../services/geminiService';
@@ -26,6 +27,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   // Voucher Modal States
   const [showVoucher, setShowVoucher] = useState(false);
   const [viewingHistoryEntry, setViewingHistoryEntry] = useState<HistoryEntry | null>(null);
+  const voucherRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // App States
   const [currentDateDisplay, setCurrentDateDisplay] = useState('');
@@ -312,6 +315,17 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               // Show toast notification for added item
               showToast(`Agregado ${args.name} x${args.quantity || 1} a $${args.price}`, 'item');
               return `Listo, añadí ${args.name}.`;
+            }
+            if (name === 'finishList') {
+              setShowVoucher(true);
+              // Give Savara a moment to finish her goodbye before disconnecting
+              setTimeout(async () => {
+                await liveClientRef.current?.disconnect();
+                liveClientRef.current = null;
+                setIsListening(false);
+                showToast('Lista terminada. ¡Gracias por usar Savara!', 'success');
+              }, 2000);
+              return "¡Perfecto! Ya generé tu resumen de compra. Fue un placer ayudarte, ¡nos vemos pronto!";
             }
             if (name === 'get_exchange_rate') {
               const provider = args.provider || 'BCV';
@@ -658,7 +672,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
           <div className="bg-white text-black w-full max-w-[340px] shadow-2xl overflow-hidden relative animate-slide-up rounded-sm">
 
             {/* Thermal Paper Texture Simulation */}
-            <div className="p-6 font-mono text-xs relative">
+            <div ref={voucherRef} className="p-6 font-mono text-xs relative bg-white">
 
               {/* Header */}
               <div className="text-center mb-6 relative">
@@ -725,7 +739,24 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               </div>
             </div>
 
-            {/* Actions */}
+            <div className="flex border-t border-gray-100">
+              <button
+                onClick={handleDownloadVoucher}
+                disabled={isDownloading}
+                className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 border-r border-gray-100"
+              >
+                {isDownloading ? <RefreshCcw size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+                JPEG
+              </button>
+              <button
+                onClick={handleShareVoucher}
+                className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Share2 size={14} />
+                Compartir
+              </button>
+            </div>
+
             <button
               onClick={handleCloseVoucher}
               className="w-full py-4 bg-black text-white font-bold uppercase tracking-widest text-xs hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
