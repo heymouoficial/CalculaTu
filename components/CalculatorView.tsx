@@ -66,6 +66,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   // Confetti State for license activation celebration
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // Config saved feedback
+  const [configSaved, setConfigSaved] = useState(false);
+  const [budgetCurrency, setBudgetCurrency] = useState<'USD' | 'EUR' | 'VES'>('USD');
+
   // Manual Input State
   const [inputName, setInputName] = useState('');
   const [inputPrice, setInputPrice] = useState('');
@@ -827,18 +831,45 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                           onChange={(e) => setBudgetLimit(parseFloat(e.target.value) || 0)}
                           className="flex-1 bg-transparent text-white text-lg font-mono font-bold outline-none placeholder:text-gray-500"
                         />
-                        {/* Currency indicator */}
-                        <span className="text-emerald-400 font-bold text-sm">USD</span>
+                        {/* Currency Toggle */}
+                        <button
+                          onClick={() => {
+                            if (budgetCurrency === 'USD') setBudgetCurrency('EUR');
+                            else if (budgetCurrency === 'EUR') setBudgetCurrency('VES');
+                            else setBudgetCurrency('USD');
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-sm hover:bg-emerald-500 hover:text-black transition-all"
+                        >
+                          {budgetCurrency}
+                        </button>
                       </div>
                       {budgetLimit > 0 && (
                         <div className="flex items-center gap-2 text-[11px] text-gray-400 bg-emerald-500/10 rounded-lg px-3 py-2">
                           <Check size={14} className="text-emerald-400" />
-                          <span>Presupuesto activo: <span className="text-white font-bold">${budgetLimit.toFixed(2)}</span></span>
+                          <span>Presupuesto activo: <span className="text-white font-bold">
+                            {budgetCurrency === 'USD' ? '$' : budgetCurrency === 'EUR' ? '€' : 'Bs '}
+                            {budgetLimit.toFixed(2)}
+                          </span></span>
                         </div>
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-2">El presupuesto se aplica en USD. Se muestra en la barra superior.</p>
+                    <p className="text-[10px] text-gray-500 mt-2">El presupuesto se calcula sobre tu moneda seleccionada.</p>
                   </div>
+
+                  {/* Save Button */}
+                  <button
+                    onClick={() => {
+                      setConfigSaved(true);
+                      showToast('Configuración guardada ✅', 'success');
+                      setTimeout(() => setConfigSaved(false), 2000);
+                    }}
+                    className={`w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wide transition-all flex items-center justify-center gap-2 ${configSaved
+                        ? 'bg-emerald-500 text-black'
+                        : 'bg-white/10 text-white hover:bg-emerald-500 hover:text-black'
+                      }`}
+                  >
+                    {configSaved ? <><Check size={18} /> Guardado</> : <><Save size={18} /> Guardar Cambios</>}
+                  </button>
                 </div>
               )}
 
