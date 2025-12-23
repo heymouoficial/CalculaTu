@@ -3,7 +3,6 @@ import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshC
 import { toJpeg } from 'html-to-image';
 import { RATES, SAVARA_AVATAR } from '../constants';
 import { ShoppingItem } from '../types';
-import { SavaraLiveClient } from '../services/geminiService';
 import { saveHistoryEntry, getAllHistoryEntries, deleteHistoryEntry, HistoryEntry } from '../utils/historyDB';
 import { useAppStore } from '../store/useAppStore';
 import { generateDiagnosticReport, formatDiagnosticReport } from '../utils/diagnostics';
@@ -92,7 +91,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const [inputQuantity, setInputQuantity] = useState('');
   const [inputCurrency, setInputCurrency] = useState<'USD' | 'EUR' | 'VES'>('USD');
 
-  const liveClientRef = useRef<SavaraLiveClient | null>(null);
+  const liveClientRef = useRef<any | null>(null);
 
   useEffect(() => {
     const date = new Date();
@@ -402,6 +401,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       setIsListening(true);
       showToast('Iniciando Savara Pro...', 'success');
       try {
+        const { SavaraLiveClient } = await import('../services/geminiService');
         // Build dynamic context for Savara to have "memory" of the current list and rates
         const productsSummary = items.map(i => `${i.quantity}x ${i.name} ($${i.price})`).join(', ') || 'Vacía';
         const dynamicPrompt = `Eres Savara, la inteligencia experta en compras de CalculaTú.

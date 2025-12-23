@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Mic, Copy, Check, CreditCard, Smartphone, MessageCircle, Info, Zap, HelpCircle, BarChart3 } from 'lucide-react';
-import { createChatSession, sendMessageToGemini } from '../services/geminiService';
 import { Message } from '../types';
 import { SAVARA_AVATAR } from '../constants';
 
@@ -173,7 +172,6 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const chatSessionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -181,11 +179,8 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
   }, [defaultOpen]);
 
   useEffect(() => {
-    if (isOpen) {
-      if (!chatSessionRef.current) chatSessionRef.current = createChatSession();
-      if (initialMessage && messages.length === 1) {
-        handleSend(initialMessage);
-      }
+    if (isOpen && initialMessage && messages.length === 1) {
+      handleSend(initialMessage);
     }
   }, [isOpen]);
 
@@ -208,9 +203,20 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     setIsLoading(true);
 
     try {
-      if (!chatSessionRef.current) chatSessionRef.current = createChatSession();
-      const responseText = await sendMessageToGemini(chatSessionRef.current, userMsg.text);
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'model', text: responseText }]);
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: textToSend }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'model', text: data.text }]);
     } catch (e) {
       setMessages(prev => [...prev, { id: 'error', role: 'model', text: 'Ups, perdona. ¿Podemos intentarlo de nuevo?' }]);
     } finally {
