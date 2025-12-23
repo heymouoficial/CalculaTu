@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Assets
-export const SAVARA_AVATAR = "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=256&h=256&auto=format&fit=crop";
+export const SAVARA_AVATAR = "/savara_avatar.png";
 
 // Currency Rates
 export const RATES = {

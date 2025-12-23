@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MessageSquare, X, Send, Star, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 import { BUILD_VERSION, BUILD_DATE } from '../config';
+import { supabase } from '../services/supabaseClient';
 
 type FeedbackType = 'bug' | 'feature' | 'general';
 
@@ -33,10 +34,26 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
             url: window.location.href,
         };
 
-        // For now, just log and save to localStorage (can be sent to backend later)
-        console.log('[Feedback]', feedback);
+        // 1. Save to Supabase (Remote backup for admin)
+        if (supabase) {
+            try {
+                const { error } = await supabase
+                    .from('support_reports') // Reusing table for now with type=feedback
+                    .insert([
+                        {
+                            issue_type: `feedback_${type}`,
+                            message: `[Rating: ${rating}/5] ${message.trim() || '(Sin mensaje)'}`,
+                            diagnostic_data: { ...feedback, source: 'FeedbackForm' },
+                            machine_id: localStorage.getItem('calculatu_machine_id') || null
+                        }
+                    ]);
+                if (error) console.error('Error saving feedback to Supabase:', error);
+            } catch (err) {
+                console.error('Supabase feedback error:', err);
+            }
+        }
 
-        // Store feedback locally
+        // 2. Store feedback locally
         try {
             const existing = JSON.parse(localStorage.getItem('pending_feedback') || '[]');
             existing.push(feedback);
@@ -45,8 +62,13 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
             // ignore
         }
 
-        // Simulate send delay
-        await new Promise(r => setTimeout(r, 500));
+        // 3. Send Simplified WhatsApp (No logs, only Markdown)
+        const ratingStars = '⭐'.repeat(rating);
+        const typeEmoji = type === 'bug' ? '🐛 Bug' : type === 'feature' ? '✨ Idea' : '💬 General';
+
+        const whatsappText = `*Feedback CalculaTú*\n\n*Tipo:* ${typeEmoji}\n*Calificación:* ${ratingStars} (${rating}/5)\n\n*Mensaje:*\n${message.trim() || '(Sin comentario)'}`;
+
+        window.open(`https://wa.me/584142949498?text=${encodeURIComponent(whatsappText)}`, '_blank');
 
         setIsSending(false);
         setSent(true);
@@ -54,7 +76,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
         // Auto-close after success
         setTimeout(() => {
             onClose();
-        }, 2000);
+        }, 3000);
     };
 
     if (sent) {

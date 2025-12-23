@@ -16,6 +16,7 @@ import { Logo } from './Logo';
 import { WhatsAppIcon, BinanceIcon, BanescoIcon } from './BrandIcons';
 import { showToast, ToastContainer } from './Toast';
 import { SavaraCallModal } from './SavaraCallModal';
+import { supabase } from '../services/supabaseClient';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -1246,11 +1247,26 @@ PROTOCOLO DE RESPUESTA:
                         const report = {
                           issueType: supportIssueType,
                           message: supportMessage || '(Sin mensaje)',
-                          diagnostic: formatDiagnosticReport(diagnostic),
+                          diagnostic: diagnostic, // Full object for DB
                           timestamp: new Date().toISOString(),
                         };
 
-                        // Store in IndexedDB for offline sending
+                        // 1. Save to Supabase (Remote backup for admin query)
+                        if (supabase) {
+                          const { error } = await supabase
+                            .from('support_reports')
+                            .insert([
+                              {
+                                issue_type: supportIssueType,
+                                message: supportMessage || null,
+                                diagnostic_data: diagnostic,
+                                machine_id: localStorage.getItem('calculatu_machine_id') || null
+                              }
+                            ]);
+                          if (error) console.error('Error saving to Supabase:', error);
+                        }
+
+                        // 2. Store in IndexedDB (Local backup)
                         try {
                           if (typeof window !== 'undefined' && window.indexedDB) {
                             const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -1268,25 +1284,33 @@ PROTOCOLO DE RESPUESTA:
                             const tx = db.transaction('support_reports', 'readwrite');
                             const store = tx.objectStore('support_reports');
                             await new Promise((resolve, reject) => {
-                              const req = store.add({ ...report, id: Date.now() });
+                              const req = store.add({ ...report, diagnostic: formatDiagnosticReport(diagnostic), id: Date.now() });
                               req.onsuccess = () => resolve(req.result);
                               req.onerror = () => reject(req.error);
                             });
                           }
                         } catch (dbErr) {
-                          console.error('Error storing report:', dbErr);
+                          console.error('Error storing report in IndexedDB:', dbErr);
                         }
 
-                        // Try to send via WhatsApp
-                        const whatsappText = `Reporte CalculaTú\n\nTipo: ${supportIssueType}\nMensaje: ${supportMessage || 'N/A'}\n\nUIC: ${diagnostic.uic}\n\nDiagnóstico:\n${formatDiagnosticReport(diagnostic)}`;
+                        // 3. Send simplified WhatsApp (No logs, only clean Markdown)
+                        const issueEmoji = {
+                          voice: '🎙️ Voz',
+                          license: '🔑 Licencia',
+                          calculation: '🧮 Cálculos',
+                          offline: '📶 Offline',
+                          other: '❓ Otro'
+                        }[supportIssueType as string] || supportIssueType;
+
+                        const whatsappText = `*Reporte de Soporte*\n\n*Tipo:* ${issueEmoji}\n*Mensaje:*\n${supportMessage || '(Sin comentario)'}`;
                         window.open(`https://wa.me/584142949498?text=${encodeURIComponent(whatsappText)}`, '_blank');
 
-                        alert('Reporte generado. Se abrirá WhatsApp para enviarlo.');
+                        alert('Reporte enviado correctamente. Se abrirá WhatsApp para confirmación.');
                         setSupportIssueType('');
                         setSupportMessage('');
                       } catch (err) {
                         console.error('Error generating report:', err);
-                        alert('Hubo un error generando el reporte. Intenta de nuevo.');
+                        alert('Hubo un error enviando el reporte. Revisa tu conexión.');
                       }
                     }}
                     className="w-full py-4 rounded-xl bg-blue-500 text-white font-bold uppercase tracking-wide shadow-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
