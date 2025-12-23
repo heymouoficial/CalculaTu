@@ -25,8 +25,8 @@ ESTRUCTURA DE RESPUESTA:
 - Sé breve, amable y profesional. Usa negritas para resaltar puntos clave.
 - Responde siempre en español.`;
 
-// Chat model - gemini-2.5-flash is the current stable model per official docs
-const CHAT_MODEL = 'gemini-2.5-flash';
+// Chat model - gemini-2.0-flash-exp is the current stable model for these features
+const CHAT_MODEL = 'gemini-2.0-flash-exp';
 
 // Store for conversation history
 interface ConversationMessage {
@@ -281,7 +281,7 @@ export class SavaraLiveClient {
     if (!apiKey) throw new Error('VITE_GEMINI_API_KEY non configurada');
 
     const ai = new GoogleGenAI({ apiKey });
-    const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
+    const LIVE_MODEL = 'gemini-2.0-flash-exp';
 
     // Default instruction if none provided
     const systemInstruction = dynamicSystemInstruction || `Eres Savara de CalculaTú.
@@ -404,7 +404,10 @@ REGLAS:
       this.sessionPromise?.then(session => {
         if (session && this.wsState === 'open') {
           session.sendRealtimeInput([{
-            media: pcmBlob
+            inlineData: {
+              mimeType: pcmBlob.mimeType,
+              data: pcmBlob.data
+            }
           }]);
         }
       }).catch(err => {
