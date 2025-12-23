@@ -254,12 +254,12 @@ export class SavaraLiveClient {
         }
       },
       config: {
-        systemInstruction,
+        systemInstruction: { parts: [{ text: systemInstruction }] }, // Structured as Content object
         temperature: 0.7,
         maxOutputTokens: 1000,
-        topP: 1, // Added as per user instruction
-        topK: 32, // Added as per user instruction
-        responseModalities: [Modality.AUDIO],
+        topP: 1,
+        topK: 32,
+        responseModalities: ['AUDIO'], // Explicit string array
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
         tools: [{ functionDeclarations: [addItemTool, finishListTool] }]
       }
