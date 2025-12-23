@@ -254,7 +254,7 @@ export class SavaraLiveClient {
     console.log(`[Savara Live] ${operation}:`, state);
   }
 
-  async connect() {
+  async connect(dynamicSystemInstruction?: string) {
     try {
       this.logState('connect:start');
 
@@ -263,63 +263,34 @@ export class SavaraLiveClient {
         throw new Error('Insecure Context: Savara requiere HTTPS');
       }
 
-      // CRITICAL FIX: Force inputContext to 16kHz to avoid resampling issues
-      // This matches the working Google AI Studio code exactly
       this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
-      console.log(`[Savara Live] Input context sample rate: ${this.inputContext.sampleRate}Hz`);
-      console.log(`[Savara Live] Output context sample rate: ${this.outputContext.sampleRate}Hz`);
-      this.logState('connect:audioContexts-created');
-
-      if (this.inputContext.state === 'suspended') {
-        console.log('[Savara Live] Resuming input context...');
-        await this.inputContext.resume();
-      }
-      if (this.outputContext.state === 'suspended') {
-        console.log('[Savara Live] Resuming output context...');
-        await this.outputContext.resume();
-      }
-      this.logState('connect:audioContexts-resumed');
+      if (this.inputContext.state === 'suspended') await this.inputContext.resume();
+      if (this.outputContext.state === 'suspended') await this.outputContext.resume();
 
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.logState('connect:microphone-granted');
     } catch (err) {
       console.error('[Savara Live] Error during connect setup:', err);
-      this.logState('connect:error');
+      this.config.onClose();
       throw err;
     }
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      console.error('[Savara Live] API KEY no encontrada.');
-      throw new Error('VITE_GEMINI_API_KEY no configurada');
-    }
+    if (!apiKey) throw new Error('VITE_GEMINI_API_KEY non configurada');
 
     const ai = new GoogleGenAI({ apiKey });
-
-    // System instruction refined for humanization and professional empathy
-    const systemInstruction = `Eres Savara, la inteligencia de CalculaTu. No eres un asistente virtual genérico, eres una experta en compras, humana, cálida y muy eficiente. Eres mujer.
-
-REGLAS DE COMUNICACIÓN (HUMANIZACIÓN):
-1. **Tono:** Profesional pero cercano. Usa un lenguaje que empodere al usuario. Prohibido sonar robótica.
-2. **Empatía:** Si el usuario menciona que algo está caro o que se está pasando del presupuesto, responde con empatía (ej: "Entiendo, vamos a ver cómo ajustamos").
-3. **Fluidez:** Usa frases naturales. Puedes usar pequeñas muletillas naturales como "Vale,", "Muy bien,", "A ver," antes de dar un dato, para sonar más humana.
-4. **Nomenclatura Natural:** 
-   - Di "Bolívares" y "Dólares". 
-   - Di "cada uno" o "cada una".
-   - Ejemplo: "Vale, ya sumamos esas tres harinas a uno con cincuenta cada una. ¿Qué más llevas?".
-
-REGLAS CRÍTICAS:
-1. **Idioma:** Español latinoamericano neutral. Sin jergas.
-2. **Escopo:** Solo mercado y calculadora. Declina otros temas con amabilidad.
-3. **Proactividad Zero:** Espera siempre la orden. No inventes productos.
-4. **Saludo:** Al iniciar, di algo cálido: "Savara activa. Cuéntame, ¿qué estamos sumando hoy?".
-5. **Cierre de Compra:** Cuando el usuario diga que terminó (ej: "es todo", "pásame el recibo"), confirma con calidez, ofrece el total y usa 'finishList'.`;
-
-    // CRITICAL FIX: Use the exact model name that works in Google AI Studio
     const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
+
+    // Default instruction if none provided
+    const systemInstruction = dynamicSystemInstruction || `Eres Savara de CalculaTu.
+PERSONALIDAD: Femenina, experta, humana y muy concisa.
+REGLAS:
+1. Responde solo en español. Sé extremadamente breve (máximo 15 palabras).
+2. Di 'Bolívares' y 'Dólares'. Nunca digas siglas.
+3. No agregues productos si no te lo piden.
+4. Saluda siempre y pregunta en qué puedes ayudar.`;
 
     console.log('[Savara Live] Initializing GenAI with model:', LIVE_MODEL);
     this.sessionPromise = ai.live.connect({
@@ -327,81 +298,43 @@ REGLAS CRÍTICAS:
       callbacks: {
         onopen: () => {
           this.wsState = 'open';
-          console.log('[Savara Live] WebSocket opened with', LIVE_MODEL);
-          this.logState('websocket:opened');
-          // NOTE: Do NOT call startAudioInput here - wait for session to resolve
+          console.log('[Savara Live] WebSocket opened');
         },
         onmessage: async (message: LiveServerMessage) => {
-          // Detailed message logging
-          if (message.serverContent?.modelTurn) {
-            const parts = message.serverContent.modelTurn.parts || [];
-            console.log(`[Savara Live] Model response received, parts: ${parts.length}`);
-          } else if (message.serverContent?.interrupted) {
-            console.log('[Savara Live] Model interrupted (Barge-in)');
+          if (message.serverContent?.interrupted) {
+            console.log('[Savara Live] Interrupt (Barge-in)');
           }
 
-          if (message.toolCall) {
-            console.log('[Savara Live] Tool call message received:', JSON.stringify(message.toolCall));
-          }
-
-          // Debug Mode: Ping-Pong responder
-          const textPart = message.serverContent?.modelTurn?.parts?.find(p => p.text);
-          if (textPart?.text?.toLowerCase().includes('ping')) {
-            console.log('[Savara Live] Ping received, sending pong');
-            this.sessionPromise?.then(session => {
-              session.sendRealtimeInput([{ text: 'pong' }]);
-            });
-          }
-
-          // Improved audio part detection: search all parts
           const audioPart = message.serverContent?.modelTurn?.parts?.find(p => p.inlineData?.data);
-          const audioData = audioPart?.inlineData?.data;
-
-          if (audioData && this.outputContext) {
-            console.log('[Savara Live] Audio response received, bytes:', audioData.length);
-            this.decodeAudioData(audioData).then(buffer => {
+          if (audioPart?.inlineData?.data && this.outputContext) {
+            this.decodeAudioData(audioPart.inlineData.data).then(buffer => {
               this.playAudioBuffer(buffer);
-            }).catch(err => {
-              console.error('[Savara Live] Error decoding audio:', err);
             });
           }
+
           if (message.toolCall) {
-            console.log('[Savara Live] Executing tools:', message.toolCall.functionCalls.map(f => f.name));
             for (const fc of message.toolCall.functionCalls) {
               try {
                 const result = await this.config.onToolCall(fc.name, fc.args);
-                console.log(`[Savara Live] Tool ${fc.name} result:`, result);
-                this.sessionPromise?.then(session => {
-                  session.sendToolResponse({
-                    functionResponses: [{ id: fc.id, name: fc.name, response: { result: result } }]
-                  });
+                this.session?.sendToolResponse({
+                  functionResponses: [{ id: fc.id, name: fc.name, response: { result: result } }]
                 });
               } catch (toolErr) {
-                console.error(`[Savara Live] Error executing tool ${fc.name}:`, toolErr);
+                console.error(`[Savara Live] Tool error ${fc.name}:`, toolErr);
               }
             }
           }
         },
         onclose: () => {
           this.wsState = 'closed';
-          console.log('[Savara Live] WebSocket closed');
-          this.logState('websocket:closed');
           this.config.onClose();
         },
         onerror: (err: any) => {
           this.wsState = 'error';
-          // Enhanced error logging for debugging
-          console.error('[Savara Live] WebSocket error - FULL DETAILS:', {
-            message: err?.message || 'No message',
-            code: err?.code || 'No code',
-            type: err?.type || typeof err,
-            raw: err
-          });
-          this.logState('websocket:error');
+          console.error('[Savara Live] WebSocket error:', err);
           this.config.onClose();
         }
       },
-      // Config object with flat structure (per deprecation warning, fields should be at this level, not nested in generationConfig)
       config: {
         systemInstruction,
         responseModalities: [Modality.AUDIO],
@@ -412,10 +345,15 @@ REGLAS CRÍTICAS:
       }
     }).then((session) => {
       this.session = session;
-      console.log('[Savara Live] Session resolved successfully, starting audio input');
-      this.logState('session:resolved');
-      // Start audio input AFTER session is fully resolved
       this.startAudioInput();
+
+      // TRIGGER INITIAL GREETING: Force the model to speak first
+      setTimeout(() => {
+        if (this.session) {
+          this.session.sendRealtimeInput([{ text: "Comienza la llamada. Identifícate como Savara de CalculaTu, saluda con calidez y pregunta en qué puedes ayudar." }]);
+        }
+      }, 300);
+
       return session;
     }).catch((err) => {
       console.error('[Savara Live] Session connection FAILED:', err);
@@ -465,10 +403,9 @@ REGLAS CRÍTICAS:
 
       this.sessionPromise?.then(session => {
         if (session && this.wsState === 'open') {
-          // Revert to media object format which is the standard for @google/genai SDK
-          session.sendRealtimeInput({
+          session.sendRealtimeInput([{
             media: pcmBlob
-          });
+          }]);
         }
       }).catch(err => {
         console.error('[Savara Live] Error sending audio:', err);

@@ -341,6 +341,21 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       setIsListening(true);
       showToast('Iniciando Savara Pro...', 'success');
       try {
+        // Build dynamic context for Savara to have "memory" of the current list and rates
+        const productsSummary = items.map(i => `${i.quantity}x ${i.name} ($${i.price})`).join(', ') || 'Vacía';
+        const dynamicPrompt = `Eres Savara, la inteligencia experta en compras de CalculaTu.
+CONTEXTO ACTUAL:
+- Lista de productos: ${productsSummary}
+- Tasa Dólar (USD): Bs ${rates.USD.toFixed(2)}
+- Tasa Euro (EUR): Bs ${rates.EUR.toFixed(2)}
+
+PROTOCOLO DE RESPUESTA:
+1. Responde siempre en español latino neutro. Sé breve, amable y profesional.
+2. Di siempre "Bolívares" y "Dólares". Prohibido usar siglas.
+3. NUNCA agregues un producto por tu cuenta. Solo obedece comandos explícitos.
+4. Si el usuario pregunta por su lista o por el total, consulta el CONTEXTO ACTUAL arriba.
+5. Al terminar la compra, confirma con calidez y usa 'finishList'.`;
+
         const client = new SavaraLiveClient({
           onToolCall: async (name: string, args: any) => {
             if (name === 'addItem') {
@@ -352,33 +367,31 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 quantity: Number(args.quantity) || 1
               };
               setItems(prev => [newItem, ...prev]);
-              // Show toast notification for added item
               showToast(`Agregado ${args.name} x${args.quantity || 1} a $${args.price}`, 'item');
-              return `Listo, añadí ${args.name}.`;
+              return `Muy bien, ya agregué ${args.name} a tu lista. ¿Qué más vamos a sumar?`;
             }
             if (name === 'finishList') {
               setShowVoucher(true);
-              // Give Savara a moment to finish her goodbye before disconnecting
               setTimeout(async () => {
                 await liveClientRef.current?.disconnect();
                 liveClientRef.current = null;
                 setIsListening(false);
                 showToast('Lista terminada. ¡Gracias por usar Savara!', 'success');
               }, 2000);
-              return "¡Perfecto! Ya generé tu resumen de compra. Fue un placer ayudarte, ¡nos vemos pronto!";
+              return "¡Excelente elección! Ya generé tu recibo ecológico. Fue un verdadero placer ayudarte hoy con tus compras. ¡Hasta la próxima!";
             }
             if (name === 'get_exchange_rate') {
               const provider = args.provider || 'BCV';
-              return `La tasa actual de ${provider} es BS ${rates.USD.toFixed(2)} por dólar.`;
+              return `La tasa oficial de ${provider} para hoy es de ${rates.USD.toFixed(2)} Bolívares por Dólar y ${rates.EUR.toFixed(2)} Bolívares por Euro.`;
             }
             if (name === 'debug_connection_latency') {
               return `Conexión estable. Timestamp recibido: ${args.client_timestamp}`;
             }
-            return "Ok";
+            return "Entendido.";
           },
           onClose: () => setIsListening(false)
         });
-        await client.connect();
+        await client.connect(dynamicPrompt);
         liveClientRef.current = client;
 
         // Log initial state after connection
