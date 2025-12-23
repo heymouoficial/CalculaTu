@@ -1,3 +1,6 @@
+// Emergency polyfill to prevent old bundle collisions
+window.GoogleGenerativeAI = undefined;
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';

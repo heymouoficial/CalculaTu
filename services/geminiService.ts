@@ -203,7 +203,7 @@ export class SavaraLiveClient {
       throw err;
     }
 
-    const ai = new GoogleGenerativeAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey });
     const systemInstruction = dynamicSystemInstruction || SAVARA_SYSTEM_PROMPT;
 
     console.log('[Savara Live] Initializing GenAI with model:', CURRENT_MODEL);
