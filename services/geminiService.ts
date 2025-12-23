@@ -1,5 +1,4 @@
-import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
 
 // ==================== SHARED CONFIGURATION ====================
 
@@ -204,7 +203,7 @@ export class SavaraLiveClient {
       throw err;
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenerativeAI({ apiKey });
     const systemInstruction = dynamicSystemInstruction || SAVARA_SYSTEM_PROMPT;
 
     console.log('[Savara Live] Initializing GenAI with model:', CURRENT_MODEL);
