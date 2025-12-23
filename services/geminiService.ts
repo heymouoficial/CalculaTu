@@ -257,6 +257,8 @@ export class SavaraLiveClient {
         systemInstruction,
         temperature: 0.7,
         maxOutputTokens: 1000,
+        topP: 1, // Added as per user instruction
+        topK: 32, // Added as per user instruction
         responseModalities: [Modality.AUDIO],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
         tools: [{ functionDeclarations: [addItemTool, finishListTool] }]
