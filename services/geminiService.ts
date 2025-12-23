@@ -2,7 +2,7 @@ import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } f
 
 // ==================== SHARED CONFIGURATION ====================
 
-const CURRENT_MODEL = 'gemini-2.0-flash-exp';
+const CURRENT_MODEL = 'gemini-2.0-flash';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú (Multi-Voz Pro).
 Tu tono es humano, cálido, experto y extremadamente conciso. Actúa como una asistente personal de compras venezolana.
@@ -255,6 +255,10 @@ export class SavaraLiveClient {
       },
       config: {
         systemInstruction,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+        },
         responseModalities: [Modality.AUDIO],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
         tools: [{ functionDeclarations: [addItemTool, finishListTool] }]
