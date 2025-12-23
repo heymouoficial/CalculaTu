@@ -2,7 +2,7 @@
 
 ## Fase 1: Pruebas de Funcionalidad Central y Robustez
 
--   [ ] **Task:** Configurar entorno de pruebas en dispositivo Android físico.
+-   [x] **Task:** Configurar entorno de pruebas en dispositivo Android físico. (Manual user confirmation)
 -   [ ] **Task:** Escribir y ejecutar script de prueba para el flujo de voz completo (FR1.1, FR1.2).
     -   Sub-task: Agregar 5 productos por voz.
     -   Sub-task: Preguntar "¿Cuánto llevo en total?".
