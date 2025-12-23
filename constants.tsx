@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Assets
-export const SAVARA_AVATAR = "/savara_avatar.png";
+export const SAVARA_AVATAR = "/SavaraProfile.webp";
 
 // Currency Rates
 export const RATES = {
