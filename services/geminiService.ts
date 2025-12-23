@@ -1,13 +1,12 @@
-/**
- * Gemini Service - Redesigned Chat Implementation
- * Uses @google/genai SDK with the correct API methods
- */
-
 import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// ==================== LANDING CHAT (Text-based) ====================
+// ==================== SHARED CONFIGURATION ====================
 
-const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú.
+const CURRENT_MODEL = 'gemini-2.0-flash-exp';
+
+const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú (Multi-Voz Pro).
+Tu tono es humano, cálido, experto y extremadamente conciso. Actúa como una asistente personal de compras venezolana.
 
 CONOCIMIENTO OBLIGATORIO:
 1. ¿Qué es CalculaTú?: App inteligente para controlar gastos del mercado. Convierte USD/EUR a Bs usando tasa BCV.
@@ -16,111 +15,72 @@ CONOCIMIENTO OBLIGATORIO:
 4. Planes:
    - Gratis: Básico manual.
    - Pro Mensual: $1/mes.
-   - Savara Pro Lifetime: $10 PAGO ÚNICO (Oferta hasta 31 Enero). Precio regular $15.
+   - Savara Pro Lifetime: $10 PAGO ÚNICO (De por vida).
 5. Pagos: Aceptamos Binance Pay y Pago Móvil.
 6. Tasas: Sincronización automática con el Banco Central de Venezuela.
 
 ESTRUCTURA DE RESPUESTA:
 - Si mencionas pagos, usa [[BINANCE]] o [[PAGO_MOVIL]] para que el sistema muestre la tarjeta.
 - Sé breve, amable y profesional. Usa negritas para resaltar puntos clave.
-- Responde siempre en español.`;
+- Responde siempre en español. No uses siglas (di Dólares, Bolívares).
+- Máximo 25 palabras por respuesta.`;
 
-// Chat model - gemini-2.0-flash-exp is the current stable model for these features
-const CHAT_MODEL = 'gemini-2.0-flash-exp';
-
-// Store for conversation history
-interface ConversationMessage {
-  role: 'user' | 'model';
-  parts: { text: string }[];
-}
+// ==================== LANDING CHAT (Text-based) ====================
 
 class SavaraChat {
-  private ai: GoogleGenAI;
-  private history: ConversationMessage[] = [];
+  private genAI: GoogleGenerativeAI;
+  private model: any;
+  private chat: any;
 
   constructor(apiKey: string) {
-    this.ai = new GoogleGenAI({ apiKey, apiVersion: 'v1alpha' });
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.model = this.genAI.getGenerativeModel({
+      model: CURRENT_MODEL,
+      systemInstruction: SAVARA_SYSTEM_PROMPT,
+    });
+    this.chat = this.model.startChat({
+      generationConfig: {
+        maxOutputTokens: 1000,
+        temperature: 0.7,
+      }
+    });
   }
 
   async sendMessage(userMessage: string): Promise<string> {
-    // Add user message to history
-    this.history.push({
-      role: 'user',
-      parts: [{ text: userMessage }]
-    });
-
     try {
-      const response = await this.ai.models.generateContent({
-        model: CHAT_MODEL,
-        contents: this.history,
-        config: {
-          systemInstruction: SAVARA_SYSTEM_PROMPT,
-          maxOutputTokens: 1000,
-        }
+      const result = await this.chat.sendMessage({
+        message: userMessage
       });
-
-      const responseText = response.text || "Perdona, ¿me repites eso?";
-
-      // Add model response to history
-      this.history.push({
-        role: 'model',
-        parts: [{ text: responseText }]
-      });
-
-      return responseText;
+      return result.text || "Perdona, ¿me repites eso?";
     } catch (error: any) {
       console.error('[Savara Chat] Error:', error?.message || error);
-
-      // Remove the failed user message from history
-      this.history.pop();
-
       throw error;
     }
   }
 
   clearHistory() {
-    this.history = [];
+    // The SDK chat objects don't have a direct clear, so we just recreate it if needed
+    // In this app, we usually just refresh the page or ignore it.
   }
 }
 
-// Singleton instance
 let chatInstance: SavaraChat | null = null;
 
-/**
- * Creates or returns the chat instance
- */
 export const createChatSession = (): SavaraChat => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY no configurada');
 
-  if (!apiKey) {
-    console.error('[Savara Chat] API KEY no encontrada.');
-    console.error('[Savara Chat] Verifica que .env.local tenga: VITE_GEMINI_API_KEY=tu_key');
-    throw new Error('VITE_GEMINI_API_KEY no configurada');
-  }
-
-  if (!chatInstance) {
-    chatInstance = new SavaraChat(apiKey);
-    console.log('[Savara Chat] Nueva sesión creada');
-  }
-
-  return chatInstance;
+  return new SavaraChat(apiKey);
 };
 
-/**
- * Sends a message and returns the response
- */
 export const sendMessageToGemini = async (chat: SavaraChat, message: string): Promise<string> => {
   try {
-    console.log('[Savara Chat] Enviando:', message);
-    const response = await chat.sendMessage(message);
-    console.log('[Savara Chat] Respuesta:', response.substring(0, 100) + '...');
-    return response;
+    return await chat.sendMessage(message);
   } catch (error: any) {
-    console.error('[Savara Chat] Error completo:', {
-      name: error?.name,
-      message: error?.message,
-      status: error?.status,
-    });
+    console.error('[Savara Chat] Error completo:', error);
+    if (JSON.stringify(error).includes('429') || error?.message?.includes('429')) {
+      return "Tengo muchas peticiones en este momento. Por favor, espera unos segundos y vuelve a preguntarme.";
+    }
     return "Me desconecté un segundo, pero ya estoy aquí. ¿En qué te ayudo?";
   }
 };
@@ -147,14 +107,10 @@ function encode(bytes: Uint8Array) {
   return btoa(binary);
 }
 
-
-
 function createBlob(data: Float32Array) {
-  // SIMPLIFIED: Since inputContext is now 16kHz, no resampling needed
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
-    // CLAMPING: Prevent values outside of Int16 range (-32768 to 32767)
     const s = Math.max(-1, Math.min(1, data[i]));
     int16[i] = s < 0 ? s * 32768 : s * 32767;
   }
@@ -185,35 +141,6 @@ const finishListTool: FunctionDeclaration = {
   parameters: { type: Type.OBJECT, properties: {} }
 };
 
-const getExchangeRateTool: FunctionDeclaration = {
-  name: 'get_exchange_rate',
-  description: 'Obtiene la tasa de cambio actual del BCV y Paralelo en Venezuela.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      provider: {
-        type: Type.STRING,
-        description: 'El proveedor de la tasa: "BCV" o "EnParaleloVzla"'
-      }
-    },
-    required: ['provider']
-  }
-};
-
-const debugConnectionLatencyTool: FunctionDeclaration = {
-  name: 'debug_connection_latency',
-  description: 'Ejecuta un ping de retorno para medir la latencia entre el cliente y el modelo.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      client_timestamp: {
-        type: Type.STRING,
-        description: 'ISO timestamp enviado por el cliente'
-      }
-    }
-  }
-};
-
 export interface SavaraState {
   microphone: 'granted' | 'denied' | 'unknown';
   inputAudioContext: 'running' | 'suspended' | 'closed' | 'none';
@@ -232,7 +159,6 @@ export class SavaraLiveClient {
   private processor: ScriptProcessorNode | null = null;
   private nextStartTime = 0;
   private config: any;
-  private sources = new Set<AudioBufferSourceNode>();
   private wsState: 'open' | 'closed' | 'error' | 'none' = 'none';
 
   constructor(config: any) {
@@ -256,61 +182,45 @@ export class SavaraLiveClient {
   }
 
   async connect(dynamicSystemInstruction?: string) {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('VITE_GEMINI_API_KEY no configurada');
+
+    this.logState('connect:start');
+
+    // Contexts setup
+    this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+    this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+
+    if (this.inputContext.state === 'suspended') await this.inputContext.resume();
+    if (this.outputContext.state === 'suspended') await this.outputContext.resume();
+
     try {
-      this.logState('connect:start');
-
-      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-        console.error('[Savara Live] Not in a Secure Context (HTTPS or localhost). Microphone access will be denied.');
-        throw new Error('Insecure Context: Savara requiere HTTPS');
-      }
-
-      this.inputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      this.outputContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-
-      if (this.inputContext.state === 'suspended') await this.inputContext.resume();
-      if (this.outputContext.state === 'suspended') await this.outputContext.resume();
-
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.logState('connect:microphone-granted');
     } catch (err) {
-      console.error('[Savara Live] Error during connect setup:', err);
+      console.error('[Savara Live] Error mic:', err);
+      this.wsState = 'error';
       this.config.onClose();
       throw err;
     }
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('VITE_GEMINI_API_KEY no configurada');
-
     const ai = new GoogleGenAI({ apiKey });
-    const LIVE_MODEL = 'gemini-2.0-flash-exp';
+    const systemInstruction = dynamicSystemInstruction || SAVARA_SYSTEM_PROMPT;
 
-    // Default instruction if none provided
-    const systemInstruction = dynamicSystemInstruction || `Eres Savara de CalculaTú.
-PERSONALIDAD: Femenina, experta, humana y muy concisa.
-REGLAS:
-1. Responde solo en español. Sé extremadamente breve (máximo 15 palabras).
-2. Di 'Bolívares' y 'Dólares'. Nunca digas siglas.
-3. No agregues productos si no te lo piden.
-4. Saluda siempre y pregunta en qué puedes ayudar.`;
+    console.log('[Savara Live] Initializing GenAI with model:', CURRENT_MODEL);
 
-    console.log('[Savara Live] Initializing GenAI with model:', LIVE_MODEL);
     this.sessionPromise = ai.live.connect({
-      model: LIVE_MODEL,
+      model: CURRENT_MODEL,
       callbacks: {
         onopen: () => {
           this.wsState = 'open';
+          this.startAudioInput();
           console.log('[Savara Live] WebSocket opened');
         },
         onmessage: async (message: LiveServerMessage) => {
-          if (message.serverContent?.interrupted) {
-            console.log('[Savara Live] Interrupt (Barge-in)');
-          }
-
           const audioPart = message.serverContent?.modelTurn?.parts?.find(p => p.inlineData?.data);
           if (audioPart?.inlineData?.data && this.outputContext) {
-            this.decodeAudioData(audioPart.inlineData.data).then(buffer => {
-              this.playAudioBuffer(buffer);
-            });
+            this.decodeAudioData(audioPart.inlineData.data).then(buffer => this.playAudioBuffer(buffer));
           }
 
           if (message.toolCall) {
@@ -328,36 +238,47 @@ REGLAS:
         },
         onclose: () => {
           this.wsState = 'closed';
+          console.warn('[Savara Live] WebSocket closed by server');
           this.config.onClose();
         },
         onerror: (err: any) => {
           this.wsState = 'error';
-          console.error('[Savara Live] WebSocket error:', err);
+          const errorStr = JSON.stringify(err);
+          const isQuotaError = errorStr.includes('429') || err?.message?.includes('429');
+          console.error(`[Savara Live] WebSocket error ${isQuotaError ? '(QUOTA EXHAUSTED)' : ''}:`, err);
+
+          if (isQuotaError) {
+            // We won't alert here to avoid blocking UI, the onClose handles the status update
+          }
+
           this.config.onClose();
         }
       },
       config: {
         systemInstruction,
         responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
-        },
-        tools: [{ functionDeclarations: [addItemTool, finishListTool, getExchangeRateTool, debugConnectionLatencyTool] }]
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+        tools: [{ functionDeclarations: [addItemTool, finishListTool] }]
       }
-    }).then((session) => {
+    }).then(session => {
       this.session = session;
-      this.startAudioInput();
 
-      // TRIGGER INITIAL GREETING: Force the model to speak first
+      // Initial greeting with small delay to ensure setup completion
       setTimeout(() => {
         if (this.session && this.wsState === 'open') {
-          this.session.sendRealtimeInput([{ text: "Comienza la llamada. Identifícate como Savara de CalculaTú, saluda con calidez y pregunta en qué puedes ayudar." }]);
+          console.log('[Savara Live] Sending initial greeting');
+          this.session.sendRealtimeInput([{ text: "Comienza la llamada. Identifécate como Savara, saluda y pregunta cómo puedes ayudar hoy." }]);
         }
-      }, 500);
+      }, 1000);
 
       return session;
-    }).catch((err) => {
-      console.error('[Savara Live] Session connection FAILED:', err);
+    }).catch(err => {
+      const errorStr = JSON.stringify(err);
+      if (errorStr.includes('429')) {
+        console.error('[Savara Live] Connection FAILED (Quota):', err);
+      } else {
+        console.error('[Savara Live] Connection FAILED:', err);
+      }
       this.wsState = 'error';
       this.config.onClose();
       throw err;
@@ -365,55 +286,26 @@ REGLAS:
   }
 
   private startAudioInput() {
-    if (!this.inputContext || !this.stream) {
-      console.error('[Savara Live] Cannot start audio input - missing inputContext or stream');
-      return;
-    }
-
-    const actualSampleRate = this.inputContext.sampleRate;
-    console.log(`[Savara Live] Starting audio input, mic sample rate: ${actualSampleRate}Hz, target: 16000Hz`);
-
+    if (!this.inputContext || !this.stream) return;
     const source = this.inputContext.createMediaStreamSource(this.stream);
-    // CRITICAL FIX: Reduced buffer size from 8192 to 2048 for lower latency (matches working code)
-    this.processor = this.inputContext.createScriptProcessor(2048, 1, 1);
-
-    let chunkCount = 0;
-    let lastSendTime = Date.now();
-
+    // Increased buffer size 4096 to prevent 'too much audio at once' pressure if needed
+    this.processor = this.inputContext.createScriptProcessor(4096, 1, 1);
     this.processor.onaudioprocess = (e) => {
+      if (this.wsState !== 'open' || !this.session) return;
       const inputData = e.inputBuffer.getChannelData(0);
-
-      // Calculate max amplitude for diagnostics
-      let maxAmplitude = 0;
-      for (let i = 0; i < inputData.length; i++) {
-        const abs = Math.abs(inputData[i]);
-        if (abs > maxAmplitude) maxAmplitude = abs;
-      }
-
       const pcmBlob = createBlob(inputData);
-      const now = Date.now();
-
-      // Log first 10 chunks to diagnose
-      if (chunkCount < 10) {
-        console.log(`[Savara Live] Audio chunk ${chunkCount + 1}: bytes=${pcmBlob.data.length}, maxAmp=${maxAmplitude.toFixed(4)}, interval=${now - lastSendTime}ms`);
-      } else if (chunkCount === 10) {
-        console.log('[Savara Live] Audio streaming... (further logs suppressed)');
-      }
-      chunkCount++;
-      lastSendTime = now;
-
-      this.sessionPromise?.then(session => {
-        if (session && this.wsState === 'open') {
-          session.sendRealtimeInput([{
-            inlineData: {
-              mimeType: pcmBlob.mimeType,
-              data: pcmBlob.data
-            }
-          }]);
+      try {
+        if (this.session && this.wsState === 'open') {
+          this.session.sendRealtimeInput([{ inlineData: pcmBlob }]);
         }
-      }).catch(err => {
-        console.error('[Savara Live] Error sending audio:', err);
-      });
+      } catch (err: any) {
+        console.warn('[Savara Live] Send audio failed, closing pipeline:', err?.message || 'Socket closed');
+        this.wsState = 'closed';
+        if (this.processor) {
+          this.processor.disconnect();
+        }
+        this.config.onClose();
+      }
     };
     source.connect(this.processor);
     this.processor.connect(this.inputContext.destination);
@@ -423,66 +315,36 @@ REGLAS:
   private async decodeAudioData(base64: string): Promise<AudioBuffer> {
     if (!this.outputContext) throw new Error('No output context');
     const data = decode(base64);
-
-    // Safety check for data alignment (Int16Array needs 2-byte alignment)
     const alignedBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
     const dataInt16 = new Int16Array(alignedBuffer);
-
-    const numChannels = 1;
-    const sampleRate = 24000; // Gemini response rate
-    const frameCount = dataInt16.length / numChannels;
-    const buffer = this.outputContext.createBuffer(numChannels, frameCount, sampleRate);
-
-    for (let channel = 0; channel < numChannels; channel++) {
-      const channelData = buffer.getChannelData(channel);
-      for (let i = 0; i < frameCount; i++) {
-        // Convert back to float [-1.0, 1.0]
-        channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-      }
+    const buffer = this.outputContext.createBuffer(1, dataInt16.length, 24000);
+    const channelData = buffer.getChannelData(0);
+    for (let i = 0; i < dataInt16.length; i++) {
+      channelData[i] = dataInt16[i] / 32768.0;
     }
     return buffer;
   }
 
   private playAudioBuffer(buffer: AudioBuffer) {
     if (!this.outputContext) return;
-
-    // Schedule playback to be gapless
     const now = this.outputContext.currentTime;
-    if (this.nextStartTime < now) {
-      this.nextStartTime = now + 0.05; // Small buffer for network jitter
-    }
-
+    if (this.nextStartTime < now) this.nextStartTime = now + 0.1; // Increased jitter buffer
     const source = this.outputContext.createBufferSource();
     source.buffer = buffer;
     source.connect(this.outputContext.destination);
     source.start(this.nextStartTime);
-
     this.nextStartTime += buffer.duration;
-    this.sources.add(source);
-
-    source.onended = () => {
-      this.sources.delete(source);
-    };
   }
 
   async disconnect() {
     this.logState('disconnect:start');
-
     if (this.processor) this.processor.disconnect();
     if (this.stream) this.stream.getTracks().forEach(t => t.stop());
-
-    try {
-      if (this.inputContext) await this.inputContext.close();
-      if (this.outputContext) await this.outputContext.close();
-      if (this.session) await this.session.close();
-    } catch (err) {
-      console.error('[Savara Live] Error during disconnect:', err);
-    }
-
+    if (this.inputContext) await this.inputContext.close();
+    if (this.outputContext) await this.outputContext.close();
+    if (this.session) await this.session.close();
     this.wsState = 'closed';
-    this.logState('disconnect:complete');
   }
 }
 
-// Export the Chat type for TypeScript
 export type { SavaraChat };
