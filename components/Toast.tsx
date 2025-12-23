@@ -4,7 +4,7 @@ import { Check, ShoppingBag, X } from 'lucide-react';
 interface Toast {
     id: string;
     message: string;
-    type: 'success' | 'item' | 'error';
+    type: 'success' | 'item' | 'error' | 'loading';
     icon?: React.ReactNode;
 }
 
@@ -41,15 +41,19 @@ export const ToastContainer: React.FC = () => {
                 <div
                     key={toast.id}
                     className={`px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-down pointer-events-auto max-w-sm ${toast.type === 'success'
-                            ? 'bg-emerald-500 text-white'
-                            : toast.type === 'item'
-                                ? 'bg-white/95 text-black backdrop-blur-md border border-white/20'
-                                : 'bg-red-500 text-white'
+                        ? 'bg-emerald-500 text-white'
+                        : toast.type === 'item'
+                            ? 'bg-white/95 text-black backdrop-blur-md border border-white/20'
+                            : 'bg-red-500 text-white'
                         }`}
                 >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${toast.type === 'success' ? 'bg-white/20' : toast.type === 'item' ? 'bg-emerald-500' : 'bg-white/20'
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${toast.type === 'success' ? 'bg-white/20' : toast.type === 'item' ? 'bg-emerald-500' : toast.type === 'loading' ? 'bg-white/10' : 'bg-white/20'
                         }`}>
-                        {toast.icon || (toast.type === 'item' ? <ShoppingBag size={16} className="text-white" /> : <Check size={16} />)}
+                        {toast.icon || (
+                            toast.type === 'item' ? <ShoppingBag size={16} className="text-white" /> :
+                                toast.type === 'loading' ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> :
+                                    <Check size={16} />
+                        )}
                     </div>
                     <span className="font-medium text-sm">{toast.message}</span>
                 </div>

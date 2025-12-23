@@ -158,22 +158,56 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   const handleShareVoucher = async () => {
     if (!voucherRef.current) return;
-    try {
-      const dataUrl = await toJpeg(voucherRef.current, { quality: 0.95, backgroundColor: '#ffffff' });
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], 'recibo.jpg', { type: 'image/jpeg' });
 
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Mi Recibo de CalculaTú',
-          text: 'Aquí tienes mi lista de compras generada con CalculaTú.'
-        });
+    showToast('Generando recibo...', 'loading');
+
+    try {
+      // 1. Generate image - use slightly lower quality for faster turnaround
+      const dataUrl = await toJpeg(voucherRef.current, {
+        quality: 0.75,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2 // Keep it sharp but manageable
+      });
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], 'CalculaTu-Recibo.jpg', { type: 'image/jpeg' });
+
+      // 2. Direct Share Attempt
+      if (navigator.share) {
+        const shareData: ShareData = {
+          title: 'CalculaTú',
+          text: 'He realizado mis cálculos con CalculaTú 📱'
+        };
+
+        // If files are supported, add them
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          shareData.files = [file];
+        }
+
+        await navigator.share(shareData);
+        showToast('¡Recibo compartido!', 'success');
       } else {
+        // No share support at all
         handleDownloadVoucher();
       }
     } catch (err) {
-      handleDownloadVoucher();
+      console.error('[Share] Failed:', err);
+      // Fallback to simple text share if image failed but share API exists
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: 'CalculaTú',
+            text: `Lista de compras - Total: Bs ${currentTotals.bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`,
+            url: window.location.origin
+          });
+          showToast('Total compartido (sin imagen)', 'item');
+        } else {
+          handleDownloadVoucher();
+        }
+      } catch (innerErr) {
+        handleDownloadVoucher();
+      }
     }
   };
 
