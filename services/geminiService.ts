@@ -39,7 +39,7 @@ class SavaraChat {
   private history: ConversationMessage[] = [];
 
   constructor(apiKey: string) {
-    this.ai = new GoogleGenAI({ apiKey });
+    this.ai = new GoogleGenAI({ apiKey, apiVersion: 'v1alpha' });
   }
 
   async sendMessage(userMessage: string): Promise<string> {
@@ -151,11 +151,12 @@ function encode(bytes: Uint8Array) {
 
 function createBlob(data: Float32Array) {
   // SIMPLIFIED: Since inputContext is now 16kHz, no resampling needed
-  // This matches the working Google AI Studio code exactly
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
-    int16[i] = data[i] * 32768;
+    // CLAMPING: Prevent values outside of Int16 range (-32768 to 32767)
+    const s = Math.max(-1, Math.min(1, data[i]));
+    int16[i] = s < 0 ? s * 32768 : s * 32767;
   }
   return {
     data: encode(new Uint8Array(int16.buffer)),
@@ -278,7 +279,7 @@ export class SavaraLiveClient {
     }
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('VITE_GEMINI_API_KEY non configurada');
+    if (!apiKey) throw new Error('VITE_GEMINI_API_KEY no configurada');
 
     const ai = new GoogleGenAI({ apiKey });
     const LIVE_MODEL = 'gemini-2.0-flash-exp';
@@ -349,10 +350,10 @@ REGLAS:
 
       // TRIGGER INITIAL GREETING: Force the model to speak first
       setTimeout(() => {
-        if (this.session) {
+        if (this.session && this.wsState === 'open') {
           this.session.sendRealtimeInput([{ text: "Comienza la llamada. Identifícate como Savara de CalculaTú, saluda con calidez y pregunta en qué puedes ayudar." }]);
         }
-      }, 300);
+      }, 500);
 
       return session;
     }).catch((err) => {
@@ -422,7 +423,11 @@ REGLAS:
   private async decodeAudioData(base64: string): Promise<AudioBuffer> {
     if (!this.outputContext) throw new Error('No output context');
     const data = decode(base64);
-    const dataInt16 = new Int16Array(data.buffer);
+
+    // Safety check for data alignment (Int16Array needs 2-byte alignment)
+    const alignedBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    const dataInt16 = new Int16Array(alignedBuffer);
+
     const numChannels = 1;
     const sampleRate = 24000; // Gemini response rate
     const frameCount = dataInt16.length / numChannels;
@@ -431,6 +436,7 @@ REGLAS:
     for (let channel = 0; channel < numChannels; channel++) {
       const channelData = buffer.getChannelData(channel);
       for (let i = 0; i < frameCount; i++) {
+        // Convert back to float [-1.0, 1.0]
         channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
       }
     }
