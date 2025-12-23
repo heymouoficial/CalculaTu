@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
+import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } from "@google/genai";
 
 // ==================== SHARED CONFIGURATION ====================
 
@@ -27,12 +27,12 @@ ESTRUCTURA DE RESPUESTA:
 // ==================== LANDING CHAT (Text-based) ====================
 
 class SavaraChat {
-  private genAI: GoogleGenerativeAI;
+  private genAI: GoogleGenAI;
   private model: any;
   private chat: any;
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAI = new GoogleGenAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
       model: CURRENT_MODEL,
       systemInstruction: SAVARA_SYSTEM_PROMPT,
