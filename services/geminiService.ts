@@ -7,10 +7,10 @@ import { GoogleGenAI, FunctionDeclaration, Type, LiveServerMessage, Modality } f
 
 // ==================== LANDING CHAT (Text-based) ====================
 
-const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTu.
+const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú.
 
 CONOCIMIENTO OBLIGATORIO:
-1. ¿Qué es CalculaTu?: App inteligente para controlar gastos del mercado. Convierte USD/EUR a Bs usando tasa BCV.
+1. ¿Qué es CalculaTú?: App inteligente para controlar gastos del mercado. Convierte USD/EUR a Bs usando tasa BCV.
 2. Cómo funciona: Sumas productos, Savara convierte y te da el total. Funciona con voz o teclado.
 3. Características: Tasa BCV oficial, Modo Bunker (Offline), Comandos de voz, Historial de tickets.
 4. Planes:
@@ -284,7 +284,7 @@ export class SavaraLiveClient {
     const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
     // Default instruction if none provided
-    const systemInstruction = dynamicSystemInstruction || `Eres Savara de CalculaTu.
+    const systemInstruction = dynamicSystemInstruction || `Eres Savara de CalculaTú.
 PERSONALIDAD: Femenina, experta, humana y muy concisa.
 REGLAS:
 1. Responde solo en español. Sé extremadamente breve (máximo 15 palabras).
@@ -350,7 +350,7 @@ REGLAS:
       // TRIGGER INITIAL GREETING: Force the model to speak first
       setTimeout(() => {
         if (this.session) {
-          this.session.sendRealtimeInput([{ text: "Comienza la llamada. Identifícate como Savara de CalculaTu, saluda con calidez y pregunta en qué puedes ayudar." }]);
+          this.session.sendRealtimeInput([{ text: "Comienza la llamada. Identifícate como Savara de CalculaTú, saluda con calidez y pregunta en qué puedes ayudar." }]);
         }
       }, 300);
 

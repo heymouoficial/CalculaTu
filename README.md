@@ -1,6 +1,6 @@
-# CalculaTu SmartWeb
+# CalculaTú SmartWeb
 
-**CalculaTu** es una web app ligera (React + Vite) para hacer mercado **sin estrés**: suma productos en USD/EUR/VES y convierte a bolívares con tasa BCV (manual por ahora), con **Savara AI** (chat en landing y voz en la calculadora Pro), **PWA instalable**, y un sistema de **licencias** vinculado a huella digital (deviceId).
+**CalculaTú** es una web app ligera (React + Vite) para hacer mercado **sin estrés**: suma productos en USD/EUR/VES y convierte a bolívares con tasa BCV (manual por ahora), con **Savara AI** (chat en landing y voz en la calculadora Pro), **PWA instalable**, y un sistema de **licencias** vinculado a huella digital (deviceId).
 
 ## Funciones principales
 
@@ -89,7 +89,7 @@ El repo incluye `vercel.json` con:
 ## Copyright / Derechos
 
 Copyright © 2025–2026 **MultiversaGroup**.  
-**CalculaTu** y **Multiversa** son obras protegidas. Los titulares (fundador y co-fundadora, **Runa Gold**) mantienen los derechos y cuentan con **registro/timestamp en SafeCreative (LOCK‑IN)**.
+**CalculaTú** y **Multiversa** son obras protegidas. Los titulares (fundador y co-fundadora, **Runa Gold**) mantienen los derechos y cuentan con **registro/timestamp en SafeCreative (LOCK‑IN)**.
 
 **All rights reserved.** No se concede licencia de uso, copia, modificación o distribución sin autorización expresa por escrito.
 

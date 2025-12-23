@@ -42,7 +42,7 @@ const PAYMENT_DATA = {
 const WHATSAPP_NUMBER = "584142949498";
 
 const QUICK_ACTIONS = [
-  { label: "¿Qué es CalculaTu? 📱", query: "Cuéntame qué es CalculaTu y por qué es mejor que una calculadora común.", icon: <Info size={14} /> },
+  { label: "¿Qué es CalculaTú? 📱", query: "Cuéntame qué es CalculaTú y por qué es mejor que una calculadora común.", icon: <Info size={14} /> },
   { label: "¿Cómo funciona? 🤔", query: "¿Cómo funciona el proceso de suma y conversión en la app?", icon: <HelpCircle size={14} /> },
   { label: "Características ⚡", query: "¿Cuáles son las características principales (Voz, Offline, etc)?", icon: <Zap size={14} /> },
   { label: "Planes de Pago 💎", query: "¿Qué planes tienen y cuánto cuesta el acceso Pro?", icon: <Sparkles size={14} /> },
@@ -61,8 +61,8 @@ const CopyButton: React.FC<{ text: string; label?: string; dark?: boolean }> = (
     <button
       onClick={handleCopy}
       className={`flex items-center justify-between w-full p-3 rounded-xl border transition-all group ${dark
-          ? 'bg-black/40 border-white/10 hover:bg-black/60'
-          : 'bg-white/10 border-white/20 hover:bg-white/20'
+        ? 'bg-black/40 border-white/10 hover:bg-black/60'
+        : 'bg-white/10 border-white/20 hover:bg-white/20'
         }`}
     >
       <div className="flex flex-col items-start text-left">
@@ -122,8 +122,8 @@ const PaymentCard: React.FC<{ type: 'binance' | 'pagoMovil' }> = ({ type }) => {
         <button
           onClick={handleWhatsApp}
           className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isBinance
-              ? 'bg-[#F0B90B] text-black hover:bg-[#ffe252]'
-              : 'bg-white text-[#207e5c] hover:bg-gray-100'
+            ? 'bg-[#F0B90B] text-black hover:bg-[#ffe252]'
+            : 'bg-white text-[#207e5c] hover:bg-gray-100'
             }`}
         >
           <MessageCircle size={16} strokeWidth={2.5} /> Reportar Pago
@@ -169,7 +169,7 @@ const MessageContent: React.FC<{ text: string }> = ({ text }) => {
 export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: string; onClose?: () => void }> = ({ defaultOpen = false, initialMessage, onClose }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'model', text: '¡Hola! Soy **Savara AI** 🎙️. Tu compañera experta de CalculaTu. ¿En qué te puedo ayudar hoy?' }
+    { id: 'welcome', role: 'model', text: '¡Hola! Soy **Savara AI** 🎙️. Tu compañera experta de **CalculaTú**. ¿En qué te puedo ayudar hoy?' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -269,8 +269,8 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
                   <div className={`max-w-[85%] rounded-[2rem] p-5 text-sm shadow-sm ${msg.role === 'user'
-                      ? 'bg-[#10b981] text-black font-semibold rounded-tr-none'
-                      : 'bg-[#1a1a1a] text-gray-200 rounded-tl-none border border-white/5'
+                    ? 'bg-[#10b981] text-black font-semibold rounded-tr-none'
+                    : 'bg-[#1a1a1a] text-gray-200 rounded-tl-none border border-white/5'
                     }`}>
                     <MessageContent text={msg.text} />
                   </div>

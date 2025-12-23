@@ -1,4 +1,4 @@
--- CalculaTu SmartWeb - Supabase schema
+-- CalculaTú SmartWeb - Supabase schema
 -- Run this in Supabase SQL editor (SQL Editor -> New Query).
 
 -- ===========================

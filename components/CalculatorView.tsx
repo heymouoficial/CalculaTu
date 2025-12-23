@@ -144,7 +144,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     try {
       const dataUrl = await toJpeg(voucherRef.current, { quality: 0.95, backgroundColor: '#ffffff' });
       const link = document.createElement('a');
-      link.download = `CalculaTu-Recibo-${Date.now()}.jpg`;
+      link.download = `CalculaTú-Recibo-${Date.now()}.jpg`;
       link.href = dataUrl;
       link.click();
       showToast('Recibo guardado como imagen ✅', 'success');
@@ -166,8 +166,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'Mi Recibo de CalculaTu',
-          text: 'Aquí tienes mi lista de compras generada con CalculaTu.'
+          title: 'Mi Recibo de CalculaTú',
+          text: 'Aquí tienes mi lista de compras generada con CalculaTú.'
         });
       } else {
         handleDownloadVoucher();
@@ -181,6 +181,32 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     if (items.length > 0) {
       setViewingHistoryEntry(null); // Ensure we are viewing current items
       setShowVoucher(true);
+    }
+  };
+
+  const handleSaveHistory = async () => {
+    if (items.length === 0) return;
+
+    const date = new Date();
+    const newEntry: Omit<HistoryEntry, 'createdAt'> = {
+      id: Date.now().toString(),
+      date: date.toLocaleDateString('es-VE'),
+      time: date.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
+      totalBs: currentTotals.bs,
+      totalUsd: currentTotals.usd,
+      totalEur: currentTotals.eur,
+      itemCount: items.length,
+      items: [...items]
+    };
+
+    try {
+      await saveHistoryEntry(newEntry);
+      setHistory(prev => [newEntry, ...prev]);
+      setItems([]);
+      showToast('Tu bolsillo ha sido guardado ✅', 'success');
+    } catch (err) {
+      console.error('Error saving history:', err);
+      showToast('No se pudo guardar en el historial', 'error');
     }
   };
 
@@ -344,7 +370,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       try {
         // Build dynamic context for Savara to have "memory" of the current list and rates
         const productsSummary = items.map(i => `${i.quantity}x ${i.name} ($${i.price})`).join(', ') || 'Vacía';
-        const dynamicPrompt = `Eres Savara, la inteligencia experta en compras de CalculaTu.
+        const dynamicPrompt = `Eres Savara, la inteligencia experta en compras de CalculaTú.
 CONTEXTO ACTUAL:
 - Lista de productos: ${productsSummary}
 - Tasa Dólar (USD): Bs ${rates.USD.toFixed(2)}
@@ -619,6 +645,17 @@ PROTOCOLO DE RESPUESTA:
                 </div>
               </div>
             ))}
+
+            {/* Guardar Historial Button (for Free/Manual users) */}
+            <div className="pt-6 pb-2 flex justify-center">
+              <button
+                onClick={handleSaveHistory}
+                className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-emerald-400 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest shadow-xl ring-1 ring-white/5"
+              >
+                <Save size={16} className="text-emerald-400/70" />
+                Guardar Historial
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -738,7 +775,7 @@ PROTOCOLO DE RESPUESTA:
                 >
                   <X size={16} className="text-gray-600" />
                 </button>
-                <h2 className="text-2xl font-black tracking-tighter mb-1 font-sans">CALCULATÚ</h2>
+                <h2 className="text-2xl font-black tracking-tighter mb-1 font-sans text-black">CALCULATÚ</h2>
                 <p className="uppercase text-[10px] text-gray-500 font-bold tracking-widest">
                   {viewingHistoryEntry ? 'Copia de Recibo' : 'Resumen de Cuenta'}
                 </p>
@@ -793,23 +830,39 @@ PROTOCOLO DE RESPUESTA:
               </div>
             </div>
 
-            <div className="flex border-t border-gray-100">
-              <button
-                onClick={handleDownloadVoucher}
-                disabled={isDownloading}
-                className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 border-r border-gray-100"
-              >
-                {isDownloading ? <RefreshCcw size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-                JPEG
-              </button>
-              <button
-                onClick={handleShareVoucher}
-                className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <Share2 size={14} />
-                Compartir
-              </button>
-            </div>
+            {license.active ? (
+              <div className="flex border-t border-gray-100">
+                <button
+                  onClick={handleDownloadVoucher}
+                  disabled={isDownloading}
+                  className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 border-r border-gray-100"
+                >
+                  {isDownloading ? <RefreshCcw size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+                  JPEG
+                </button>
+                <button
+                  onClick={handleShareVoucher}
+                  className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Share2 size={14} />
+                  Compartir
+                </button>
+              </div>
+            ) : (
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex flex-col items-center gap-2">
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider text-center">
+                  Exportar en JPG disponible solo en versión Pro
+                </p>
+                <div className="flex w-full gap-2 opacity-40 grayscale">
+                  <div className="flex-1 py-3 bg-white text-black border border-gray-200 font-bold uppercase tracking-widest text-[9px] rounded flex items-center justify-center gap-2 cursor-not-allowed">
+                    <Lock size={12} /> JPEG
+                  </div>
+                  <div className="flex-1 py-3 bg-white text-black border border-gray-200 font-bold uppercase tracking-widest text-[9px] rounded flex items-center justify-center gap-2 cursor-not-allowed">
+                    <Lock size={12} /> Compartir
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={handleCloseVoucher}
@@ -1022,10 +1075,10 @@ PROTOCOLO DE RESPUESTA:
                             </div>
                             <button
                               onClick={() => { setViewingHistoryEntry(entry); setShowVoucher(true); }}
-                              className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
-                              title="Ver Recibo Ecológico"
+                              className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all active:scale-90 border border-emerald-500/20"
+                              title="Ver Detalles"
                             >
-                              <ReceiptText size={16} />
+                              <Eye size={18} />
                             </button>
                           </div>
                         </div>
@@ -1302,7 +1355,7 @@ PROTOCOLO DE RESPUESTA:
                           other: '❓ Otro'
                         }[supportIssueType as string] || supportIssueType;
 
-                        const whatsappText = `*Reporte de Soporte*\n\n*Tipo:* ${issueEmoji}\n*Mensaje:*\n${supportMessage || '(Sin comentario)'}`;
+                        const whatsappText = `*Reporte de Soporte en CalculaTú*\n\n*Tipo:* ${issueEmoji}\n*Mensaje:*\n${supportMessage || '(Sin comentario)'}`;
                         window.open(`https://wa.me/584142949498?text=${encodeURIComponent(whatsappText)}`, '_blank');
 
                         alert('Reporte enviado correctamente. Se abrirá WhatsApp para confirmación.');
