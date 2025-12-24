@@ -24,12 +24,14 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
   const workletNode = useRef<AudioWorkletNode | null>(null);
   const nextStartTime = useRef<number>(0);
   
-  const addItem = useAppStore((state) => state.addItem); 
-  const items = useAppStore((state) => state.items);
-  const rates = useAppStore((state) => state.rates);
-  const userName = useAppStore((state) => state.userName);
-  const setUserName = useAppStore((state) => state.setUserName);
-  const machineId = useAppStore((state) => state.machineId);
+  const items = useAppStore(s => s.items);
+  const rates = useAppStore(s => s.rates);
+  const userName = useAppStore(s => s.userName);
+  const machineId = useAppStore(s => s.machineId);
+  const addItem = useAppStore(s => s.addItem);
+  const removeItem = useAppStore(s => s.removeItem);
+  const updateItem = useAppStore(s => s.updateItem);
+  const setUserName = useAppStore(s => s.setUserName);
 
   // Tools definition
   const tools = [
@@ -82,6 +84,31 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
           parameters: {
             type: "object",
             properties: {}
+          }
+        },
+        {
+          name: "remove_shopping_item",
+          description: "Elimina un producto de la lista de compras basándose en su nombre.",
+          parameters: {
+            type: "object",
+            properties: {
+              product_name: { type: "string", description: "Nombre del producto a eliminar. Debe ser lo más exacto posible." }
+            },
+            required: ["product_name"]
+          }
+        },
+        {
+          name: "update_shopping_item",
+          description: "Modifica un producto existente en la lista. Se puede ajustar la cantidad, el precio o el nombre.",
+          parameters: {
+            type: "object",
+            properties: {
+              product_name: { type: "string", description: "Nombre del producto a actualizar." },
+              new_price: { type: "number", description: "El nuevo precio del producto." },
+              new_quantity: { type: "number", description: "La nueva cantidad de unidades del producto." },
+              new_name: { type: "string", description: "El nuevo nombre para el producto." }
+            },
+            required: ["product_name"]
           }
         }
       ]
@@ -250,12 +277,32 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
                 }
               });
             }
-            else if (call.name === "get_shopping_list") {
-              responses.push({
-                id: call.id,
-                name: call.name,
-                response: { items: items }
-              });
+            else if (call.name === "remove_shopping_item") {
+              const { product_name } = call.args;
+              const itemToRemove = [...items].find(item => item.name.toLowerCase() === product_name.toLowerCase());
+              
+              if (itemToRemove) {
+                removeItem(itemToRemove.id);
+                responses.push({ id: call.id, name: call.name, response: { result: `Item '${product_name}' eliminado.` } });
+              } else {
+                responses.push({ id: call.id, name: call.name, response: { result: `No encontré el item '${product_name}'.` } });
+              }
+            }
+            else if (call.name === "update_shopping_item") {
+              const { product_name, new_price, new_quantity, new_name } = call.args;
+              const itemToUpdate = [...items].find(item => item.name.toLowerCase() === product_name.toLowerCase());
+
+              if (itemToUpdate) {
+                const updatedFields: Partial<ShoppingItem> = {};
+                if (Number.isFinite(new_price)) updatedFields.price = new_price;
+                if (Number.isFinite(new_quantity) && new_quantity > 0) updatedFields.quantity = new_quantity;
+                if (new_name) updatedFields.name = new_name;
+                
+                updateItem(itemToUpdate.id, updatedFields);
+                responses.push({ id: call.id, name: call.name, response: { result: `Item '${product_name}' actualizado.` } });
+              } else {
+                responses.push({ id: call.id, name: call.name, response: { result: `No encontré el item '${product_name}' para actualizar.` } });
+              }
             }
           }
           
@@ -266,7 +313,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
           }
 
           if (shouldHangUp && config?.onHangUp) {
-              setTimeout(() => config.onHangUp?.(), 1500);
+              setTimeout(() => config.onHangUp?.(), 2000); // User requested 2 seconds
           }
         }
       };
@@ -310,7 +357,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
         setError({ code: 'UNKNOWN', message: "Error al iniciar Savara. Intenta de nuevo." });
       }
     }
-  }, [addItem, items, rates, userName, setUserName, machineId]);
+  }, [items, rates, userName, machineId, addItem, removeItem, updateItem, setUserName]);
 
   const disconnect = useCallback(() => {
     if (ws.current) {

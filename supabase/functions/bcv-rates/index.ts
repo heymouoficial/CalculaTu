@@ -1,6 +1,9 @@
 // supabase/functions/bcv-rates/index.ts
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// Suppress Deno name errors in some IDEs
+declare const Deno: any;
+
 // Definimos interfaces para las respuestas
 interface BCVResponse {
     dollar: number
@@ -43,7 +46,7 @@ async function fetchSecondarySource(): Promise<number> {
     return Number(cleanPrice);
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
@@ -56,12 +59,12 @@ Deno.serve(async (req) => {
         // 1. Intentar obtener USD con Fallback
         try {
             usdPrice = await fetchPrimarySource();
-        } catch (e) {
+        } catch (e: any) {
             console.warn('[bcv-rates] Primary source failed:', e.message);
             try {
                 usdPrice = await fetchSecondarySource();
                 sourceUsed = 'secondary-pydolar';
-            } catch (e2) {
+            } catch (e2: any) {
                 console.error('[bcv-rates] All sources failed');
                 throw new Error(`Critical: Unable to fetch BCV rates. Errors: ${e.message} | ${e2.message}`);
             }

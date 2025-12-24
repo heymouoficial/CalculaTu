@@ -41,6 +41,7 @@ type AppState = {
   clearLicense: () => void;
   addItem: (item: ShoppingItem) => void;
   removeItem: (id: string) => void;
+  updateItem: (id: string, updatedFields: Partial<Omit<ShoppingItem, 'id'>>) => void;
   clearItems: () => void;
 };
 
@@ -234,6 +235,12 @@ export const useAppStore = create<AppState>((set) => {
 
     addItem: (item) => set((state) => ({ items: [item, ...state.items] })),
     removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
+    updateItem: (id: string, updatedFields: Partial<Omit<ShoppingItem, 'id'>>) =>
+      set((state) => ({
+        items: state.items.map((item) =>
+          item.id === id ? { ...item, ...updatedFields } : item
+        ),
+      })),
     clearItems: () => set({ items: [] }),
 
   };
