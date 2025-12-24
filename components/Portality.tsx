@@ -980,7 +980,8 @@ export const Portality: React.FC = () => {
                       disabled={{ before: new Date() }}
                       modifiersClassNames={{
                         selected: 'bg-blue-500 text-white rounded-lg',
-                        today: 'border border-emerald-500 rounded-lg'
+                        today: 'border-2 border-emerald-500 rounded-lg font-bold',
+                        disabled: 'text-gray-700 cursor-not-allowed opacity-30 line-through'
                       }}
                       classNames={{
                         root: 'text-white text-sm',
