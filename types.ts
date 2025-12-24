@@ -23,7 +23,7 @@ export interface ShoppingItem {
   quantity: number;
 }
 
-export type ViewState = 'landing' | 'calculator';
+export type ViewState = 'landing' | 'calculator' | 'portal';
 
 export interface ExchangeRate {
   USD: number;

@@ -1,11 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Calculator, Zap, BadgeCheck, ShieldCheck, Download, WifiOff, Calendar, RefreshCcw, Sparkles, Star, ArrowRight, BrainCircuit, SignalHigh, ChevronDown, ChevronUp, Clock, AlertCircle, Leaf, Check } from 'lucide-react';
-import { COLORS } from './constants';
-import { DemoCard } from './components/DemoCard';
-import { ChatWidget } from './components/ChatWidget';
-import { CalculatorView } from './components/CalculatorView';
-import { InstallBanner } from './components/InstallBanner';
-import { Logo } from './components/Logo';
+import { PortalView } from './components/PortalView';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
 import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
@@ -66,8 +59,11 @@ const App: React.FC = () => {
   // PERSISTENCIA DE ESTADO: Recordar dónde quedó el usuario
   const [currentView, setCurrentView] = useState<ViewState>(() => {
     if (typeof window !== 'undefined') {
+      if (window.location.pathname.startsWith('/portal')) {
+        return 'portal';
+      }
       const savedView = localStorage.getItem('savara_last_view');
-      return (savedView === 'calculator' || savedView === 'landing') ? savedView : 'landing';
+      return (savedView === 'calculator') ? 'calculator' : 'landing';
     }
     return 'landing';
   });
@@ -107,7 +103,9 @@ const App: React.FC = () => {
 
   // Efecto para guardar la preferencia cada vez que cambia la vista
   useEffect(() => {
-    localStorage.setItem('savara_last_view', currentView);
+    if (currentView !== 'portal') {
+      localStorage.setItem('savara_last_view', currentView);
+    }
   }, [currentView]);
 
   useEffect(() => {
@@ -156,6 +154,7 @@ const App: React.FC = () => {
   };
 
   if (currentView === 'calculator') return <CalculatorView onBack={() => setCurrentView('landing')} />;
+  if (currentView === 'portal') return <PortalView />;
 
   return (
     <div className="min-h-screen relative overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
@@ -273,7 +272,7 @@ const App: React.FC = () => {
                 <h3 className="text-lg font-bold text-emerald-400 mb-2">Pro Mensual</h3>
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-white">$1</span>
+                    <span className="text-4xl font-bold text-white"></span>
                     <span className="text-sm text-gray-500">/mes</span>
                   </div>
                   <span className="text-sm font-mono text-emerald-500 mt-1">
@@ -287,7 +286,7 @@ const App: React.FC = () => {
                 <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-emerald-500" /> Asistente de Voz (Savara)</li>
                 <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-emerald-500" /> Historial de Compras</li>
               </ul>
-              <button onClick={() => handlePlanClick('Mensual $1')} className="w-full py-3 rounded-xl bg-white text-black font-bold hover:bg-gray-200 transition-all">Suscribirse</button>
+              <button onClick={() => handlePlanClick('Mensual ')} className="w-full py-3 rounded-xl bg-white text-black font-bold hover:bg-gray-200 transition-all">Suscribirse</button>
             </div>
 
             {/* LIFETIME TIER (BEST VALUE) */}
@@ -305,8 +304,8 @@ const App: React.FC = () => {
                     <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-purple-400 mb-2">Lifetime Pro</h3>
                     <div className="flex flex-col">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-bold text-white tracking-tight">$10</span>
-                        <span className="text-lg text-gray-500 line-through decoration-red-500/50">$15</span>
+                        <span className="text-5xl font-bold text-white tracking-tight">0</span>
+                        <span className="text-lg text-gray-500 line-through decoration-red-500/50">5</span>
                       </div>
                       <span className="text-sm font-mono text-emerald-200 mt-1">
                         ≈ Bs {(10 * rates.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -320,7 +319,7 @@ const App: React.FC = () => {
                     <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-purple-400" /> Acceso anticipado a funciones</li>
                     <li className="flex items-center gap-3 text-white"><ShieldCheck size={18} className="text-purple-400" /> Soporte Prioritario</li>
                   </ul>
-                  <button onClick={() => handlePlanClick('Lifetime $10')} className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:to-emerald-500 text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all active:scale-95">
+                  <button onClick={() => handlePlanClick('Lifetime 0')} className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:to-emerald-500 text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all active:scale-95">
                     Obtener Acceso Vitalicio
                   </button>
                 </div>
