@@ -3,11 +3,6 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { Portality } from './components/Portality';
-import eruda from 'eruda';
-
-if (import.meta.env.MODE === 'development') {
-  eruda.init();
-}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

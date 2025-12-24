@@ -88,32 +88,36 @@ export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
                     <p className="text-emerald-400 text-sm">Asistente de Compras</p>
                 </div>
 
-                {/* Live Context Display - Enhanced Spacing & Padding */}
-                <div className="bg-white/5 backdrop-blur-md rounded-[2rem] p-6 w-full max-w-sm border border-white/10 shadow-2xl">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3 text-white/70 text-sm">
-                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                                <ShoppingBag size={16} />
-                            </div>
-                            <span className="font-bold tracking-tight">{currentItems.length} productos</span>
-                        </div>
-                        <div className="text-emerald-400 font-mono text-xl font-black">
+                {/* Live Context Display - Vertical Wrapper */}
+                <div className="bg-white/5 backdrop-blur-md rounded-[2rem] p-6 w-full max-w-sm border border-white/10 shadow-2xl flex flex-col gap-4">
+                    
+                    {/* Main Total (BS) */}
+                    <div className="flex flex-col items-center border-b border-white/5 pb-4">
+                        <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-1">Total Estimado</span>
+                        <div className="text-white font-mono text-3xl font-black tracking-tight">
                             Bs {currentTotals.bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                     </div>
 
-                    <div className="h-px w-full bg-white/5 mb-5" />
+                    {/* Secondary Totals Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-black/20 rounded-xl p-3 flex flex-col items-center">
+                            <span className="text-[9px] uppercase font-black text-white/40 tracking-widest mb-1">En Dólares</span>
+                            <span className="font-mono text-white font-bold text-lg">$ {currentTotals.usd.toFixed(2)}</span>
+                        </div>
+                        <div className="bg-black/20 rounded-xl p-3 flex flex-col items-center">
+                            <span className="text-[9px] uppercase font-black text-white/40 tracking-widest mb-1">Productos</span>
+                            <div className="flex items-center gap-2 text-white font-bold text-lg">
+                                <ShoppingBag size={14} className="text-emerald-400" />
+                                <span>{currentItems.length}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                    <div className="flex justify-between items-center text-sm font-medium">
-                        <div className="flex items-center gap-2 text-white/60">
-                            <span className="text-[10px] uppercase font-black text-white/30 tracking-widest">Ref</span>
-                            <span className="font-mono text-white/80">$ {currentTotals.usd.toFixed(2)}</span>
-                        </div>
-                        <span className="text-white/10">|</span>
-                        <div className="flex items-center gap-2 text-white/60">
-                            <span className="text-[10px] uppercase font-black text-white/30 tracking-widest">Tasa</span>
-                            <span className="font-mono text-white/80">Bs {rates.USD.toFixed(2)}</span>
-                        </div>
+                    {/* Rates Footer */}
+                    <div className="flex justify-center items-center gap-2 pt-1">
+                         <span className="text-[9px] text-white/30 uppercase font-bold tracking-wider">Tasa BCV:</span>
+                         <span className="text-[10px] text-white/60 font-mono">Bs {rates.USD.toFixed(2)}</span>
                     </div>
                 </div>
             </div>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Mic, Copy, Check, CreditCard, Smartphone, MessageCircle, Info, Zap, HelpCircle, BarChart3 } from 'lucide-react';
 import { Message } from '../types';
 import { SAVARA_AVATAR } from '../constants';
+import { useAppStore } from '../store/useAppStore';
 
 // SVG Logos for Branding
 const BinanceLogo = () => (
@@ -173,6 +174,7 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const rates = useAppStore(state => state.rates);
 
   useEffect(() => {
     if (defaultOpen && !isOpen) setIsOpen(true);
@@ -203,12 +205,14 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     setIsLoading(true);
 
     try {
+      const systemContext = `DATOS EN TIEMPO REAL: Tasa USD: Bs ${rates.USD.toFixed(2)}, Tasa EUR: Bs ${rates.EUR.toFixed(2)}.`;
+      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: textToSend }),
+        body: JSON.stringify({ message: textToSend, systemContext }),
       });
 
       if (!response.ok) {
@@ -218,7 +222,7 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
       const data = await response.json();
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'model', text: data.text }]);
     } catch (e) {
-      setMessages(prev => [...prev, { id: 'error', role: 'model', text: 'Ups, perdona. ¿Podemos intentarlo de nuevo?' }]);
+      setMessages(prev => [...prev, { id: `error-${Date.now()}`, role: 'model', text: 'Ups, perdona. ¿Podemos intentarlo de nuevo?' }]);
     } finally {
       setIsLoading(false);
     }

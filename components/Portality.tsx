@@ -617,10 +617,16 @@ export const Portality: React.FC = () => {
                     <DollarSign size={12} className="text-blue-400" /> Precio USD (BCV)
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={globalUsd || ''}
-                    onChange={(e) => setGlobalUsd(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(',', '.');
+                      if (/^\d*\.?\d*$/.test(val)) {
+                        setGlobalUsd(val as any);
+                      }
+                    }}
+                    onBlur={() => setGlobalUsd(parseFloat(String(globalUsd)) || 0)}
                     className="w-full bg-transparent text-white font-mono font-bold text-2xl outline-none placeholder:text-gray-700"
                     placeholder="0.00"
                   />
@@ -630,10 +636,16 @@ export const Portality: React.FC = () => {
                     <Euro size={12} className="text-purple-400" /> Precio EUR (BCV)
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={globalEur || ''}
-                    onChange={(e) => setGlobalEur(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(',', '.');
+                      if (/^\d*\.?\d*$/.test(val)) {
+                        setGlobalEur(val as any);
+                      }
+                    }}
+                    onBlur={() => setGlobalEur(parseFloat(String(globalEur)) || 0)}
                     className="w-full bg-transparent text-white font-mono font-bold text-2xl outline-none placeholder:text-gray-700"
                     placeholder="0.00"
                   />

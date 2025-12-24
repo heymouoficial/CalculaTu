@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { RATES } from '../constants';
 import { getOrCreateMachineId, getOrCreateUIC } from '../utils/deviceId';
+import { ShoppingItem } from '../types';
 
 export type LicensePlan = 'monthly' | 'lifetime';
 
@@ -26,6 +27,7 @@ type AppState = {
   ratesOverrideExpiresAt?: string | null;
   budgetLimit: number; // in USD
   license: LicenseState;
+  items: ShoppingItem[];
 
   setBaseRates: (rates: typeof RATES) => void;
   setRatesTemporarily: (rates: typeof RATES) => void; // 24h cache
@@ -33,6 +35,9 @@ type AppState = {
   setBudgetLimit: (limit: number) => void;
   setLicense: (license: LicenseState) => void;
   clearLicense: () => void;
+  addItem: (item: ShoppingItem) => void;
+  removeItem: (id: string) => void;
+  clearItems: () => void;
 };
 
 const LICENSE_STORAGE_KEY = 'calculatu_license_v1';
@@ -141,6 +146,7 @@ export const useAppStore = create<AppState>((set) => {
   })(),
   budgetLimit: readStoredBudget(),
   license: readStoredLicense(),
+  items: [],
 
   setBaseRates: (baseRates) =>
     set((state) => {
@@ -182,6 +188,10 @@ export const useAppStore = create<AppState>((set) => {
       persistLicense(license);
       return { license };
     }),
+
+  addItem: (item) => set((state) => ({ items: [item, ...state.items] })),
+  removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
+  clearItems: () => set({ items: [] }),
 
   };
 });

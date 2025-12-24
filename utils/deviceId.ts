@@ -90,6 +90,28 @@ function fingerprintString(): string {
     }
   })();
 
+  // Canvas Fingerprinting
+  const canvasHash = (() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+      canvas.width = 200;
+      canvas.height = 50;
+      ctx.textBaseline = 'top';
+      ctx.font = '16px "Arial"';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(125, 1, 62, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('Multiversa Fingerprint v1', 2, 15);
+      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+      ctx.fillText('Multiversa Fingerprint v1', 4, 17);
+      return canvas.toDataURL();
+    } catch {
+      return 'canvas-error';
+    }
+  })();
+
   return [
     nav.userAgent || '',
     nav.language || '',
@@ -99,6 +121,7 @@ function fingerprintString(): string {
     String(nav.hardwareConcurrency || ''),
     String(nav.deviceMemory || ''),
     `${window.screen?.width || ''}x${window.screen?.height || ''}x${window.screen?.colorDepth || ''}`,
+    canvasHash
   ].join('|');
 }
 

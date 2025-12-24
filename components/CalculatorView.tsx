@@ -16,13 +16,27 @@ import { WhatsAppIcon, BinanceIcon, BanescoIcon } from './BrandIcons';
 import { showToast, ToastContainer } from './Toast';
 import { SavaraCallModal } from './SavaraCallModal';
 import { supabase } from '../services/supabaseClient';
+import { useSavaraLive } from '../hooks/useSavaraLive';
 
 interface CalculatorViewProps {
   onBack: () => void;
 }
 
 export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
-  const [items, setItems] = useState<ShoppingItem[]>([]);
+  const items = useAppStore(s => s.items);
+  const addItem = useAppStore(s => s.addItem);
+  const removeItem = useAppStore(s => s.removeItem);
+  const clearItems = useAppStore(s => s.clearItems);
+  const { connect: connectSavara, disconnect: disconnectSavara, isConnected: isSavaraConnected } = useSavaraLive({
+    onItemAdded: (item) => {
+      const currencySymbol = item.currency === 'USD' ? '$' : item.currency === 'EUR' ? '€' : 'Bs';
+      showToast(`${item.quantity}x ${item.name} (${currencySymbol} ${item.price}) agregado`, 'item');
+    },
+    onHangUp: () => {
+      disconnectSavara();
+      showToast('Llamada finalizada', 'item');
+    }
+  });
 
   // Voucher Modal States
   const [showVoucher, setShowVoucher] = useState(false);
@@ -48,7 +62,6 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const license = useAppStore(s => s.license);
   const setLicense = useAppStore(s => s.setLicense);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isListening, setIsListening] = useState(false);
 
   // Settings Drawer State
   const [activeTab, setActiveTab] = useState<'config' | 'history' | 'license' | 'support'>('config');
@@ -91,8 +104,6 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const [inputQuantity, setInputQuantity] = useState('');
   const [inputCurrency, setInputCurrency] = useState<'USD' | 'EUR' | 'VES'>('USD');
 
-  const liveClientRef = useRef<any | null>(null);
-
   useEffect(() => {
     const date = new Date();
     const formatted = date.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -128,7 +139,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       currency: inputCurrency,
       quantity: qty > 0 ? qty : 1
     };
-    setItems(prev => [newItem, ...prev]);
+    addItem(newItem);
 
     // Reset inputs
     setInputName('');
@@ -235,7 +246,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     try {
       await saveHistoryEntry(newEntry);
       setHistory(prev => [newEntry, ...prev]);
-      setItems([]);
+      clearItems();
       showToast('Tu bolsillo ha sido guardado ✅', 'success');
     } catch (err) {
       console.error('Error saving history:', err);
@@ -261,7 +272,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       // Save to IndexedDB
       await saveHistoryEntry(newEntry);
       setHistory(prev => [newEntry, ...prev]);
-      setItems([]); // Clear list after "saving"
+      clearItems(); // Clear list after "saving"
     }
 
     setShowVoucher(false);
@@ -303,6 +314,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       // Show confetti celebration!
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3500);
+
+      // Auto-activate Voice Mode
+      if (features.includes('voice')) {
+        setIsVoiceMode(true);
+      }
 
       // Use non-blocking toast instead of alert
       showToast('¡Licencia Activada! Savara desbloqueada.', 'success');
@@ -393,79 +409,36 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       return;
     }
 
-    if (isListening) {
-      await liveClientRef.current?.disconnect();
-      liveClientRef.current = null;
-      setIsListening(false);
+    if (isSavaraConnected) {
+      disconnectSavara();
+      showToast('Savara desconectada', 'item');
     } else {
-      setIsListening(true);
       showToast('Iniciando Savara Pro...', 'success');
       try {
-        const { SavaraLiveClient } = await import('../services/geminiService');
-        // Build dynamic context for Savara to have "memory" of the current list and rates
         const productsSummary = items.map(i => `${i.quantity}x ${i.name} ($${i.price})`).join(', ') || 'Vacía';
-        const dynamicPrompt = `Eres Savara, la inteligencia experta en compras de CalculaTú.
-CONTEXTO ACTUAL:
-- Lista de productos: ${productsSummary}
-- Tasa Dólar (USD): Bs ${rates.USD.toFixed(2)}
-- Tasa Euro (EUR): Bs ${rates.EUR.toFixed(2)}
+        const dynamicPrompt = `Eres Savara, la IA oficial de CalculaTú, creada por Multiversa (la Nave Nodriza). Tu misión es asistir al usuario en sus compras con precisión y amabilidad.
 
-PROTOCOLO DE RESPUESTA:
-1. Responde siempre en español latino neutro. Sé breve, amable y profesional.
-2. Di siempre "Bolívares" y "Dólares". Prohibido usar siglas.
-3. NUNCA agregues un producto por tu cuenta. Solo obedece comandos explícitos.
-4. Si el usuario pregunta por su lista o por el total, consulta el CONTEXTO ACTUAL arriba.
-5. Al terminar la compra, confirma con calidez y usa 'finishList'.`;
+DATOS EN TIEMPO REAL (Fuente Oficial: Banco Central de Venezuela):
+- Tasa Dólar BCV: ${rates.USD.toFixed(2)} Bolívares
+- Tasa Euro BCV: ${rates.EUR.toFixed(2)} Bolívares
+- Lista Actual: ${productsSummary}
 
-        const client = new SavaraLiveClient({
-          onToolCall: async (name: string, args: any) => {
-            if (name === 'addItem') {
-              const newItem: ShoppingItem = {
-                id: Date.now().toString(),
-                name: args.name,
-                price: Number(args.price),
-                currency: args.currency as any,
-                quantity: Number(args.quantity) || 1
-              };
-              setItems(prev => [newItem, ...prev]);
-              showToast(`Agregado ${args.name} x${args.quantity || 1} a $${args.price}`, 'item');
-              return `Muy bien, ya agregué ${args.name} a tu lista. ¿Qué más vamos a sumar?`;
-            }
-            if (name === 'finishList') {
-              setShowVoucher(true);
-              setTimeout(async () => {
-                await liveClientRef.current?.disconnect();
-                liveClientRef.current = null;
-                setIsListening(false);
-                showToast('Lista terminada. ¡Gracias por usar Savara!', 'success');
-              }, 2000);
-              return "¡Excelente elección! Ya generé tu recibo ecológico. Fue un verdadero placer ayudarte hoy con tus compras. ¡Hasta la próxima!";
-            }
-            if (name === 'get_exchange_rate') {
-              const provider = args.provider || 'BCV';
-              return `La tasa oficial de ${provider} para hoy es de ${rates.USD.toFixed(2)} Bolívares por Dólar y ${rates.EUR.toFixed(2)} Bolívares por Euro.`;
-            }
-            if (name === 'debug_connection_latency') {
-              return `Conexión estable. Timestamp recibido: ${args.client_timestamp}`;
-            }
-            return "Entendido.";
-          },
-          onClose: () => setIsListening(false)
-        });
-        await client.connect(dynamicPrompt);
-        liveClientRef.current = client;
+INSTRUCCIONES CLAVE:
+1. **Manejo de Monedas**: Di siempre "Dólares", "Euros" o "Bolívares". NUNCA uses símbolos ($) ni abreviaturas (Bs).
+2. **Consultas de Tasa**: Si te preguntan la tasa, responde explícitamente: "La tasa del Dólar en el BCV es..." o "La tasa del Euro en el BCV es...". Usa SIEMPRE los datos de arriba.
+3. **Personalidad**: Eres profesional, eficiente y cálida. Hablas español latino neutro. Si te preguntan quién te creó, responde con orgullo que eres un producto de Multiversa.
+4. **Acciones**:
+   - Cuando el usuario quiera agregar algo, usa la herramienta 'add_shopping_item'.
+   - Cuando quiera terminar, usa 'finish_list'.
+   - Si pregunta "cuánto es en bolívares", usa la Tasa Oficial arriba para calcularlo mentalmente y responder.
+5. **Respuestas Cortas**: En modo voz, sé concisa. Máximo 1-2 oraciones, salvo que estés dando un resumen detallado.
 
-        // Log initial state after connection
-        console.log('[Savara] Connected, state:', client.getState());
-        showToast('Savara Pro activa 🎙️', 'success');
+¡Comencemos! Saluda al usuario y pregúntale qué vamos a comprar hoy.`;
+
+        await connectSavara(dynamicPrompt);
       } catch (e: any) {
         console.error('[Savara] Connection error:', e);
         showToast(`Error de conexión: ${e.message || 'Desconocido'}`, 'error');
-        setIsListening(false);
-        // Log state on error
-        if (liveClientRef.current) {
-          console.log('[Savara] Error state:', liveClientRef.current.getState());
-        }
       }
     }
   };
@@ -479,13 +452,13 @@ PROTOCOLO DE RESPUESTA:
   // Cleanup on unmount or mode switch
   useEffect(() => {
     return () => {
-      liveClientRef.current?.disconnect();
+      disconnectSavara();
     };
   }, []);
 
   // When switching modes
   useEffect(() => {
-    if (!isVoiceMode && isListening) {
+    if (!isVoiceMode && isSavaraConnected) {
       toggleSavara(); // Turn off if switching to manual
     }
   }, [isVoiceMode]);
@@ -671,7 +644,7 @@ PROTOCOLO DE RESPUESTA:
                     {((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
                   </p>
                   <button
-                    onClick={() => setItems(items.filter(i => i.id !== item.id))}
+                    onClick={() => removeItem(item.id)}
                     className="p-2 text-gray-600 hover:text-red-400 transition-colors"
                   >
                     <X size={14} />
@@ -763,18 +736,18 @@ PROTOCOLO DE RESPUESTA:
               <div>
                 <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest leading-none mb-0.5 italic">Savara Pro</p>
                 <p className="text-xs font-bold text-gray-300">
-                  {isListening ? "Escuchando..." : "Presiona para hablar"}
+                  {isSavaraConnected ? "Escuchando..." : "Presiona para hablar"}
                 </p>
               </div>
             </div>
             <button
               onClick={toggleSavara}
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 transform active:scale-90 relative ${isListening
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 transform active:scale-90 relative ${isSavaraConnected
                 ? 'bg-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.7)]'
                 : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
                 }`}
             >
-              {isListening ? (
+              {isSavaraConnected ? (
                 <div className="relative flex items-center justify-center">
                   <div className="absolute inset-0 rounded-2xl animate-ping bg-black/20" />
                   <div className="flex gap-1 items-end h-5 relative z-10">
@@ -871,8 +844,8 @@ PROTOCOLO DE RESPUESTA:
                   disabled={isDownloading}
                   className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 border-r border-gray-100"
                 >
-                  {isDownloading ? <RefreshCcw size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-                  JPEG
+                  {isDownloading ? <RefreshCcw size={14} className="animate-spin" /> : <Download size={14} />}
+                  Descargar
                 </button>
                 <button
                   onClick={handleShareVoucher}
@@ -999,18 +972,32 @@ PROTOCOLO DE RESPUESTA:
                       <div className="p-3 bg-black/40 border border-white/10 rounded-xl">
                         <label className="text-[10px] text-blue-400 font-bold block mb-1">TASA USD</label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={rates.USD}
-                          onChange={(e) => setRatesTemporarily({ ...rates, USD: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(',', '.');
+                            if (/^\d*\.?\d*$/.test(val)) {
+                              setRatesTemporarily({ ...rates, USD: val as any });
+                            }
+                          }}
+                          onBlur={() => setRatesTemporarily({ ...rates, USD: parseFloat(String(rates.USD)) || 0 })}
                           className="w-full bg-transparent text-white font-mono font-bold text-lg outline-none"
                         />
                       </div>
                       <div className="p-3 bg-black/40 border border-white/10 rounded-xl">
                         <label className="text-[10px] text-purple-400 font-bold block mb-1">TASA EUR</label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={rates.EUR}
-                          onChange={(e) => setRatesTemporarily({ ...rates, EUR: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(',', '.');
+                            if (/^\d*\.?\d*$/.test(val)) {
+                              setRatesTemporarily({ ...rates, EUR: val as any });
+                            }
+                          }}
+                          onBlur={() => setRatesTemporarily({ ...rates, EUR: parseFloat(String(rates.EUR)) || 0 })}
                           className="w-full bg-transparent text-white font-mono font-bold text-lg outline-none"
                         />
                       </div>
@@ -1449,8 +1436,8 @@ PROTOCOLO DE RESPUESTA:
 
       {/* Savara Call Modal */}
       <SavaraCallModal
-        isOpen={isListening}
-        isListening={isListening}
+        isOpen={isSavaraConnected}
+        isListening={isSavaraConnected}
         currentItems={items}
         currentTotals={currentTotals}
         rates={rates}

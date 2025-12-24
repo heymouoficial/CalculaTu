@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { devLicenseApiPlugin } from './dev/licenseApiPlugin';
+import { devChatApiPlugin } from './dev/chatApiPlugin';
 
 export default defineConfig(({ mode }) => {
   const rootDir = path.dirname(fileURLToPath(import.meta.url));
@@ -17,6 +18,7 @@ export default defineConfig(({ mode }) => {
       react(),
       // Mock Vercel license APIs for local development
       mode === 'development' && devLicenseApiPlugin(),
+      mode === 'development' && devChatApiPlugin({ apiKey: env.VITE_GEMINI_API_KEY }),
     ].filter(Boolean),
     resolve: {
       alias: {
