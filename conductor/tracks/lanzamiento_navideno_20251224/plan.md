@@ -15,7 +15,7 @@
     -   Sub-task: Crear tabla `profiles` en Supabase.
     -   Sub-task: Añadir persistencia de `userName` en Store.
     -   Sub-task: Actualizar `useSavaraLive` para inyectar nombre en contexto y gestionar saludos únicos.
--   [ ] **Task:** Validar la memoria contextual de Savara Pro (FR1.3).
+-   [~] **Task:** Validar la memoria contextual de Savara Pro (FR1.3).
     -   Sub-task: Verificar que las respuestas usen los datos del carrito en tiempo real.
     -   Sub-task: Verificar que Savara recuerde el nombre del usuario tras reiniciar.
 -   [ ] **Task:** Simular y validar el manejo de errores (FR2).

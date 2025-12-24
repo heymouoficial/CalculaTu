@@ -1,0 +1,8 @@
+{
+  "track_id": "savara_pro_evolution_20251224",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2025-12-24T10:00:00Z",
+  "updated_at": "2025-12-24T10:00:00Z",
+  "description": "Optimización de Savara Pro con intents JSON, upsert de carrito, licencia auto-trial 24h ligada a MachineID, campaña navideña y latencia adaptativa."
+}

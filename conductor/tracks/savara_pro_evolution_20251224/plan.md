@@ -6,9 +6,9 @@ This plan follows the TDD workflow and includes phase-level verification checkpo
 Goal: Implement automatic 24h Free Pass linked to MachineID.
 
 - [x] Task: Define `license_type` and `expires_at` in `useAppStore` or `useLicenseStore`. d08be41
-- [ ] Task: Implement `autoActivateTrial` logic in `utils/deviceId.ts` or a new hook.
-- [ ] Task: Write Tests: Verify `autoActivateTrial` creates a valid 24h trial token on first run.
-- [ ] Task: Implement: `autoActivateTrial` with offline-first persistence in localStorage.
+- [x] Task: Implement `autoActivateTrial` logic in `utils/deviceId.ts` or a new hook.
+- [x] Task: Write Tests: Verify `autoActivateTrial` creates a valid 24h trial token on first run.
+- [x] Task: Implement: `autoActivateTrial` with offline-first persistence in localStorage.
 - [ ] Task: Task: Conductor - User Manual Verification 'Phase 1: Core Licensing & Auto-Trial' (Protocol in workflow.md)
 
 ## Phase 2: Structured JSON Intents & Cart Upsert
