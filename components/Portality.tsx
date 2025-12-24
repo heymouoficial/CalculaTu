@@ -5,7 +5,7 @@ import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlob
 import { supabase } from '../services/supabaseClient';
 
 // PIN Gate - Security layer before showing admin panel
-const PORTALITY_PIN = import.meta.env.VITE_PORTALITY_PIN || '147258'; // Default PIN for development
+const PORTALITY_PIN = import.meta.env.VITE_PORTALITY_PIN || ''; // PIN must be set in .env.local
 
 type CreateResponse = {
   token: string;

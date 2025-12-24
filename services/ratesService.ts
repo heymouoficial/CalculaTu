@@ -37,9 +37,6 @@ function setCachedRates(rates: GlobalRates): void {
 
 /**
  * Fetch global rates with offline-first cache support (Modo Bunker)
- * 1. Try Supabase first
- * 2. Update localStorage cache if successful
- * 3. Fall back to cache if Supabase fails
  */
 export async function fetchGlobalRates(): Promise<GlobalRates | null> {
   // Try fetching from Supabase
@@ -54,12 +51,18 @@ export async function fetchGlobalRates(): Promise<GlobalRates | null> {
 
       if (!error && data) {
         const rates: GlobalRates = {
-          USD: Number(data.usd),
-          EUR: Number(data.eur),
+          USD: Number(Number(data.usd).toFixed(2)),
+          EUR: Number(Number(data.eur).toFixed(2)),
           updatedAt: (data as any).updated_at ?? null,
         };
         // Update cache on successful fetch
         setCachedRates(rates);
+
+        // --- LAZY UPDATE TRIGGER ---
+        // If we have internet, check if we need to trigger the Edge Function
+        // based on BCV schedule (8:00 AM and 1:30 PM VET)
+        triggerLazyUpdateIfStale(rates.updatedAt);
+
         return rates;
       }
     } catch {
@@ -78,6 +81,46 @@ export async function fetchGlobalRates(): Promise<GlobalRates | null> {
 }
 
 /**
+ * Triggers the Edge Function if the current rate is older than the latest BCV publication window.
+ * VET windows: 8:00 AM and 1:30 PM.
+ */
+async function triggerLazyUpdateIfStale(lastUpdatedAt: string | null | undefined) {
+  if (!lastUpdatedAt) return;
+
+  // VET is UTC-4
+  const now = new Date();
+  const lastUpdate = new Date(lastUpdatedAt);
+
+  // Helper to get a Date object for a specific hour/min today in VET (converted to local)
+  const getTodayVET = (hours: number, minutes: number) => {
+    const d = new Date();
+    // VET is UTC-4. To get 8:00 AM VET, we need 12:00 UTC.
+    d.setUTCHours(hours + 4, minutes, 0, 0);
+    return d;
+  };
+
+  const window1 = getTodayVET(8, 0);   // 8:00 AM VET
+  const window2 = getTodayVET(13, 30); // 1:30 PM VET
+
+  const needsUpdate =
+    (now > window1 && lastUpdate < window1) ||
+    (now > window2 && lastUpdate < window2);
+
+  if (needsUpdate) {
+    console.log('[Rates] Rate is stale (BCV window passed). Triggering update...');
+    try {
+      // We use the supabase object's internal functions.invoke helper
+      if (supabase) {
+        await (supabase as any).functions.invoke('bcv-rates');
+        console.log('[Rates] Lazy update triggered successfully');
+      }
+    } catch (err) {
+      console.error('[Rates] Failed to trigger lazy update:', err);
+    }
+  }
+}
+
+/**
  * Force refresh rates from Supabase, bypassing cache
  * Used when user manually requests an update
  */
@@ -85,15 +128,14 @@ export async function forceRefreshRates(): Promise<GlobalRates | null> {
   // Clear existing cache first
   try {
     localStorage.removeItem(RATES_CACHE_KEY);
-    console.log('[Rates] Cache cleared, fetching fresh rates...');
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 
-  // Force fetch from Supabase
   if (!supabase) return null;
 
   try {
+    // Before fetching, trigger the update to ensure DB has latest
+    await (supabase as any).functions.invoke('bcv-rates').catch(() => { });
+
     const { data, error } = await supabase
       .from('exchange_rates')
       .select('usd, eur, updated_at')
@@ -103,18 +145,15 @@ export async function forceRefreshRates(): Promise<GlobalRates | null> {
 
     if (!error && data) {
       const rates: GlobalRates = {
-        USD: Number(data.usd),
-        EUR: Number(data.eur),
+        USD: Number(Number(data.usd).toFixed(2)),
+        EUR: Number(Number(data.eur).toFixed(2)),
         updatedAt: (data as any).updated_at ?? null,
       };
-      // Update cache with fresh data
       setCachedRates(rates);
-      console.log('[Rates] Fresh rates loaded:', rates);
       return rates;
     }
-    console.error('[Rates] Error fetching:', error);
   } catch (err) {
-    console.error('[Rates] Network error:', err);
+    console.error('[Rates] Refresh error:', err);
   }
 
   return null;
@@ -130,8 +169,8 @@ export async function upsertGlobalRates(params: { USD: number; EUR: number; sour
   const { error } = await supabase.from('exchange_rates').upsert(
     {
       id: 1,
-      usd: params.USD,
-      eur: params.EUR,
+      usd: Number(params.USD.toFixed(2)),
+      eur: Number(params.EUR.toFixed(2)),
       source: params.source || 'manual',
       updated_by: session.user.id,
     },

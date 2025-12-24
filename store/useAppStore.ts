@@ -22,6 +22,8 @@ export type LicenseState = {
 
 type AppState = {
   machineId: string;
+  userName: string | null;
+  hasGreeted: boolean;
   baseRates: typeof RATES;
   rates: typeof RATES; // effective rates (baseRates unless user override is active)
   ratesOverrideExpiresAt?: string | null;
@@ -29,6 +31,8 @@ type AppState = {
   license: LicenseState;
   items: ShoppingItem[];
 
+  setUserName: (name: string | null) => void;
+  setHasGreeted: (hasGreeted: boolean) => void;
   setBaseRates: (rates: typeof RATES) => void;
   setRatesTemporarily: (rates: typeof RATES) => void; // 24h cache
   clearTemporaryRates: () => void;
@@ -125,6 +129,26 @@ function persistBudget(limit: number) {
   }
 }
 
+const USER_NAME_STORAGE_KEY = 'calculatu_username_v1';
+
+function readStoredUserName(): string | null {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage.getItem(USER_NAME_STORAGE_KEY) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistUserName(name: string | null) {
+  try {
+    if (typeof window === 'undefined') return;
+    if (name) window.localStorage.setItem(USER_NAME_STORAGE_KEY, name);
+    else window.localStorage.removeItem(USER_NAME_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export const useAppStore = create<AppState>((set) => {
   // Initialize UIC async and update store when ready
   getOrCreateUIC().then((uic) => {
@@ -133,6 +157,8 @@ export const useAppStore = create<AppState>((set) => {
   
   return {
     machineId: getOrCreateMachineId(), // Sync fallback (will update when async completes)
+  userName: readStoredUserName(),
+  hasGreeted: false,
   baseRates: RATES,
   rates: (() => {
     const id = getOrCreateMachineId();
@@ -147,6 +173,14 @@ export const useAppStore = create<AppState>((set) => {
   budgetLimit: readStoredBudget(),
   license: readStoredLicense(),
   items: [],
+
+  setUserName: (name) =>
+    set(() => {
+      persistUserName(name);
+      return { userName: name };
+    }),
+
+  setHasGreeted: (hasGreeted) => set({ hasGreeted }),
 
   setBaseRates: (baseRates) =>
     set((state) => {

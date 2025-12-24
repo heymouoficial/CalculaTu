@@ -1,17 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { ShoppingItem } from '../types';
+import { supabase } from '../services/supabaseClient';
 
-const MODEL_ID = "gemini-2.0-flash-exp"; // Using 2.0 Flash Exp as it's the stable experimental one, user mentioned 2.5 but 2.0 is the current public beta endpoint for Live usually.
-// Wait, the user EXPLICITLY provided code with "gemini-2.5-flash-native-audio-preview-12-2025".
-// I will use the user's string to be safe, assuming they have access to it.
-// Actually, let's use the one in the prompt code.
+const MODEL_ID = "gemini-2.0-flash-exp"; 
 const MODEL_ID_USER = "gemini-2.5-flash-native-audio-preview-12-2025"; 
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
-// Note: v1beta is standard, but Bidi might be v1alpha or v1beta. User code said v1beta.
-// User code: `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${API_KEY}`
 
 export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => void; onHangUp?: () => void }) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -24,6 +20,9 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
   const addItem = useAppStore((state) => state.addItem); 
   const items = useAppStore((state) => state.items);
   const rates = useAppStore((state) => state.rates);
+  const userName = useAppStore((state) => state.userName);
+  const setUserName = useAppStore((state) => state.setUserName);
+  const machineId = useAppStore((state) => state.machineId);
 
   // Tools definition
   const tools = [
@@ -49,6 +48,25 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
                 type: "object",
                 properties: {}
             }
+        },
+        {
+          name: "save_user_name",
+          description: "Guarda el nombre del usuario para recordarlo en el futuro.",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "El nombre que el usuario me dijo." }
+            },
+            required: ["name"]
+          }
+        },
+        {
+          name: "get_latest_rates",
+          description: "Obtiene las tasas de cambio actuales de USD y EUR en Bolívares (BCV).",
+          parameters: {
+            type: "object",
+            properties: {}
+          }
         }
       ]
     }
@@ -58,22 +76,24 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
     // 1. Initialize Audio Contexts
-    // Input: 16kHz for Gemini
     audioContext.current = new AudioContext({ sampleRate: 16000 });
     await audioContext.current.audioWorklet.addModule('/pcm-processor.js');
 
-    // Output: 24kHz for Gemini response
     audioContextOutput.current = new AudioContext({ sampleRate: 24000 });
     nextStartTime.current = audioContextOutput.current.currentTime;
 
     // 2. Connect WebSocket
-    // Using v1alpha for Bidi as per some docs, but user said v1beta. sticking to user prompt v1beta.
     const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
       console.log("🟢 Savara Conectada");
       setIsConnected(true);
+
+      // Inject Name into System Instruction if available
+      const personalizedInstruction = userName 
+        ? `${systemInstruction}\n\nEl usuario se llama ${userName}. Úsalo naturalmente.`
+        : systemInstruction;
 
       // 1. Setup Message
       const setupMsg = {
@@ -86,7 +106,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
             }
           },
           systemInstruction: {
-            parts: [{ text: systemInstruction }]
+            parts: [{ text: personalizedInstruction }]
           },
           tools: tools
         }
@@ -94,12 +114,16 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
       ws.current?.send(JSON.stringify(setupMsg));
 
       // 2. Kickstart Message (Force Hello)
-      // Enviamos un mensaje de texto oculto para que el modelo inicie la interacción
+      // If we know the name, we greet personally. If not, we ask.
+      const greetingPrompt = userName
+        ? `Hola Savara. Soy ${userName}. Salúdame corto.`
+        : `Hola Savara. No sé mi nombre aún. Salúdame y pregúntame cómo me llamo para recordarlo.`;
+
       const kickstartMsg = {
         clientContent: {
           turns: [{
             role: "user",
-            parts: [{ text: "Hola Savara, preséntate." }]
+            parts: [{ text: greetingPrompt }]
           }],
           turnComplete: true
         }
@@ -109,13 +133,11 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
 
     ws.current.onerror = (error) => {
       console.error("🔴 Savara WebSocket Error:", error);
-      // No desconectamos aquí, dejamos que onclose maneje la limpieza
     };
 
     ws.current.onclose = (event) => {
       console.log(`🔴 Savara Desconectada. Code: ${event.code}, Reason: ${event.reason}`);
       setIsConnected(false);
-      // Cleanup audio contexts
       if (audioContext.current?.state !== 'closed') audioContext.current?.close();
       if (audioContextOutput.current?.state !== 'closed') audioContextOutput.current?.close();
     };
@@ -133,13 +155,11 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
         return;
       }
 
-      // Handle Audio Response (Resilient Search)
       const audioPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.inlineData?.data);
       if (audioPart && audioContextOutput.current) {
         playAudioChunk(audioPart.inlineData.data, audioContextOutput.current, nextStartTime);
       }
 
-      // Handle Function Calling
       if (data.toolCall) {
         console.log("🛠️ Savara Tool Call Received:", data.toolCall);
         const responses = [];
@@ -172,29 +192,59 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
                 response: { result: "Lista finalizada." }
              });
           }
+          else if (call.name === "save_user_name") {
+            const { name } = call.args;
+            console.log("👤 Saving user name:", name);
+            
+            // 1. Update Local Store
+            setUserName(name);
+
+            // 2. Persist to Supabase
+            if (supabase && machineId) {
+              supabase.from('profiles').upsert({ 
+                machine_id: machineId, 
+                full_name: name 
+              }).then(({ error }) => {
+                if (error) console.error("Error saving profile to DB:", error);
+              });
+            }
+
+            responses.push({
+              id: call.id,
+              name: call.name,
+              response: { result: `Nombre ${name} guardado exitosamente.` }
+            });
+          }
+          else if (call.name === "get_latest_rates") {
+            responses.push({
+              id: call.id,
+              name: call.name,
+              response: { 
+                usd: rates.USD, 
+                eur: rates.EUR,
+                last_updated: new Date().toISOString() 
+              }
+            });
+          }
         }
         
-        // Send tool response first
         if (ws.current?.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify({
                 toolResponse: { functionResponses: responses }
             }));
         }
 
-        // Hang up after a short delay to allow audio/responses to flush
         if (shouldHangUp && config?.onHangUp) {
             setTimeout(() => config.onHangUp?.(), 1500);
         }
       }
     };
 
-    // 3. Start Microphone
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { 
       channelCount: 1, 
       sampleRate: 16000 
     }});
     
-    // CRITICAL: Resume context ensures microphone is active
     await audioContext.current.resume();
 
     const source = audioContext.current.createMediaStreamSource(stream);
@@ -205,10 +255,6 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
       const base64Audio = arrayBufferToBase64(pcmData);
       
       if (ws.current?.readyState === WebSocket.OPEN) {
-        // Debug esporádico (solo imprime si el audio tiene energía para no saturar consola)
-        // const hasSound = new Int16Array(pcmData).some(x => Math.abs(x) > 100);
-        // if (hasSound) console.log("🎤"); 
-
         const audioMsg = {
           realtimeInput: {
             mediaChunks: [{
@@ -222,8 +268,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
     };
 
     source.connect(workletNode.current);
-    // Note: Do NOT connect worklet to destination to avoid echo
-  }, [addItem, items, rates]);
+  }, [addItem, items, rates, userName, setUserName, machineId]);
 
   const disconnect = useCallback(() => {
     if (ws.current) {

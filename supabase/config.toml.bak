@@ -1,0 +1,9 @@
+# supabase/config.toml
+
+[functions.bcv-rates]
+verify_jwt = false # Permite que el CRON interno la llame sin firmar un JWT de usuario
+
+[[functions.bcv-rates.schedule]]
+cron = "0 12,18 * * *" 
+# 12:00 UTC = 8:00 AM VET
+# 18:00 UTC = 2:00 PM VET (Tasa de la 1:30 PM ya disponible)

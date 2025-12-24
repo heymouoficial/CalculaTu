@@ -207,12 +207,19 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     try {
       const systemContext = `DATOS EN TIEMPO REAL: Tasa USD: Bs ${rates.USD.toFixed(2)}, Tasa EUR: Bs ${rates.EUR.toFixed(2)}.`;
       
+      // Construct history from previous messages
+      // Filter out messages that might be purely UI logic if needed, but here we take all valid chat turns.
+      const history = messages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: textToSend, systemContext }),
+        body: JSON.stringify({ message: textToSend, systemContext, history }),
       });
 
       if (!response.ok) {

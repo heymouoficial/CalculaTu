@@ -1,0 +1,20 @@
+name: Sync BCV Rates (Redundancy)
+
+on:
+  schedule:
+    # Corre 15 minutos después de los horarios de Supabase por seguridad
+    # 12:15 UTC = 8:15 AM VET
+    # 18:15 UTC = 2:15 PM VET
+    - cron: '15 12,18 * * *' 
+  workflow_dispatch: # Permite ejecución manual desde GitHub UI
+
+jobs:
+  trigger-edge-function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase Function
+        run: |
+          curl -X POST ${{ secrets.SUPABASE_FUNCTION_URL }} \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          -H "Content-Type: application/json" \
+          --fail

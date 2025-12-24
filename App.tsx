@@ -9,6 +9,7 @@ import { Logo } from './components/Logo';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
 import { fetchGlobalRates } from './services/ratesService';
+import { supabase } from './services/supabaseClient';
 
 // FAQ Data
 const FAQS = [
@@ -75,6 +76,28 @@ const App: React.FC = () => {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const rates = useAppStore(s => s.rates);
   const setBaseRates = useAppStore(s => s.setBaseRates);
+  const machineId = useAppStore(s => s.machineId);
+  const setUserName = useAppStore(s => s.setUserName);
+
+  // Sync User Profile (Identity)
+  useEffect(() => {
+    const syncProfile = async () => {
+      if (!machineId || !supabase) return;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('machine_id', machineId)
+        .single();
+        
+      if (data?.full_name) {
+        console.log("👤 Profile synced:", data.full_name);
+        setUserName(data.full_name);
+      }
+    };
+    
+    syncProfile();
+  }, [machineId, setUserName]);
 
   // Efecto para guardar la preferencia cada vez que cambia la vista
   useEffect(() => {

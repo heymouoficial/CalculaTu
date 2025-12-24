@@ -12,10 +12,10 @@
         "noEmit": true,
         "allowJs": true,
         "types": [
-            "https://raw.githubusercontent.com/denoland/deno/main/cli/tsc/dts/lib.deno.window.d.ts"
+            "deno"
         ]
     },
     "include": [
-        "./**/*.ts"
+        "**/*.ts"
     ]
 }

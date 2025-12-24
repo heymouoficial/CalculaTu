@@ -32,15 +32,21 @@ class SavaraChat {
     this.baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
   }
 
-  async sendMessage(userMessage: string, dynamicSystemInstruction?: string): Promise<string> {
+  async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: Array<{ role: string, parts: { text: string }[] }> = []): Promise<string> {
     try {
       // Combine static persona with dynamic context if provided
       const finalSystemInstruction = dynamicSystemInstruction 
         ? `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO ADICIONAL:\n${dynamicSystemInstruction}`
         : SAVARA_SYSTEM_PROMPT;
 
+      // Construct full conversation history
+      const contents = [
+        ...history,
+        { role: 'user', parts: [{ text: userMessage }] }
+      ];
+
       const payload = {
-        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+        contents,
         systemInstruction: {
           parts: [{ text: finalSystemInstruction }]
         }
@@ -78,4 +84,4 @@ class SavaraChat {
 }
 
 export const createChatSession = (apiKey?: string) => new SavaraChat(apiKey);
-export const sendMessageToGemini = async (chat: SavaraChat, message: string, systemContext?: string) => chat.sendMessage(message, systemContext);
+export const sendMessageToGemini = async (chat: SavaraChat, message: string, systemContext?: string, history: Array<{ role: string, parts: { text: string }[] }> = []) => chat.sendMessage(message, systemContext, history);

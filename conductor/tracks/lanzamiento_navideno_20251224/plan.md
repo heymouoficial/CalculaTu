@@ -8,8 +8,16 @@
     -   Sub-task: Preguntar "¿Cuánto llevo en total?".
     -   Sub-task: Preguntar "¿Me alcanza para [producto X]?".
     -   Sub-task: Preguntar por el total en dólares y euros.
+-   [x] **Task:** Refactorizar Chatbot de Landing para arquitectura Stateless (Serverless).
+    -   Sub-task: Eliminar sesión global en `api/chat.ts`.
+    -   Sub-task: Implementar envío de historial desde `ChatWidget.tsx`.
+-   [x] **Task:** Implementar Personalización de Usuario (SavaraPro).
+    -   Sub-task: Crear tabla `profiles` en Supabase.
+    -   Sub-task: Añadir persistencia de `userName` en Store.
+    -   Sub-task: Actualizar `useSavaraLive` para inyectar nombre en contexto y gestionar saludos únicos.
 -   [ ] **Task:** Validar la memoria contextual de Savara Pro (FR1.3).
     -   Sub-task: Verificar que las respuestas usen los datos del carrito en tiempo real.
+    -   Sub-task: Verificar que Savara recuerde el nombre del usuario tras reiniciar.
 -   [ ] **Task:** Simular y validar el manejo de errores (FR2).
     -   Sub-task: Simular error de API 429 y verificar mensaje amigable.
     -   Sub-task: Simular pérdida de conexión y verificar comportamiento.

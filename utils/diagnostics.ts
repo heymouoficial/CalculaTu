@@ -11,7 +11,7 @@ export interface DiagnosticReport {
   capabilities: {
     indexedDB: boolean;
     serviceWorker: boolean;
-    microphone: Promise<boolean>;
+    microphone: boolean;
     audioContext: boolean;
   };
   network: {
