@@ -10,8 +10,14 @@ const MODEL_ID_USER = "gemini-2.5-flash-native-audio-preview-12-2025";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
 
+export type SavaraError = {
+  code: 'CONNECTION_ERROR' | 'MIC_PERMISSION_DENIED' | 'API_LIMIT_REACHED' | 'UNKNOWN';
+  message: string;
+} | null;
+
 export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => void; onHangUp?: () => void }) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<SavaraError>(null);
   const ws = useRef<WebSocket | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
   const audioContextOutput = useRef<AudioContext | null>(null);
@@ -75,203 +81,220 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
 
   const connect = useCallback(async (systemInstruction: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
+    setError(null);
 
-    // 1. Initialize Audio Contexts
-    audioContext.current = new AudioContext({ sampleRate: 16000 });
-    await audioContext.current.audioWorklet.addModule('/pcm-processor.js');
+    try {
+      // 1. Initialize Audio Contexts
+      audioContext.current = new AudioContext({ sampleRate: 16000 });
+      await audioContext.current.audioWorklet.addModule('/pcm-processor.js');
 
-    audioContextOutput.current = new AudioContext({ sampleRate: 24000 });
-    nextStartTime.current = audioContextOutput.current.currentTime;
+      audioContextOutput.current = new AudioContext({ sampleRate: 24000 });
+      nextStartTime.current = audioContextOutput.current.currentTime;
 
-    // 2. Connect WebSocket
-    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
-    ws.current = new WebSocket(wsUrl);
+      // 2. Connect WebSocket
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
+      ws.current = new WebSocket(wsUrl);
 
-    ws.current.onopen = () => {
-      console.log("🟢 Savara Conectada");
-      setIsConnected(true);
+      ws.current.onopen = () => {
+        // ... (truncated for brevity, keep existing logic)
+        console.log("🟢 Savara Conectada");
+        setIsConnected(true);
+        setError(null);
 
-      // Inject Name, Items, and Rates into System Instruction using helper
-      const personalizedInstruction = getSavaraSystemInstruction(
-        systemInstruction,
-        userName,
-        items,
-        rates
-      );
+        // Inject Name, Items, and Rates into System Instruction using helper
+        const personalizedInstruction = getSavaraSystemInstruction(
+          systemInstruction,
+          userName,
+          items,
+          rates
+        );
 
-      // 1. Setup Message
-      const setupMsg = {
-        setup: {
-          model: `models/${MODEL_ID_USER}`,
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
-            }
-          },
-          systemInstruction: {
-            parts: [{ text: personalizedInstruction }]
-          },
-          tools: tools
-        }
-      };
-      ws.current?.send(JSON.stringify(setupMsg));
-
-      // 2. Kickstart Message (Force Hello)
-      // If we know the name, we greet personally. If not, we ask.
-      const greetingPrompt = userName
-        ? `Hola Savara. Soy ${userName}. Salúdame corto.`
-        : `Hola Savara. No sé mi nombre aún. Salúdame y pregúntame cómo me llamo para recordarlo.`;
-
-      const kickstartMsg = {
-        clientContent: {
-          turns: [{
-            role: "user",
-            parts: [{ text: greetingPrompt }]
-          }],
-          turnComplete: true
-        }
-      };
-      ws.current?.send(JSON.stringify(kickstartMsg));
-    };
-
-    ws.current.onerror = (error) => {
-      console.error("🔴 Savara WebSocket Error:", error);
-    };
-
-    ws.current.onclose = (event) => {
-      console.log(`🔴 Savara Desconectada. Code: ${event.code}, Reason: ${event.reason}`);
-      setIsConnected(false);
-      if (audioContext.current?.state !== 'closed') audioContext.current?.close();
-      if (audioContextOutput.current?.state !== 'closed') audioContextOutput.current?.close();
-    };
-
-    ws.current.onmessage = async (event) => {
-      let data;
-      try {
-        if (event.data instanceof Blob) {
-          data = JSON.parse(await event.data.text());
-        } else {
-          data = JSON.parse(event.data);
-        }
-      } catch (e) {
-        console.error("Error parsing WS message", e);
-        return;
-      }
-
-      const audioPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.inlineData?.data);
-      if (audioPart && audioContextOutput.current) {
-        playAudioChunk(audioPart.inlineData.data, audioContextOutput.current, nextStartTime);
-      }
-
-      if (data.toolCall) {
-        console.log("🛠️ Savara Tool Call Received:", data.toolCall);
-        const responses = [];
-        let shouldHangUp = false;
-
-        for (const call of data.toolCall.functionCalls) {
-          if (call.name === "add_shopping_item") {
-            const { product_name, price, currency } = call.args;
-            const newItem: ShoppingItem = {
-                id: Date.now().toString(),
-                name: product_name,
-                price: Number(price),
-                currency: (currency as 'USD' | 'EUR' | 'VES') || 'USD',
-                quantity: 1
-            };
-            addItem(newItem);
-            if (config?.onItemAdded) config.onItemAdded(newItem);
-            
-            responses.push({
-              id: call.id,
-              name: call.name,
-              response: { result: "Item agregado correctamente" }
-            });
-          }
-          else if (call.name === "finish_list") {
-             shouldHangUp = true;
-             responses.push({
-                id: call.id,
-                name: call.name,
-                response: { result: "Lista finalizada." }
-             });
-          }
-          else if (call.name === "save_user_name") {
-            const { name } = call.args;
-            console.log("👤 Saving user name:", name);
-            
-            // 1. Update Local Store
-            setUserName(name);
-
-            // 2. Persist to Supabase
-            if (supabase && machineId) {
-              supabase.from('profiles').upsert({ 
-                machine_id: machineId, 
-                full_name: name 
-              }).then(({ error }) => {
-                if (error) console.error("Error saving profile to DB:", error);
-              });
-            }
-
-            responses.push({
-              id: call.id,
-              name: call.name,
-              response: { result: `Nombre ${name} guardado exitosamente.` }
-            });
-          }
-          else if (call.name === "get_latest_rates") {
-            responses.push({
-              id: call.id,
-              name: call.name,
-              response: { 
-                usd: rates.USD, 
-                eur: rates.EUR,
-                last_updated: new Date().toISOString() 
+        // 1. Setup Message
+        const setupMsg = {
+          setup: {
+            model: `models/${MODEL_ID_USER}`,
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
               }
-            });
-          }
-        }
-        
-        if (ws.current?.readyState === WebSocket.OPEN) {
-            ws.current.send(JSON.stringify({
-                toolResponse: { functionResponses: responses }
-            }));
-        }
-
-        if (shouldHangUp && config?.onHangUp) {
-            setTimeout(() => config.onHangUp?.(), 1500);
-        }
-      }
-    };
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { 
-      channelCount: 1, 
-      sampleRate: 16000 
-    }});
-    
-    await audioContext.current.resume();
-
-    const source = audioContext.current.createMediaStreamSource(stream);
-    workletNode.current = new AudioWorkletNode(audioContext.current, 'pcm-processor');
-    
-    workletNode.current.port.onmessage = (e) => {
-      const pcmData = e.data;
-      const base64Audio = arrayBufferToBase64(pcmData);
-      
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        const audioMsg = {
-          realtimeInput: {
-            mediaChunks: [{
-              mimeType: "audio/pcm",
-              data: base64Audio
-            }]
+            },
+            systemInstruction: {
+              parts: [{ text: personalizedInstruction }]
+            },
+            tools: tools
           }
         };
-        ws.current.send(JSON.stringify(audioMsg));
-      }
-    };
+        ws.current?.send(JSON.stringify(setupMsg));
 
-    source.connect(workletNode.current);
+        // 2. Kickstart Message (Force Hello)
+        // If we know the name, we greet personally. If not, we ask.
+        const greetingPrompt = userName
+          ? `Hola Savara. Soy ${userName}. Salúdame corto.`
+          : `Hola Savara. No sé mi nombre aún. Salúdame y pregúntame cómo me llamo para recordarlo.`;
+
+        const kickstartMsg = {
+          clientContent: {
+            turns: [{
+              role: "user",
+              parts: [{ text: greetingPrompt }]
+            }],
+            turnComplete: true
+          }
+        };
+        ws.current?.send(JSON.stringify(kickstartMsg));
+      };
+
+      ws.current.onerror = (error) => {
+        console.error("🔴 Savara WebSocket Error:", error);
+        setError({ code: 'CONNECTION_ERROR', message: "Error de conexión con Savara." });
+        setIsConnected(false);
+      };
+
+      ws.current.onclose = (event) => {
+        console.log(`🔴 Savara Desconectada. Code: ${event.code}, Reason: ${event.reason}`);
+        setIsConnected(false);
+        if (audioContext.current?.state !== 'closed') audioContext.current?.close();
+        if (audioContextOutput.current?.state !== 'closed') audioContextOutput.current?.close();
+      };
+
+      ws.current.onmessage = async (event) => {
+        let data;
+        try {
+          if (event.data instanceof Blob) {
+            data = JSON.parse(await event.data.text());
+          } else {
+            data = JSON.parse(event.data);
+          }
+        } catch (e) {
+          console.error("Error parsing WS message", e);
+          return;
+        }
+
+        const audioPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.inlineData?.data);
+        if (audioPart && audioContextOutput.current) {
+          playAudioChunk(audioPart.inlineData.data, audioContextOutput.current, nextStartTime);
+        }
+
+        if (data.toolCall) {
+          console.log("🛠️ Savara Tool Call Received:", data.toolCall);
+          const responses = [];
+          let shouldHangUp = false;
+
+          for (const call of data.toolCall.functionCalls) {
+            if (call.name === "add_shopping_item") {
+              const { product_name, price, currency } = call.args;
+              const newItem: ShoppingItem = {
+                  id: Date.now().toString(),
+                  name: product_name,
+                  price: Number(price),
+                  currency: (currency as 'USD' | 'EUR' | 'VES') || 'USD',
+                  quantity: 1
+              };
+              addItem(newItem);
+              if (config?.onItemAdded) config.onItemAdded(newItem);
+              
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { result: "Item agregado correctamente" }
+              });
+            }
+            else if (call.name === "finish_list") {
+               shouldHangUp = true;
+               responses.push({
+                  id: call.id,
+                  name: call.name,
+                  response: { result: "Lista finalizada." }
+               });
+            }
+            else if (call.name === "save_user_name") {
+              const { name } = call.args;
+              console.log("👤 Saving user name:", name);
+              
+              // 1. Update Local Store
+              setUserName(name);
+
+              // 2. Persist to Supabase
+              if (supabase && machineId) {
+                supabase.from('profiles').upsert({ 
+                  machine_id: machineId, 
+                  full_name: name 
+                }).then(({ error }) => {
+                  if (error) console.error("Error saving profile to DB:", error);
+                });
+              }
+
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { result: `Nombre ${name} guardado exitosamente.` }
+              });
+            }
+            else if (call.name === "get_latest_rates") {
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { 
+                  usd: rates.USD, 
+                  eur: rates.EUR,
+                  last_updated: new Date().toISOString() 
+                }
+              });
+            }
+          }
+          
+          if (ws.current?.readyState === WebSocket.OPEN) {
+              ws.current.send(JSON.stringify({
+                  toolResponse: { functionResponses: responses }
+              }));
+          }
+
+          if (shouldHangUp && config?.onHangUp) {
+              setTimeout(() => config.onHangUp?.(), 1500);
+          }
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { 
+        channelCount: 1, 
+        sampleRate: 16000 
+      }});
+      
+      await audioContext.current.resume();
+
+      const source = audioContext.current.createMediaStreamSource(stream);
+      workletNode.current = new AudioWorkletNode(audioContext.current, 'pcm-processor');
+      
+      workletNode.current.port.onmessage = (e) => {
+        const pcmData = e.data;
+        const base64Audio = arrayBufferToBase64(pcmData);
+        
+        if (ws.current?.readyState === WebSocket.OPEN) {
+          const audioMsg = {
+            realtimeInput: {
+              mediaChunks: [{
+                mimeType: "audio/pcm",
+                data: base64Audio
+              }]
+            }
+          };
+          ws.current.send(JSON.stringify(audioMsg));
+        }
+      };
+
+      source.connect(workletNode.current);
+    } catch (e: any) {
+      console.error("🔴 Savara Connection/Mic Error:", e);
+      setIsConnected(false);
+      
+      // Categorize error
+      if (e.message?.includes("Permission denied") || e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        setError({ code: 'MIC_PERMISSION_DENIED', message: "Necesitamos permiso del micrófono para hablar contigo." });
+      } else {
+        setError({ code: 'UNKNOWN', message: "Error al iniciar Savara. Intenta de nuevo." });
+      }
+    }
   }, [addItem, items, rates, userName, setUserName, machineId]);
 
   const disconnect = useCallback(() => {
@@ -288,7 +311,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
     setIsConnected(false);
   }, []);
 
-  return { connect, disconnect, isConnected };
+  return { connect, disconnect, isConnected, error };
 };
 
 // Helpers
