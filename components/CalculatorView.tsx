@@ -782,6 +782,14 @@ INSTRUCCIONES CLAVE:
                 >
                   <X size={16} className="text-gray-600" />
                 </button>
+                
+                {/* Savara Avatar */}
+                <div className="flex justify-center mb-2">
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-black/10">
+                    <img src="/SavaraProfile.webp" alt="Savara" className="w-full h-full object-cover" />
+                  </div>
+                </div>
+
                 <h2 className="text-2xl font-black tracking-tighter mb-1 font-sans text-black">CALCULATÚ</h2>
                 <p className="uppercase text-[10px] text-gray-500 font-bold tracking-widest">
                   {viewingHistoryEntry ? 'Copia de Recibo' : 'Resumen de Cuenta'}
@@ -816,9 +824,14 @@ INSTRUCCIONES CLAVE:
                 <span className="text-2xl font-black tracking-tighter">Bs {voucherTotals.bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
 
-              <div className="flex justify-end gap-3 text-gray-500 text-[10px] font-bold border-b-2 border-dashed border-gray-300 pb-4 mb-4">
-                <span>REF: $ {voucherTotals.usd.toFixed(2)}</span>
-                <span>EUR {voucherTotals.eur.toFixed(2)}</span>
+              <div className="flex flex-col items-end gap-1 text-gray-500 text-[10px] font-bold border-b-2 border-dashed border-gray-300 pb-4 mb-4">
+                <div className="flex gap-3">
+                  <span>REF: $ {voucherTotals.usd.toFixed(2)}</span>
+                  <span>EUR {voucherTotals.eur.toFixed(2)}</span>
+                </div>
+                {!viewingHistoryEntry && (
+                   <span className="text-[9px] opacity-70">Tasa: {rates.USD.toFixed(2)} Bs/$</span>
+                )}
               </div>
 
               {/* Footer */}
