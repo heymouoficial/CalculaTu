@@ -19,8 +19,12 @@ export type SavaraError = {
 export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => void; onHangUp?: () => void }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<SavaraError>(null);
+  const [latency, setLatency] = useState<number>(0);
+  const [isLowLatency, setIsLowLatency] = useState(true);
+
   const ws = useRef<WebSocket | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
+  const lastPingTime = useRef<number>(0);
   const audioContextOutput = useRef<AudioContext | null>(null);
   const workletNode = useRef<AudioWorkletNode | null>(null);
   const nextStartTime = useRef<number>(0);
@@ -213,6 +217,13 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
       };
 
       ws.current.onmessage = async (event) => {
+        const arrivalTime = Date.now();
+        if (lastPingTime.current > 0) {
+          const rtt = arrivalTime - lastPingTime.current;
+          setLatency(rtt);
+          setIsLowLatency(rtt < 500); // Threshold for "Slow Connection"
+        }
+
         let data;
         try {
           if (event.data instanceof Blob) {

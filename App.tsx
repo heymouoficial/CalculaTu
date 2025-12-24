@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
 
 import { supabase } from './services/supabaseClient';
-import { autoActivateTrial } from './utils/license';
+import { autoActivateTrial, activateChristmasPromo } from './utils/license';
 import {
   AlertCircle,
   Check,
@@ -179,6 +179,14 @@ const App: React.FC = () => {
 
   const toggleCurrency = () => setShowEuro(!showEuro);
 
+  const handleActivateChristmas = async () => {
+    if (!machineId) return;
+    await activateChristmasPromo(machineId);
+    setCurrentView('calculator');
+    // Force voice mode activation in CalculatorView if needed
+    localStorage.setItem('savara_voice_mode', 'true');
+  };
+
   const renderDelta = (current: number, prev?: number) => {
     if (!prev || current === prev) return null;
     const isUp = current > prev;
@@ -201,7 +209,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
-      <PromotionBanner />
+      <PromotionBanner onActivate={handleActivateChristmas} />
 
       {/* NAVBAR */}
       <div className="fixed inset-0 pointer-events-none">

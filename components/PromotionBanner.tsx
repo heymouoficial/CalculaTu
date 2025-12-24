@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, ArrowRight } from 'lucide-react';
 
-export const PromotionBanner: React.FC = () => {
+interface PromotionBannerProps {
+    onActivate?: () => void;
+}
+
+export const PromotionBanner: React.FC<PromotionBannerProps> = ({ onActivate }) => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
@@ -36,10 +40,14 @@ export const PromotionBanner: React.FC = () => {
                         Prueba la asistente de voz inteligente hoy mismo sin costo.
                     </p>
                     <button
-                        onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-                        className="group flex items-center gap-1.5 bg-black/20 hover:bg-black/30 transition-colors px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10"
+                        onClick={() => {
+                            onActivate?.();
+                            setIsVisible(false);
+                            localStorage.setItem('savara_promo_closed', 'true');
+                        }}
+                        className="bg-emerald-500 text-black px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 active:scale-95"
                     >
-                        Activar Ahora <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                        ACTIVAR AHORA <ArrowRight size={14} />
                     </button>
                 </div>
             </div>

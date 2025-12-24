@@ -28,7 +28,13 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const addItem = useAppStore(s => s.addItem);
   const removeItem = useAppStore(s => s.removeItem);
   const clearItems = useAppStore(s => s.clearItems);
-  const { connect: connectSavara, disconnect: disconnectSavara, isConnected: isSavaraConnected } = useSavaraLive({
+  const { 
+    connect: connectSavara, 
+    disconnect: disconnectSavara, 
+    isConnected: isSavaraConnected,
+    latency,
+    isLowLatency
+  } = useSavaraLive({
     onItemAdded: (item) => {
       const currencySymbol = item.currency === 'USD' ? '$' : item.currency === 'EUR' ? '€' : 'Bs';
       showToast(`${item.quantity}x ${item.name} (${currencySymbol} ${item.price}) agregado`, 'item');
@@ -1468,6 +1474,8 @@ INSTRUCCIONES CLAVE:
         currentTotals={currentTotals}
         rates={rates}
         onHangUp={toggleSavara}
+        latency={latency}
+        isLowLatency={isLowLatency}
       />
     </div>
   );

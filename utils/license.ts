@@ -17,10 +17,26 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
   }
 
   const expiresAt = new Date(Date.now() + TRIAL_DURATION_MS).toISOString();
-  
+
   setLicense({
     active: true,
     tier: 'trial',
+    expiresAt,
+  });
+}
+
+export async function activateChristmasPromo(machineId: string): Promise<void> {
+  const state = useAppStore.getState();
+  const { setLicense, license } = state;
+
+  // Don't downgrade a lifetime user
+  if (license.tier === 'lifetime') return;
+
+  const expiresAt = new Date(Date.now() + TRIAL_DURATION_MS).toISOString();
+
+  setLicense({
+    active: true,
+    tier: 'pro',
     expiresAt,
   });
 }

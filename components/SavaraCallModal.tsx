@@ -9,6 +9,8 @@ interface SavaraCallModalProps {
     currentTotals: { usd: number; bs: number; eur: number };
     rates: { USD: number; EUR: number };
     onHangUp: () => void;
+    latency?: number;
+    isLowLatency?: boolean;
 }
 
 export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
@@ -18,6 +20,8 @@ export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
     currentTotals,
     rates,
     onHangUp,
+    latency = 0,
+    isLowLatency = true,
 }) => {
     const [callDuration, setCallDuration] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
@@ -53,6 +57,12 @@ export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
                     <span>Llamada en curso</span>
                 </div>
                 <span className="text-white/50 text-xs font-mono">{formatTime(callDuration)}</span>
+                
+                {!isLowLatency && (
+                  <div className="mt-2 flex items-center gap-2 bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border border-amber-500/30 animate-pulse">
+                    <span>⚠️ Conexión Lenta ({latency}ms)</span>
+                  </div>
+                )}
             </div>
 
             {/* Avatar + Pulse */}

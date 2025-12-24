@@ -3,7 +3,7 @@ import { RATES } from '../constants';
 import { getOrCreateMachineId, getOrCreateUIC } from '../utils/deviceId';
 import { ShoppingItem, ExchangeRate } from '../types';
 
-export type LicenseTier = 'trial' | 'freemium' | 'lifetime';
+export type LicenseTier = 'trial' | 'freemium' | 'pro' | 'lifetime';
 
 export type FeatureToken = {
   uic: string;
@@ -235,9 +235,9 @@ export const useAppStore = create<AppState>((set) => {
 
     addItem: (item) => set((state) => {
       const existingIdx = state.items.findIndex(
-        (i) => i.name.toLowerCase() === item.name.toLowerCase() && 
-               i.price === item.price && 
-               i.currency === item.currency
+        (i) => i.name.toLowerCase() === item.name.toLowerCase() &&
+          i.price === item.price &&
+          i.currency === item.currency
       );
 
       if (existingIdx > -1) {

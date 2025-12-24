@@ -7,5 +7,8 @@
             "esnext"
         ],
         "strict": true
+    },
+    "imports": {
+        "supabase": "https://esm.sh/@supabase/supabase-js@2.45.4"
     }
 }
