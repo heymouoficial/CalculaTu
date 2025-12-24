@@ -40,7 +40,7 @@
 -   [x] **Task:** Recopilar y documentar todos los bugs encontrados durante las Fases 1 y 2. [tracked]
 -   [x] **Task:** Priorizar y solucionar todos los bugs críticos y de alta prioridad. [resolved]
 -   [x] **Task:** Realizar una ronda final de pruebas de regresión. [verified]
--   [~] **Task:** Preparar la rama `main` para el despliegue (merge final, chequeos de CI).
--   [ ] **Task:** Ejecutar el despliegue de producción en Vercel (FR6).
--   [ ] **Task:** Monitorear la aplicación post-lanzamiento.
+-   [x] **Task:** Preparar la rama `main` para el despliegue (merge final, chequeos de CI). [merged]
+-   [x] **Task:** Ejecutar el despliegue de producción en Vercel (FR6). [deployed]
+-   [~] **Task:** Monitorear la aplicación post-lanzamiento.
 -   [ ] **Task:** Conductor - User Manual Verification 'Fase 3: Bug Fixing y Despliegue Final' (Protocol in workflow.md)
