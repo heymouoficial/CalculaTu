@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft } from 'lucide-react';
+import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft, Calendar } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlobalRates, resetPassword, updatePassword } from '../services/ratesService';
 import { supabase } from '../services/supabaseClient';
+import { DayPicker } from 'react-day-picker';
+import { format, addDays, addMonths } from 'date-fns';
+import { es } from 'date-fns/locale';
+import 'react-day-picker/style.css';
 
 // PIN Gate - Security layer before showing admin panel
 const PORTALITY_PIN = import.meta.env.VITE_PORTALITY_PIN || ''; // PIN must be set in .env.local
@@ -942,14 +946,62 @@ export const Portality: React.FC = () => {
                     placeholder="ID del cliente..."
                     disabled={deviceId === 'GLOBAL_USER'}
                   />
-                </div>                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Nueva Fecha de Expiración</label>
-                  <input
-                    type="date"
-                    value={extendDate}
-                    onChange={(e) => setExtendDate(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-blue-500/50 text-white"
-                  />
+                </div>
+
+                {/* Quick Date Presets */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 block flex items-center gap-2">
+                    <Calendar size={12} className="text-blue-400" /> Fecha de Expiración
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {[
+                      { label: '+7 días', days: 7 },
+                      { label: '+30 días', days: 30 },
+                      { label: '+90 días', days: 90 },
+                      { label: '+1 año', days: 365 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.days}
+                        onClick={() => setExtendDate(format(addDays(new Date(), preset.days), 'yyyy-MM-dd'))}
+                        className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-bold hover:bg-blue-500/30 transition-all"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Interactive Calendar */}
+                  <div className="bg-black/40 border border-white/10 rounded-2xl p-3 overflow-hidden">
+                    <DayPicker
+                      mode="single"
+                      selected={extendDate ? new Date(extendDate) : undefined}
+                      onSelect={(date) => date && setExtendDate(format(date, 'yyyy-MM-dd'))}
+                      locale={es}
+                      disabled={{ before: new Date() }}
+                      modifiersClassNames={{
+                        selected: 'bg-blue-500 text-white rounded-lg',
+                        today: 'border border-emerald-500 rounded-lg'
+                      }}
+                      classNames={{
+                        root: 'text-white text-sm',
+                        month_caption: 'text-white font-bold text-center mb-2',
+                        weekday: 'text-gray-500 text-[10px] font-bold',
+                        day: 'text-white hover:bg-white/10 rounded-lg transition-colors p-2 text-center cursor-pointer',
+                        day_button: 'w-full h-full',
+                        chevron: 'fill-white',
+                        nav: 'flex justify-between mb-2',
+                        months: 'flex flex-col'
+                      }}
+                    />
+                  </div>
+
+                  {extendDate && (
+                    <div className="mt-3 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                      <span className="text-[10px] text-emerald-500 font-mono">
+                        Fecha seleccionada: <strong>{format(new Date(extendDate), 'dd MMM yyyy', { locale: es })}</strong>
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={handleExtendTrial}
