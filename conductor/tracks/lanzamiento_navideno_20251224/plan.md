@@ -42,5 +42,5 @@
 -   [x] **Task:** Realizar una ronda final de pruebas de regresión. [verified]
 -   [x] **Task:** Preparar la rama `main` para el despliegue (merge final, chequeos de CI). [merged]
 -   [x] **Task:** Ejecutar el despliegue de producción en Vercel (FR6). [deployed]
--   [~] **Task:** Monitorear la aplicación post-lanzamiento.
--   [ ] **Task:** Conductor - User Manual Verification 'Fase 3: Bug Fixing y Despliegue Final' (Protocol in workflow.md)
+-   [x] **Task:** Monitorear la aplicación post-lanzamiento. [monitored]
+-   [x] **Task:** Conductor - User Manual Verification 'Fase 3: Bug Fixing y Despliegue Final' (Protocol in workflow.md) [checkpoint: 3642451]
