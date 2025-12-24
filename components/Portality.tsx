@@ -88,9 +88,36 @@ export const Portality: React.FC = () => {
   const [globalEur, setGlobalEur] = useState<number>(0);
   const [globalUpdatedAt, setGlobalUpdatedAt] = useState<string | null>(null);
   const [contracts, setContracts] = useState<any[]>([]);
+  const [extendDate, setExtendDate] = useState('');
 
   const canGenerate = useMemo(() => !!deviceId.trim() && (!!portalKey.trim() || true), [deviceId, portalKey]);
   const isAdminAuthed = authEmail === 'multiversagroup@gmail.com';
+
+  const handleExtendTrial = async () => {
+    if (!deviceId || !extendDate || !isAdminAuthed) return;
+    setIsBusy(true);
+    setStatus('');
+    try {
+      const { error } = await supabase
+        .from('contracts')
+        .upsert({
+          machine_id: deviceId,
+          email: 'trial@portality.gen',
+          plan: 'monthly',
+          token: 'EXTENDED_VIA_DASHBOARD',
+          expires_at: new Date(extendDate).toISOString(),
+          status: 'active'
+        }, { onConflict: 'machine_id' });
+
+      if (error) throw error;
+      setStatus('Trial extendido exitosamente ✅');
+      fetchContracts();
+    } catch (e: any) {
+      setStatus(`Error: ${e.message}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
 
   const fetchContracts = async () => {
     if (!isAdminAuthed) return;
@@ -799,7 +826,7 @@ export const Portality: React.FC = () => {
 
             <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Contratos Recientes</h2>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                 {contracts.length === 0 ? (
                   <p className="text-[10px] text-gray-600 font-mono text-center py-8">No hay contratos registrados aún.</p>
                 ) : (
@@ -829,6 +856,37 @@ export const Portality: React.FC = () => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+
+            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
+               <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID del Usuario</label>
+                  <input
+                    value={deviceId}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
+                    placeholder="ID del cliente..."
+                  />
+                </div>
+                 <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Nueva Fecha de Expiración</label>
+                  <input
+                    type="date"
+                    value={extendDate}
+                    onChange={(e) => setExtendDate(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-blue-500/50 text-white"
+                  />
+                </div>
+                <button
+                  onClick={handleExtendTrial}
+                  disabled={isBusy || !deviceId || !extendDate}
+                  className="w-full py-3 rounded-xl bg-blue-500/20 border border-blue-500/50 text-blue-400 font-black uppercase tracking-widest text-xs hover:bg-blue-500 hover:text-white transition-all disabled:opacity-30"
+                >
+                  {isBusy ? 'Procesando...' : 'Extender Trial / Forzar Licencia'}
+                </button>
               </div>
             </div>
           </div>

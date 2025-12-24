@@ -1,7 +1,5 @@
 import { ShoppingItem } from '../types';
 
-import { ShoppingItem } from '../types';
-
 const MARKETING_KB = `
 ### CONOCIMIENTO DE PRODUCTO (CalculaTú) ###
 - Propósito: Supervivencia financiera en Venezuela.

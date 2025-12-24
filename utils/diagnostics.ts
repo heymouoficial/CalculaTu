@@ -5,7 +5,7 @@ export interface DiagnosticReport {
   uic: string;
   license: {
     active: boolean;
-    plan?: string;
+    tier?: string;
     features?: string[];
   };
   capabilities: {
@@ -34,7 +34,7 @@ export async function generateDiagnosticReport(): Promise<DiagnosticReport> {
     uic: state.machineId,
     license: {
       active: state.license.active,
-      plan: state.license.plan,
+      tier: state.license.tier,
       features: state.license.featureToken?.features || [],
     },
     capabilities: {

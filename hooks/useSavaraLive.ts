@@ -441,7 +441,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
     setIsConnected(false);
   }, []);
 
-  return { connect, disconnect, isConnected, error };
+  return { connect, disconnect, isConnected, error, latency, isLowLatency };
 };
 
 // Helpers

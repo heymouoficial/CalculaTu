@@ -2,7 +2,7 @@
 
 // ==================== SHARED CONFIGURATION ====================
 
-const CURRENT_MODEL = 'gemini-1.5-flash'; // Using more stable alias
+const CURRENT_MODEL = 'gemini-1.5-flash'; // More stable model identifier
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú (CalculaTu). 
 Tu tono es humano, cálido, profesional y conciso. Ayuda al usuario con sus compras y dudas sobre la app.
@@ -36,7 +36,7 @@ class SavaraChat {
     const key = apiKey || getGeminiApiKey();
     if (!key) throw new Error('CRITICAL: VITE_GEMINI_API_KEY not found in environment or constructor.');
     this.apiKey = key;
-    this.baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
+    this.baseUrl = `https://generativelanguage.googleapis.com/v1/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
   }
 
   async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: Array<{ role: string, parts: { text: string }[] }> = []): Promise<string> {
@@ -68,9 +68,19 @@ class SavaraChat {
       });
 
       if (!response.ok) {
-        const errorDetails = await response.text(); // Use .text() for raw error response, fallback if not JSON
-        console.error('[Savara Chat] API Error:', response.status, response.statusText, errorDetails);
-        throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
+        const errorDetails = await response.text();
+        let parsedError;
+        try { parsedError = JSON.parse(errorDetails); } catch { parsedError = errorDetails; }
+
+        console.error('[Savara Chat] Gemini API Status Error:',
+          response.status,
+          response.statusText,
+          JSON.stringify(parsedError, null, 2)
+        );
+
+        // Throw a cleaner message but with the details available
+        const message = parsedError?.error?.message || response.statusText;
+        throw new Error(`Gemini API Error (${response.status}): ${message}`);
       }
 
       const data = await response.json();
