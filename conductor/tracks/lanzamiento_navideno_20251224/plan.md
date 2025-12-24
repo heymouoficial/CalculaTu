@@ -30,7 +30,7 @@
 -   [x] **Task:** Implementar y probar la generación del voucher térmico (FR4). [e6c3e48]
     -   Sub-task: Asegurar que todos los datos sean precisos.
     -   Sub-task: Verificar la funcionalidad de compartir.
--   [ ] **Task:** Probar el flujo completo de monetización (FR5).
+-   [x] **Task:** Probar el flujo completo de monetización (FR5). [b88de58]
     -   Sub-task: Realizar una compra de prueba para la oferta "lifetime".
     -   Sub-task: Realizar una suscripción de prueba mensual.
 -   [ ] **Task:** Conductor - User Manual Verification 'Fase 2: Validación de Features Complementarias' (Protocol in workflow.md)
