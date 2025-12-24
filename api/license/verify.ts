@@ -37,6 +37,24 @@ function getEnv(name: string): string | undefined {
   return process.env[name];
 }
 
+// NOTE: This is a placeholder for a real auth system.
+// In a real app, you'd check a session or a proper admin API key.
+function requireAdminAccess(req: any): boolean {
+  try {
+    // TEMPORARY: Allow access from localhost for development
+    const host = req.headers['host'] || '';
+    if (host.includes('localhost')) {
+      return true;
+    }
+    const expected = getEnv('PORTAL_KEY');
+    if (!expected) return true; // Allow if not configured
+    const provided = String(req.headers['x-portality-key'] || req.headers['x-portal-key'] || '').trim();
+    return provided === expected;
+  } catch {
+    return false;
+  }
+}
+
 export default async function handler(req: any, res: any) {
   try {
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });

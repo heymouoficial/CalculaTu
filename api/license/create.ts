@@ -40,8 +40,15 @@ function getEnv(name: string): string | undefined {
 
 function requirePortalKey(req: any): boolean {
   try {
+    // TEMPORARY: Allow access from localhost for development
+    const host = req.headers['host'] || '';
+    if (host.includes('localhost')) {
+      console.log('[requirePortalKey] Allowing request from localhost.');
+      return true;
+    }
+
     const expected = getEnv('PORTAL_KEY');
-    // Allow if not configured or empty
+    // Allow if not configured or empty on production
     if (!expected || expected.trim() === '') return true;
 
     // Check headers
