@@ -3,7 +3,7 @@ import { RATES } from '../constants';
 import { getOrCreateMachineId, getOrCreateUIC } from '../utils/deviceId';
 import { ShoppingItem } from '../types';
 
-export type LicensePlan = 'monthly' | 'lifetime';
+export type LicenseTier = 'trial' | 'freemium' | 'lifetime';
 
 export type FeatureToken = {
   uic: string;
@@ -14,8 +14,8 @@ export type FeatureToken = {
 
 export type LicenseState = {
   active: boolean;
-  plan?: LicensePlan;
-  expiresAt?: string | null;
+  tier: LicenseTier;
+  expiresAt: string | null;
   token?: string | null;
   featureToken?: FeatureToken | null; // Feature token with specific features
 };
@@ -88,17 +88,26 @@ function persistRatesOverride(machineId: string, override: RatesOverride | null)
 function readStoredLicense(): LicenseState {
   try {
     const raw = typeof window !== 'undefined' ? window.localStorage.getItem(LICENSE_STORAGE_KEY) : null;
-    if (!raw) return { active: false, expiresAt: null, token: null, featureToken: null };
-    const parsed = JSON.parse(raw) as LicenseState;
+    if (!raw) return { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
+    const parsed = JSON.parse(raw) as any;
+    // Map old 'plan' to 'tier' if it exists for migration
+    const tier = parsed.tier || (parsed.plan === 'lifetime' ? 'lifetime' : 'trial');
+    
     if (parsed?.expiresAt) {
       const exp = Date.parse(parsed.expiresAt);
       if (Number.isFinite(exp) && Date.now() > exp) {
-        return { active: false, expiresAt: parsed.expiresAt, token: parsed.token ?? null, featureToken: null };
+        return { active: false, tier, expiresAt: parsed.expiresAt, token: parsed.token ?? null, featureToken: null };
       }
     }
-    return { ...parsed, active: !!parsed.active, featureToken: parsed.featureToken ?? null };
+    return { 
+      ...parsed, 
+      tier, 
+      active: !!parsed.active, 
+      expiresAt: parsed.expiresAt ?? null,
+      featureToken: parsed.featureToken ?? null 
+    };
   } catch {
-    return { active: false, expiresAt: null, token: null, featureToken: null };
+    return { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
   }
 }
 
@@ -218,7 +227,7 @@ export const useAppStore = create<AppState>((set) => {
     }),
   clearLicense: () =>
     set(() => {
-      const license: LicenseState = { active: false, expiresAt: null, token: null, featureToken: null };
+      const license: LicenseState = { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
       persistLicense(license);
       return { license };
     }),
