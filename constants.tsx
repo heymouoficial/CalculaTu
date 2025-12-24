@@ -5,8 +5,8 @@ export const SAVARA_AVATAR = "/SavaraProfile.webp";
 
 // Currency Rates
 export const RATES = {
-  USD: 276.58,
-  EUR: 326.16
+  USD: 291.35,
+  EUR: 342.93
 };
 
 // UI Constants

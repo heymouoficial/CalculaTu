@@ -11,9 +11,15 @@ Si te preguntan por precios o planes, menciónalos con entusiasmo.`;
 
 // Helper for Universal Environment Access
 const getGeminiApiKey = (): string | undefined => {
+  // For Vercel Serverless Functions or other Node.js environments
+  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  // For Vite client-side
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) {
     return import.meta.env.VITE_GEMINI_API_KEY;
   }
+  // Fallback for other potential setups
   if (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) {
     return process.env.VITE_GEMINI_API_KEY;
   }

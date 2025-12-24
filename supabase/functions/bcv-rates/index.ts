@@ -60,22 +60,29 @@ Deno.serve(async (req) => {
             console.warn('[bcv-rates] Primary source failed:', e.message);
             try {
                 usdPrice = await fetchSecondarySource();
-                sourceUsed = 'secondary';
+                sourceUsed = 'secondary-pydolar';
             } catch (e2) {
                 console.error('[bcv-rates] All sources failed');
-                throw new Error('Critical: Unable to fetch BCV rates from any source.');
+                throw new Error(`Critical: Unable to fetch BCV rates. Errors: ${e.message} | ${e2.message}`);
             }
         }
 
         // 2. Calcular EUR usando Cross-Rate (Frankfurter)
-        // Se mantiene Frankfurter por su estabilidad histórica
-        const ecbRes = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD');
-        if (!ecbRes.ok) throw new Error(`ECB API failed: ${ecbRes.status}`);
-        const ecbData = await ecbRes.json();
-        const eurUsdRate = ecbData.rates.USD;
-
-        // 1 EUR = X USD, 1 USD = Y VES -> 1 EUR = X * Y VES
-        const eurPrice = usdPrice * eurUsdRate;
+        let eurPrice = 0;
+        try {
+            const ecbRes = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD');
+            if (ecbRes.ok) {
+                const ecbData = await ecbRes.json();
+                const eurUsdRate = ecbData.rates.USD;
+                // 1 EUR = X USD, 1 USD = Y VES -> 1 EUR = X * Y VES
+                eurPrice = usdPrice * eurUsdRate;
+            } else {
+                throw new Error('ECB API unstable');
+            }
+        } catch (err) {
+            console.warn('[bcv-rates] EUR cross-rate failed, estimating with 1.08 static fallback');
+            eurPrice = usdPrice * 1.08; // Fallback razonable si falla Frankfurter
+        }
 
         // 3. Guardar en Supabase
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -85,8 +92,8 @@ Deno.serve(async (req) => {
         const { error } = await supabase.from('exchange_rates').upsert(
             {
                 id: 1,
-                usd: Number(usdPrice.toFixed(2)), // Simplificado a 2 decimales según solicitud
-                eur: Number(eurPrice.toFixed(2)),
+                usd: Number(usdPrice.toFixed(4)), // Mas precisión internamente
+                eur: Number(eurPrice.toFixed(4)),
                 source: `bcv-auto-${sourceUsed}`,
                 updated_at: new Date().toISOString()
             },

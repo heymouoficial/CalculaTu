@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign, Download, Image as ImageIcon } from 'lucide-react';
+import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ChevronDown, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign, Download, Image as ImageIcon } from 'lucide-react';
+
 import { toJpeg } from 'html-to-image';
 import { RATES, SAVARA_AVATAR } from '../constants';
 import { ShoppingItem } from '../types';
@@ -110,12 +111,22 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     setCurrentDateDisplay(formatted.charAt(0).toUpperCase() + formatted.slice(1));
   }, []);
 
+  const renderDelta = (current?: number, prev?: number) => {
+    if (!prev || !current || current === prev) return null;
+    const isUp = current > prev;
+    return (
+      <span className={`inline-flex items-center text-[10px] ml-1 ${isUp ? 'text-red-400' : 'text-emerald-400'}`}>
+        {isUp ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+      </span>
+    );
+  };
+
   // Totals Calculation (Helper function to calculate from any list of items)
   const calculateTotals = (itemList: ShoppingItem[]) => {
     return itemList.reduce((acc, item) => {
       let usd = 0;
       if (item.currency === 'USD') usd = item.price * item.quantity;
-      else if (item.currency === 'EUR') usd = (item.price * 1.08) * item.quantity;
+      else if (item.currency === 'EUR') usd = (item.price * (rates.USD / rates.EUR)) * item.quantity;
       else if (item.currency === 'VES') usd = (item.price / rates.USD) * item.quantity;
       return {
         usd: acc.usd + usd,
@@ -245,7 +256,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
     try {
       await saveHistoryEntry(newEntry);
-      setHistory(prev => [newEntry, ...prev]);
+      const entryWithDate: HistoryEntry = { ...newEntry, createdAt: date.toISOString() };
+      setHistory(prev => [entryWithDate, ...prev]);
       clearItems();
       showToast('Tu bolsillo ha sido guardado ✅', 'success');
     } catch (err) {
@@ -271,7 +283,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
       // Save to IndexedDB
       await saveHistoryEntry(newEntry);
-      setHistory(prev => [newEntry, ...prev]);
+      const entryWithDate: HistoryEntry = { ...newEntry, createdAt: date.toISOString() };
+      setHistory(prev => [entryWithDate, ...prev]);
       clearItems(); // Clear list after "saving"
     }
 
@@ -300,7 +313,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
       setLicense({
         active: true,
-        plan: data.plan,
+        tier: data.plan as any, // Mapeo de backend
         expiresAt: data.expiresAt ?? null,
         token,
         featureToken: {
@@ -605,11 +618,13 @@ INSTRUCCIONES CLAVE:
           <div className="flex gap-2 items-center">
             <DollarSign size={16} className="text-emerald-400" />
             <span className="text-white font-mono">Bs {rates.USD.toFixed(2)}</span>
+            {renderDelta(rates.USD, rates.prevUSD)}
           </div>
           <div className="h-3 w-px bg-white/10"></div>
           <div className="flex gap-2 items-center">
             <Euro size={16} className="text-purple-400" />
             <span className="text-white font-mono">Bs {rates.EUR.toFixed(2).replace('.', ',')}</span>
+            {renderDelta(rates.EUR, rates.prevEUR)}
           </div>
         </div>
       </div>
@@ -782,7 +797,7 @@ INSTRUCCIONES CLAVE:
                 >
                   <X size={16} className="text-gray-600" />
                 </button>
-                
+
                 {/* Savara Avatar */}
                 <div className="flex justify-center mb-2">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-black/10">
@@ -830,7 +845,7 @@ INSTRUCCIONES CLAVE:
                   <span>EUR {voucherTotals.eur.toFixed(2)}</span>
                 </div>
                 {!viewingHistoryEntry && (
-                   <span className="text-[9px] opacity-70">Tasa: {rates.USD.toFixed(2)} Bs/$</span>
+                  <span className="text-[9px] opacity-70">Tasa: {rates.USD.toFixed(2)} Bs/$</span>
                 )}
               </div>
 
@@ -1128,28 +1143,28 @@ INSTRUCCIONES CLAVE:
 
                   {/* License Status - Only show if license is active */}
                   {license.active && (
-                    <div className={`p-6 rounded-2xl border relative overflow-hidden ${license.plan === 'lifetime'
+                    <div className={`p-6 rounded-2xl border relative overflow-hidden ${license.tier === 'lifetime'
                       ? 'bg-gradient-to-br from-purple-900/30 to-black border-purple-500/40'
                       : 'bg-gradient-to-br from-emerald-900/30 to-black border-emerald-500/40'
                       }`}>
                       <div className="absolute top-0 right-0 p-3 opacity-20">
-                        {license.plan === 'lifetime' ? (
+                        {license.tier === 'lifetime' ? (
                           <span className="text-5xl">💎</span>
                         ) : (
                           <Check size={64} className="text-emerald-500" />
                         )}
                       </div>
-                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${license.plan === 'lifetime' ? 'text-purple-400' : 'text-emerald-400'
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${license.tier === 'lifetime' ? 'text-purple-400' : 'text-emerald-400'
                         }`}>
-                        {license.plan === 'lifetime' ? 'Licencia Lifetime' : 'Licencia Mensual'}
+                        {license.tier === 'lifetime' ? 'Licencia Lifetime' : 'Licencia Mensual'}
                       </p>
                       <p className="text-xl font-bold text-white mb-2">
-                        {license.plan === 'lifetime'
+                        {license.tier === 'lifetime'
                           ? '¡Gracias por confiar en nosotros!'
                           : '✅ Licencia Activada'}
                       </p>
-                      <p className={`text-sm ${license.plan === 'lifetime' ? 'text-purple-300' : 'text-emerald-300'}`}>
-                        {license.plan === 'lifetime'
+                      <p className={`text-sm ${license.tier === 'lifetime' ? 'text-purple-300' : 'text-emerald-300'}`}>
+                        {license.tier === 'lifetime'
                           ? 'Tu licencia no vence nunca. Disfruta de Savara sin límites.'
                           : `Próxima renovación: ${license.expiresAt
                             ? new Date(license.expiresAt).toLocaleDateString('es-VE', {
@@ -1161,7 +1176,8 @@ INSTRUCCIONES CLAVE:
                   )}
 
                   {/* Machine ID Card - Only show if NOT lifetime license */}
-                  {license.plan !== 'lifetime' && (
+                  {license.tier !== 'lifetime' && (
+
                     <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-black border border-emerald-500/30 relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-3 opacity-20">
                         <Fingerprint size={64} className="text-emerald-500" />

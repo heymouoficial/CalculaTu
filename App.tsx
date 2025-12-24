@@ -8,7 +8,8 @@ import { InstallBanner } from './components/InstallBanner';
 import { Logo } from './components/Logo';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
-import { fetchGlobalRates } from './services/ratesService';
+import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
+
 import { supabase } from './services/supabaseClient';
 import { autoActivateTrial } from './utils/license';
 
@@ -72,6 +73,7 @@ const App: React.FC = () => {
   });
 
   const [showEuro, setShowEuro] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentDate, setCurrentDate] = useState('');
   const [chatTrigger, setChatTrigger] = useState<{ open: boolean; message?: string }>({ open: false });
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
@@ -84,22 +86,22 @@ const App: React.FC = () => {
   useEffect(() => {
     const syncProfile = async () => {
       if (!machineId || machineId === 'M-LOADING...' || !supabase) return;
-      
+
       // Auto-activate trial if first launch
       await autoActivateTrial(machineId);
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('machine_id', machineId)
         .single();
-        
+
       if (data?.full_name) {
         console.log("👤 Profile synced:", data.full_name);
         setUserName(data.full_name);
       }
     };
-    
+
     syncProfile();
   }, [machineId, setUserName]);
 
@@ -118,12 +120,33 @@ const App: React.FC = () => {
   useEffect(() => {
     fetchGlobalRates()
       .then((r) => {
-        if (r) setBaseRates({ USD: r.USD, EUR: r.EUR });
+        if (r) setBaseRates({ USD: r.USD, EUR: r.EUR, prevUSD: r.prevUSD, prevEUR: r.prevEUR });
       })
       .catch(() => { });
   }, []);
 
+  const handleRefreshRates = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRefreshing(true);
+    try {
+      const r = await forceRefreshRates();
+      if (r) setBaseRates({ USD: r.USD, EUR: r.EUR, prevUSD: r.prevUSD, prevEUR: r.prevEUR });
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 800);
+    }
+  };
+
   const toggleCurrency = () => setShowEuro(!showEuro);
+
+  const renderDelta = (current: number, prev?: number) => {
+    if (!prev || current === prev) return null;
+    const isUp = current > prev;
+    return (
+      <span className={`flex items-center text-[10px] ml-1 ${isUp ? 'text-red-400' : 'text-emerald-400'}`}>
+        {isUp ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+      </span>
+    );
+  };
 
   const handlePlanClick = (planName: string) => {
     setChatTrigger({
@@ -147,10 +170,26 @@ const App: React.FC = () => {
             <Logo size={36} />
             <div className="flex flex-col"><span className="font-bold text-lg leading-none tracking-tight">CalculaTú</span><span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{currentDate}</span></div>
           </div>
-          <button onClick={toggleCurrency} className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl px-3 py-1.5 border border-white/5 transition-all">
-            <div className="text-right"><div className="text-[10px] text-gray-400 font-medium uppercase">Tasa BCV</div><div className="text-sm font-mono font-bold text-emerald-400">{showEuro ? `€ ${rates.EUR}` : `$ ${rates.USD}`}</div></div>
-            <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><RefreshCcw size={12} /></div>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleCurrency}
+              className="group flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl px-3 py-1.5 border border-white/5 transition-all active:scale-95"
+            >
+              <div className="text-right">
+                <div className="text-[10px] text-gray-400 font-medium uppercase">Tasa BCV</div>
+                <div className="text-sm font-mono font-bold text-emerald-400 flex items-center justify-end">
+                  {showEuro ? `€ ${rates.EUR}` : `$ ${rates.USD}`}
+                  {showEuro ? renderDelta(rates.EUR, rates.prevEUR) : renderDelta(rates.USD, rates.prevUSD)}
+                </div>
+              </div>
+              <div
+                onClick={handleRefreshRates}
+                className={`w-7 h-7 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+              >
+                <RefreshCcw size={14} />
+              </div>
+            </button>
+          </div>
         </div>
       </nav>
 

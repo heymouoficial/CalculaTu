@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { RATES } from '../constants';
 import { getOrCreateMachineId, getOrCreateUIC } from '../utils/deviceId';
-import { ShoppingItem } from '../types';
+import { ShoppingItem, ExchangeRate } from '../types';
 
 export type LicenseTier = 'trial' | 'freemium' | 'lifetime';
 
@@ -24,8 +24,8 @@ type AppState = {
   machineId: string;
   userName: string | null;
   hasGreeted: boolean;
-  baseRates: typeof RATES;
-  rates: typeof RATES; // effective rates (baseRates unless user override is active)
+  baseRates: ExchangeRate;
+  rates: ExchangeRate; // effective rates (baseRates unless user override is active)
   ratesOverrideExpiresAt?: string | null;
   budgetLimit: number; // in USD
   license: LicenseState;
@@ -33,8 +33,8 @@ type AppState = {
 
   setUserName: (name: string | null) => void;
   setHasGreeted: (hasGreeted: boolean) => void;
-  setBaseRates: (rates: typeof RATES) => void;
-  setRatesTemporarily: (rates: typeof RATES) => void; // 24h cache
+  setBaseRates: (rates: ExchangeRate) => void;
+  setRatesTemporarily: (rates: ExchangeRate) => void; // 24h cache
   clearTemporaryRates: () => void;
   setBudgetLimit: (limit: number) => void;
   setLicense: (license: LicenseState) => void;
@@ -92,19 +92,19 @@ function readStoredLicense(): LicenseState {
     const parsed = JSON.parse(raw) as any;
     // Map old 'plan' to 'tier' if it exists for migration
     const tier = parsed.tier || (parsed.plan === 'lifetime' ? 'lifetime' : 'trial');
-    
+
     if (parsed?.expiresAt) {
       const exp = Date.parse(parsed.expiresAt);
       if (Number.isFinite(exp) && Date.now() > exp) {
         return { active: false, tier, expiresAt: parsed.expiresAt, token: parsed.token ?? null, featureToken: null };
       }
     }
-    return { 
-      ...parsed, 
-      tier, 
-      active: !!parsed.active, 
+    return {
+      ...parsed,
+      tier,
+      active: !!parsed.active,
       expiresAt: parsed.expiresAt ?? null,
-      featureToken: parsed.featureToken ?? null 
+      featureToken: parsed.featureToken ?? null
     };
   } catch {
     return { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
@@ -163,78 +163,78 @@ export const useAppStore = create<AppState>((set) => {
   getOrCreateUIC().then((uic) => {
     set({ machineId: uic });
   });
-  
+
   return {
     machineId: getOrCreateMachineId(), // Sync fallback (will update when async completes)
-  userName: readStoredUserName(),
-  hasGreeted: false,
-  baseRates: RATES,
-  rates: (() => {
-    const id = getOrCreateMachineId();
-    const o = readRatesOverride(id);
-    return o ? { USD: o.USD, EUR: o.EUR } : RATES;
-  })(),
-  ratesOverrideExpiresAt: (() => {
-    const id = getOrCreateMachineId();
-    const o = readRatesOverride(id);
-    return o?.expiresAt ?? null;
-  })(),
-  budgetLimit: readStoredBudget(),
-  license: readStoredLicense(),
-  items: [],
+    userName: readStoredUserName(),
+    hasGreeted: false,
+    baseRates: RATES,
+    rates: (() => {
+      const id = getOrCreateMachineId();
+      const o = readRatesOverride(id);
+      return o ? { USD: o.USD, EUR: o.EUR } : RATES;
+    })(),
+    ratesOverrideExpiresAt: (() => {
+      const id = getOrCreateMachineId();
+      const o = readRatesOverride(id);
+      return o?.expiresAt ?? null;
+    })(),
+    budgetLimit: readStoredBudget(),
+    license: readStoredLicense(),
+    items: [],
 
-  setUserName: (name) =>
-    set(() => {
-      persistUserName(name);
-      return { userName: name };
-    }),
+    setUserName: (name) =>
+      set(() => {
+        persistUserName(name);
+        return { userName: name };
+      }),
 
-  setHasGreeted: (hasGreeted) => set({ hasGreeted }),
+    setHasGreeted: (hasGreeted) => set({ hasGreeted }),
 
-  setBaseRates: (baseRates) =>
-    set((state) => {
-      const override = readRatesOverride(state.machineId);
-      // If user override is active, keep effective rates; otherwise follow baseRates
-      return {
-        baseRates,
-        rates: override ? state.rates : baseRates,
-      };
-    }),
+    setBaseRates: (baseRates) =>
+      set((state) => {
+        const override = readRatesOverride(state.machineId);
+        // If user override is active, keep effective rates; otherwise follow baseRates
+        return {
+          baseRates,
+          rates: override ? state.rates : baseRates,
+        };
+      }),
 
-  setRatesTemporarily: (rates) =>
-    set((state) => {
-      const expiresAt = new Date(Date.now() + RATES_OVERRIDE_TTL_MS).toISOString();
-      persistRatesOverride(state.machineId, { USD: rates.USD, EUR: rates.EUR, expiresAt });
-      return { rates, ratesOverrideExpiresAt: expiresAt };
-    }),
+    setRatesTemporarily: (rates) =>
+      set((state) => {
+        const expiresAt = new Date(Date.now() + RATES_OVERRIDE_TTL_MS).toISOString();
+        persistRatesOverride(state.machineId, { USD: rates.USD, EUR: rates.EUR, expiresAt });
+        return { rates, ratesOverrideExpiresAt: expiresAt };
+      }),
 
-  clearTemporaryRates: () =>
-    set((state) => {
-      persistRatesOverride(state.machineId, null);
-      return { rates: state.baseRates, ratesOverrideExpiresAt: null };
-    }),
+    clearTemporaryRates: () =>
+      set((state) => {
+        persistRatesOverride(state.machineId, null);
+        return { rates: state.baseRates, ratesOverrideExpiresAt: null };
+      }),
 
-  setBudgetLimit: (limit) =>
-    set(() => {
-      persistBudget(limit);
-      return { budgetLimit: limit };
-    }),
+    setBudgetLimit: (limit) =>
+      set(() => {
+        persistBudget(limit);
+        return { budgetLimit: limit };
+      }),
 
-  setLicense: (license) =>
-    set(() => {
-      persistLicense(license);
-      return { license };
-    }),
-  clearLicense: () =>
-    set(() => {
-      const license: LicenseState = { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
-      persistLicense(license);
-      return { license };
-    }),
+    setLicense: (license) =>
+      set(() => {
+        persistLicense(license);
+        return { license };
+      }),
+    clearLicense: () =>
+      set(() => {
+        const license: LicenseState = { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
+        persistLicense(license);
+        return { license };
+      }),
 
-  addItem: (item) => set((state) => ({ items: [item, ...state.items] })),
-  removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
-  clearItems: () => set({ items: [] }),
+    addItem: (item) => set((state) => ({ items: [item, ...state.items] })),
+    removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
+    clearItems: () => set({ items: [] }),
 
   };
 });

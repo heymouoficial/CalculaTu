@@ -1,6 +1,12 @@
 import { supabase } from './supabaseClient';
 
-export type GlobalRates = { USD: number; EUR: number; updatedAt?: string | null };
+export type GlobalRates = {
+  USD: number;
+  EUR: number;
+  prevUSD?: number;
+  prevEUR?: number;
+  updatedAt?: string | null
+};
 
 // Cache configuration for Modo Bunker (24 hours)
 const RATES_CACHE_KEY = 'calculatu_rates_cache';
@@ -42,25 +48,35 @@ export async function fetchGlobalRates(): Promise<GlobalRates | null> {
   // Try fetching from Supabase
   if (supabase) {
     try {
-      const { data, error } = await supabase
+      // Fetch latest rate
+      const { data: latest, error: err1 } = await supabase
         .from('exchange_rates')
         .select('usd, eur, updated_at')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('id', 1)
+        .single();
 
-      if (!error && data) {
+      // Fetch previous rate from history to calculate delta
+      const { data: history, error: err2 } = await supabase
+        .from('exchange_rates_history')
+        .select('usd, eur')
+        .order('created_at', { ascending: false })
+        .limit(2);
+
+      if (!err1 && latest) {
+        // Find a previous rate that is different from current to show movement
+        const prev = history?.find(h => h.usd !== latest.usd) || history?.[1];
+
         const rates: GlobalRates = {
-          USD: Number(Number(data.usd).toFixed(2)),
-          EUR: Number(Number(data.eur).toFixed(2)),
-          updatedAt: (data as any).updated_at ?? null,
+          USD: Number(Number(latest.usd).toFixed(2)),
+          EUR: Number(Number(latest.eur).toFixed(2)),
+          prevUSD: prev ? Number(Number(prev.usd).toFixed(2)) : undefined,
+          prevEUR: prev ? Number(Number(prev.eur).toFixed(2)) : undefined,
+          updatedAt: (latest as any).updated_at ?? null,
         };
         // Update cache on successful fetch
         setCachedRates(rates);
 
         // --- LAZY UPDATE TRIGGER ---
-        // If we have internet, check if we need to trigger the Edge Function
-        // based on BCV schedule (8:00 AM and 1:30 PM VET)
         triggerLazyUpdateIfStale(rates.updatedAt);
 
         return rates;
@@ -136,18 +152,27 @@ export async function forceRefreshRates(): Promise<GlobalRates | null> {
     // Before fetching, trigger the update to ensure DB has latest
     await (supabase as any).functions.invoke('bcv-rates').catch(() => { });
 
-    const { data, error } = await supabase
+    const { data: latest, error: err1 } = await supabase
       .from('exchange_rates')
       .select('usd, eur, updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .eq('id', 1)
+      .single();
 
-    if (!error && data) {
+    const { data: history, error: err2 } = await supabase
+      .from('exchange_rates_history')
+      .select('usd, eur')
+      .order('created_at', { ascending: false })
+      .limit(2);
+
+    if (!err1 && latest) {
+      const prev = history?.find(h => h.usd !== latest.usd) || history?.[1];
+
       const rates: GlobalRates = {
-        USD: Number(Number(data.usd).toFixed(2)),
-        EUR: Number(Number(data.eur).toFixed(2)),
-        updatedAt: (data as any).updated_at ?? null,
+        USD: Number(Number(latest.usd).toFixed(2)),
+        EUR: Number(Number(latest.eur).toFixed(2)),
+        prevUSD: prev ? Number(Number(prev.usd).toFixed(2)) : undefined,
+        prevEUR: prev ? Number(Number(prev.eur).toFixed(2)) : undefined,
+        updatedAt: (latest as any).updated_at ?? null,
       };
       setCachedRates(rates);
       return rates;

@@ -24,3 +24,11 @@ export interface ShoppingItem {
 }
 
 export type ViewState = 'landing' | 'calculator';
+
+export interface ExchangeRate {
+  USD: number;
+  EUR: number;
+  prevUSD?: number;
+  prevEUR?: number;
+  updatedAt?: string | null;
+}
