@@ -1,7 +1,15 @@
 {
-  "status": "init",
-  "scope": "codebase",
+  "status": "commited",
   "type": "frontend",
-  "localEndpoint": "http://localhost:5173/",
-  "serverPort": 64970
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "executionArgs": {
+    "projectName": "calculatu-smartweb",
+    "projectPath": "/Users/astursadeth/Downloads/calculatu-smartweb",
+    "testIds": [],
+    "additionalInstruction": "Verify that the calculator correctly adds items, that the exchange rates are displayed, and that the chatbot (Savara) responds without 500 errors. Verify that the 'profiles' 404 is gone (mock or check network if possible).",
+    "envs": {
+      "API_KEY": "sk-user-RsYBdvw2t7x-5BXIAKrB9esv7OhgxXAH1iUKRCOD5jYMy2VwNEkYyverQZEbjoBZKdOaxzCtqVmMFYKMDZ1wlRGLMFYM8yl2ktxh5mZToV-mISNU8w7-2bpzSRLbhTeuOVY"
+    }
+  }
 }

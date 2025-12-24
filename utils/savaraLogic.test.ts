@@ -1,45 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import { getSavaraSystemInstruction } from './savaraLogic';
-import { ShoppingItem } from '../types';
 
 describe('getSavaraSystemInstruction', () => {
-  const baseInstruction = "Eres un asistente útil.";
-  const rates = { USD: 50, EUR: 55 };
+  const baseInstruction = "Instrucción base";
+  const userName = "Juan";
+  const items: any[] = [];
+  const rates = { USD: 35.5, EUR: 38.2 };
 
-  it('should include the user name when provided', () => {
-    const userName = "Carlos";
-    const items: ShoppingItem[] = [];
-    
-    const result = getSavaraSystemInstruction(baseInstruction, userName, items, rates);
-    
-    expect(result).toContain(baseInstruction);
-    expect(result).toContain("El usuario se llama Carlos");
+  it('should include marketing KB', () => {
+    const license = { tier: 'trial', expiresAt: null, isPremium: false };
+    const result = getSavaraSystemInstruction(baseInstruction, userName, items, rates, license);
+    expect(result).toContain('### CONOCIMIENTO DE PRODUCTO (CalculaTú) ###');
+    expect(result).toContain('Savara Pro');
   });
 
-  it('should include the current shopping cart items', () => {
-    const userName = "Carlos";
-    const items: ShoppingItem[] = [
-      { id: '1', name: 'Harina PAN', price: 1.5, currency: 'USD', quantity: 2 },
-      { id: '2', name: 'Queso', price: 5, currency: 'USD', quantity: 1 }
-    ];
+  it('should mention trial remaining days and suggest Plan Lifetime if near expiry', () => {
+    const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+    const license = { tier: 'trial', expiresAt: twoDaysFromNow, isPremium: false };
+    const result = getSavaraSystemInstruction(baseInstruction, userName, items, rates, license);
     
-    const result = getSavaraSystemInstruction(baseInstruction, userName, items, rates);
-    
-    expect(result).toContain("Harina PAN");
-    expect(result).toContain("Queso");
-    expect(result).toContain("1.5");
-    expect(result).toContain("5");
-    expect(result).toContain("Contenido actual del carrito:"); // We expect this header
+    expect(result).toContain('Le quedan 2 días de prueba gratuita');
+    expect(result).toContain('sugiere sutilmente que el Plan Lifetime es la mejor inversión');
   });
 
-  it('should mention the current exchange rates', () => {
-     const userName = "Carlos";
-     const items: ShoppingItem[] = [];
-     
-     const result = getSavaraSystemInstruction(baseInstruction, userName, items, rates);
-
-     expect(result).toContain("Tasas de cambio:");
-     expect(result).toContain("USD: 50");
-     expect(result).toContain("EUR: 55");
+  it('should report PREMIUM status correctly', () => {
+    const license = { tier: 'pro', expiresAt: null, isPremium: true };
+    const result = getSavaraSystemInstruction(baseInstruction, userName, items, rates, license);
+    
+    expect(result).toContain('Estatus: PREMIUM (Pro)');
   });
 });

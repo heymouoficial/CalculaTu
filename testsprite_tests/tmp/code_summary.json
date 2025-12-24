@@ -1,0 +1,49 @@
+{
+    "tech_stack": [
+        "TypeScript",
+        "React",
+        "Vite",
+        "Tailwind CSS",
+        "Zustand",
+        "Supabase",
+        "Vercel Functions"
+    ],
+    "features": [
+        {
+            "name": "Calculator Logic",
+            "description": "Main application logic for adding, removing, and updating shopping items with automatic price conversions.",
+            "files": [
+                "components/CalculatorView.tsx",
+                "store/useAppStore.ts",
+                "types.ts"
+            ]
+        },
+        {
+            "name": "Exchange Rates System",
+            "description": "Fetching latest BCV rates with history logging and delta display.",
+            "files": [
+                "services/ratesService.ts",
+                "supabase/functions/bcv-rates/index.ts",
+                "constants.tsx"
+            ]
+        },
+        {
+            "name": "Savara AI (Chat & Voice)",
+            "description": "AI assistant for voice and text interaction using Gemini API.",
+            "files": [
+                "services/geminiService.ts",
+                "hooks/useSavaraLive.ts",
+                "api/chat.ts",
+                "utils/savaraLogic.ts"
+            ]
+        },
+        {
+            "name": "User Identity & Profiles",
+            "description": "Machine ID generation and profile syncing with Supabase.",
+            "files": [
+                "utils/deviceId.ts",
+                "App.tsx"
+            ]
+        }
+    ]
+}

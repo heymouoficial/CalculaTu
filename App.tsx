@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from 'react';
 import { Portality } from './components/Portality';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
@@ -5,6 +6,45 @@ import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
 
 import { supabase } from './services/supabaseClient';
 import { autoActivateTrial } from './utils/license';
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  RefreshCcw,
+  ChevronRight,
+  Mic,
+  MessageSquare,
+  Settings,
+  ShieldCheck,
+  Smartphone,
+  Zap,
+  CloudOff,
+  Lock,
+  Twitter,
+  Instagram,
+  Facebook,
+  Star,
+  Download,
+  ArrowRight,
+  BrainCircuit,
+  Clock,
+  WifiOff,
+  Leaf,
+  BadgeCheck,
+  Sparkles
+} from 'lucide-react';
+import { CalculatorView } from './components/CalculatorView';
+import { Logo } from './components/Logo';
+import { DemoCard } from './components/DemoCard';
+import { ChatWidget } from './components/ChatWidget';
+import { InstallBanner } from './components/InstallBanner';
+import { PromotionBanner } from './components/PromotionBanner';
+import {
+  Linkedin,
+  MessageCircle,
+  Hash // Using Hash as a proxy for Threads if distinct one not available
+} from 'lucide-react';
 
 // FAQ Data
 const FAQS = [
@@ -73,10 +113,12 @@ const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState('');
   const [chatTrigger, setChatTrigger] = useState<{ open: boolean; message?: string }>({ open: false });
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const rates = useAppStore(s => s.rates);
-  const setBaseRates = useAppStore(s => s.setBaseRates);
-  const machineId = useAppStore(s => s.machineId);
-  const setUserName = useAppStore(s => s.setUserName);
+  const { rates, setBaseRates, machineId, setUserName } = useAppStore(s => ({
+    rates: s.rates,
+    setBaseRates: s.setBaseRates,
+    machineId: s.machineId,
+    setUserName: s.setUserName
+  }));
 
   // Sync User Profile (Identity)
   useEffect(() => {
@@ -90,7 +132,7 @@ const App: React.FC = () => {
         .from('profiles')
         .select('full_name')
         .eq('machine_id', machineId)
-        .single();
+        .maybeSingle();
 
       if (data?.full_name) {
         console.log("👤 Profile synced:", data.full_name);
@@ -157,7 +199,10 @@ const App: React.FC = () => {
   if (currentView === 'portal') return <Portality />;
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div className="min-h-screen bg-[#050505] text-white flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
+      <PromotionBanner />
+
+      {/* NAVBAR */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-[10%] right-[-5%] w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[100px]" />
@@ -347,7 +392,27 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        <footer className="text-center border-t border-white/5 pt-12 pb-6">
+        <footer className="text-center border-t border-white/5 pt-12 pb-10">
+          <div className="flex items-center justify-center gap-6 mb-8">
+            <a href="https://tiktok.com/@mou_multiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="TikTok">
+              <span className="text-xs font-black uppercase tracking-tighter">TikTok</span>
+            </a>
+            <a href="https://instagram.com/mou_multiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-instagram transition-colors" title="Instagram">
+              <Instagram size={20} />
+            </a>
+            <a href="https://threads.net/@mou_multiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="Threads">
+              <MessageCircle size={20} />
+            </a>
+            <a href="https://facebook.com/mou_multiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500 transition-colors" title="Facebook">
+              <Facebook size={20} />
+            </a>
+            <a href="https://linkedin.com/in/moumultiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-400 transition-colors" title="LinkedIn">
+              <Linkedin size={20} />
+            </a>
+            <a href="https://x.com/moumultiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="X (Twitter)">
+              <Twitter size={20} />
+            </a>
+          </div>
           <div className="flex items-center justify-center gap-2 mb-4 opacity-50">
             <Logo size={20} />
             <span className="font-semibold">CalculaTú</span>

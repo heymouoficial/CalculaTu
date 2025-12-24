@@ -1,0 +1,366 @@
+[
+  {
+    "id": "TC001",
+    "title": "Add Shopping Item with Correct Price Conversion",
+    "description": "Verify that adding a new shopping item updates the item list correctly and calculates the price based on the latest BCV exchange rates.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the main calculator interface."
+      },
+      {
+        "type": "action",
+        "description": "Add a new shopping item with a specified price in a foreign currency."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the item appears in the shopping list with correct converted price in local currency."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total price updates accordingly reflecting the new item."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Remove Shopping Item and Update Totals",
+    "description": "Ensure that removing a shopping item updates the list accordingly and recalculates the total prices correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the calculator interface with multiple items already added."
+      },
+      {
+        "type": "action",
+        "description": "Remove one of the shopping items."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the removed item is deleted from the list."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total price updates and no longer includes the removed item's cost."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Update Shopping Item Quantity and Price",
+    "description": "Check that updating the quantity or price of an existing shopping item recalculates the total and conversion correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Select an existing shopping item in the calculator."
+      },
+      {
+        "type": "action",
+        "description": "Modify the quantity and/or price of the item."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the item reflects the updated quantity and price."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the total price and converted amounts are updated to reflect changes."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Fetch and Display Live BCV Exchange Rates",
+    "description": "Validate that the system fetches the latest BCV exchange rates successfully and displays them with historical data and delta indicators.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the exchange rates section or related interface feature."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the latest BCV exchange rates are fetched and displayed."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the presence of historical rates and correct calculation and display of the delta changes."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Handle BCV Exchange Rate Fetch Failure Gracefully",
+    "description": "Test the system's error handling when BCV exchange rate API is unreachable or returns invalid data.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate BCV exchange rate API failure or invalid response."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the system shows a user-friendly error message or fallback UI indication."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the calculator still operates with last known or default rates if available."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Activate Savara AI Voice Interaction and Receive Real-Time Feedback",
+    "description": "Verify that users can trigger voice interaction with Savara AI and receive immediate feedback through voice status indicators and responses.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Activate Savara AI voice assistant feature."
+      },
+      {
+        "type": "action",
+        "description": "Speak a shopping-related command or question."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that the voice status indicator shows active listening and processing."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the AI returns a relevant response both visually and audibly."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Use Savara AI Text Chat and Verify Responses",
+    "description": "Ensure that users can interact with Savara AI through text chat and receive timely, contextually appropriate suggestions or answers.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open Savara AI chat interface."
+      },
+      {
+        "type": "action",
+        "description": "Input a text query related to shopping assistance."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the AI provides a timely and relevant text reply."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Handle Savara AI Interaction Errors",
+    "description": "Test the AI assistant's behavior and error messages when the Gemini API is unreachable or returns errors.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate Gemini API failure or invalid response during AI interaction."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the system displays a clear error message or fallback response."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the application remains responsive and stable."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "User Identity Persistence and Profile Sync across Devices",
+    "description": "Verify that a generated machine ID is consistent and that user profiles sync correctly across multiple devices without data loss.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in or set up a user profile on Device A."
+      },
+      {
+        "type": "action",
+        "description": "Add and modify shopping items and settings."
+      },
+      {
+        "type": "action",
+        "description": "Log in with the same user on Device B."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that the machine ID remains consistent or is properly linked."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all shopping data and user settings synchronize to Device B accurately."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Generate Machine ID on New Device",
+    "description": "Confirm that a new unique machine ID is generated for users accessing the app on a new or unrecognized device.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Launch the app on a new device that has not previously been used."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a new unique machine ID is generated and associated with the user's profile."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "UI Verification Against Liquid Glass Design and Mobile-First Accessibility",
+    "description": "Validate that the user interface adheres to the liquid glass aesthetic with glassmorphism effects, luminous teal/green highlights, and is fully accessible on mobile devices.",
+    "category": "ui",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the app on various mobile devices with different screen sizes."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the UI displays fluid glassmorphism effects and luminous highlights as per design specs."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm text is highly legible, headers are large for quick totals visibility, and all thumb-zone placements are optimized."
+      },
+      {
+        "type": "assertion",
+        "description": "Check accessibility features including screen reader compatibility and color contrast."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Subtle Animations and Immediate Visual Feedback on User Interaction",
+    "description": "Ensure all user interactions trigger subtle animations and visual feedback quickly to maintain a smooth, intuitive experience.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Perform common user interactions such as adding/removing items, toggling AI assistant, and updating quantities."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify subtle animations appear on each interaction."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm immediate and clear visual feedback without lag or distraction."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Calculate Total Price with No Shopping Items",
+    "description": "Test that when no shopping items are added, the total price is displayed as zero and the calculator behaves gracefully.",
+    "category": "edge case",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Start the app with an empty shopping list."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the total price displayed is zero or an appropriate empty state message."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure no errors occur and UI remains stable."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Handle Large Number of Shopping Items",
+    "description": "Ensure the calculator and UI can handle and render a large number of shopping items without performance degradation or layout issues.",
+    "category": "edge case",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Add a large number (e.g., 100+) of shopping items with varied prices."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm all items are listed correctly."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify total price and price conversion calculations are accurate and updated."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that app performance and UI responsiveness remain acceptable."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Verify Delta Updates on Exchange Rate Changes",
+    "description": "Validate that when BCV exchange rates change, the delta indicators reflect the correct positive or negative changes promptly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate or wait for an updated BCV exchange rate."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the displayed delta indicator updates with correct direction and magnitude."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Ensure Synchronization Does Not Overwrite More Recent Data",
+    "description": "Verify that when syncing profiles across devices, more recent shopping data is not overwritten by outdated data from other devices.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Modify shopping items on Device A and wait briefly."
+      },
+      {
+        "type": "action",
+        "description": "Modify shopping items on Device B with different data shortly after."
+      },
+      {
+        "type": "action",
+        "description": "Trigger sync on both devices."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that the profile data reflects the most recent changes accurately across both devices."
+      }
+    ]
+  }
+]

@@ -204,8 +204,11 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     setInput('');
     setIsLoading(true);
 
+    const license = useAppStore.getState().license;
+    const activeLicense = license.active || license.tier === 'lifetime';
+
     try {
-      const systemContext = `DATOS EN TIEMPO REAL: Tasa USD: Bs ${rates.USD.toFixed(2)}, Tasa EUR: Bs ${rates.EUR.toFixed(2)}.`;
+      const systemContext = `DATOS EN TIEMPO REAL: Tasa USD: Bs ${rates.USD.toFixed(2)}, Tasa EUR: Bs ${rates.EUR.toFixed(2)}. ESTATUS USUARIO: ${activeLicense ? 'PREMIUM/PRO' : 'TRIAL'}.`;
 
       // Construct history from previous messages
       // CRITICAL: Gemini requires the first message to be from 'user'.
@@ -226,13 +229,19 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
       });
 
       if (!response.ok) {
-        throw new Error('API request failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || 'API request failed');
       }
 
       const data = await response.json();
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'model', text: data.text }]);
-    } catch (e) {
-      setMessages(prev => [...prev, { id: `error-${Date.now()}`, role: 'model', text: 'Ups, perdona. ¿Podemos intentarlo de nuevo?' }]);
+    } catch (e: any) {
+      console.error('[ChatWidget] Error:', e);
+      const errorMsg = e.message?.includes('API Key')
+        ? '⚠️ Savara no está configurada: Falta el API Key en el servidor.'
+        : 'Ups, perdona. Me ha dado un error interno. ¿Podemos intentarlo de nuevo?';
+
+      setMessages(prev => [...prev, { id: `error-${Date.now()}`, role: 'model', text: errorMsg }]);
     } finally {
       setIsLoading(false);
     }

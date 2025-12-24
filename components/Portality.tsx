@@ -87,9 +87,25 @@ export const Portality: React.FC = () => {
   const [globalUsd, setGlobalUsd] = useState<number>(0);
   const [globalEur, setGlobalEur] = useState<number>(0);
   const [globalUpdatedAt, setGlobalUpdatedAt] = useState<string | null>(null);
+  const [contracts, setContracts] = useState<any[]>([]);
 
   const canGenerate = useMemo(() => !!deviceId.trim() && (!!portalKey.trim() || true), [deviceId, portalKey]);
   const isAdminAuthed = authEmail === 'multiversagroup@gmail.com';
+
+  const fetchContracts = async () => {
+    if (!isAdminAuthed) return;
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      setContracts(data || []);
+    } catch (e) {
+      console.error('Error fetching contracts:', e);
+    }
+  };
 
   // PIN verification handler
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -168,6 +184,9 @@ export const Portality: React.FC = () => {
       try {
         const email = await getAuthEmail();
         setAuthEmail(email);
+        if (email === 'multiversagroup@gmail.com') {
+          fetchContracts();
+        }
       } catch {
         setAuthEmail(null);
       }
@@ -180,6 +199,9 @@ export const Portality: React.FC = () => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user?.email) {
           setAuthEmail(session.user.email);
+          if (session.user.email === 'multiversagroup@gmail.com') {
+            fetchContracts();
+          }
           // If we were resetting password and now have a session, exit reset mode
           if (isResettingPassword) {
             setIsResettingPassword(false);
@@ -229,8 +251,23 @@ export const Portality: React.FC = () => {
         setStatus((data as any)?.error || 'No se pudo generar la licencia.');
         return;
       }
-      setToken((data as CreateResponse).token);
+
+      const generatedToken = (data as CreateResponse).token;
+      setToken(generatedToken);
       setStatus(`OK • ${plan.toUpperCase()} • exp: ${(data as CreateResponse).expiresAt || '—'}`);
+
+      // Save to contracts table in Supabase
+      if (isAdminAuthed) {
+        await supabase.from('contracts').insert({
+          machine_id: deviceId.trim(),
+          email: 'customer@portality.gen', // Placeholder email
+          plan: plan,
+          token: generatedToken,
+          expires_at: (data as CreateResponse).expiresAt,
+          status: 'active'
+        });
+        fetchContracts();
+      }
     } catch {
       setStatus('Error de red generando licencia.');
     } finally {
@@ -761,29 +798,37 @@ export const Portality: React.FC = () => {
             </div>
 
             <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
-               <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID de Usuario</label>
-                  <input
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
-                    placeholder="Pegar ID del cliente..."
-                  />
-                </div>
-                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Nueva Fecha de Expiración</label>
-                  <input
-                    type="date"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-blue-500/50"
-                  />
-                </div>
-                <button
-                  // onClick={handleExtendTrial}
-                  disabled={isBusy}
-                  className="w-full py-3 rounded-xl bg-blue-500/20 border border-blue-500/50 text-blue-400 font-black uppercase tracking-widest text-xs hover:bg-blue-500 hover:text-white transition-all"
-                >
-                  Extender Trial
-                </button>
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Contratos Recientes</h2>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {contracts.length === 0 ? (
+                  <p className="text-[10px] text-gray-600 font-mono text-center py-8">No hay contratos registrados aún.</p>
+                ) : (
+                  contracts.map((c) => (
+                    <div key={c.id} className="p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-emerald-500">{c.machine_id}</span>
+                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${c.plan === 'lifetime' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                          {c.plan}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[9px] text-gray-500">
+                          Exp: {c.expires_at ? new Date(c.expires_at).toLocaleDateString() : '—'}
+                        </span>
+                        <button 
+                          onClick={() => {
+                            setDeviceId(c.machine_id);
+                            setToken(c.token);
+                            setCopied(false);
+                          }}
+                          className="text-[9px] text-emerald-500/50 hover:text-emerald-500 transition-colors"
+                        >
+                          Cargar
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

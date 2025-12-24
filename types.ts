@@ -23,6 +23,18 @@ export interface ShoppingItem {
   quantity: number;
 }
 
+export type SavaraAction = 'ADD_ITEM' | 'REMOVE_ITEM' | 'CLEAR_CART' | 'SUMMARIZE_CART' | 'TALK';
+
+export interface SavaraIntent {
+  action: SavaraAction;
+  itemName?: string;
+  price?: number;
+  currency?: 'USD' | 'EUR' | 'VES';
+  quantity?: number;
+  id?: string;
+  text?: string; // For the 'TALK' action or AI commentary
+}
+
 export type ViewState = 'landing' | 'calculator' | 'portal';
 
 export interface ExchangeRate {

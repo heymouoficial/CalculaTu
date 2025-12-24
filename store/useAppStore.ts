@@ -233,7 +233,23 @@ export const useAppStore = create<AppState>((set) => {
         return { license };
       }),
 
-    addItem: (item) => set((state) => ({ items: [item, ...state.items] })),
+    addItem: (item) => set((state) => {
+      const existingIdx = state.items.findIndex(
+        (i) => i.name.toLowerCase() === item.name.toLowerCase() && 
+               i.price === item.price && 
+               i.currency === item.currency
+      );
+
+      if (existingIdx > -1) {
+        const newItems = [...state.items];
+        newItems[existingIdx] = {
+          ...newItems[existingIdx],
+          quantity: newItems[existingIdx].quantity + item.quantity,
+        };
+        return { items: newItems };
+      }
+      return { items: [item, ...state.items] };
+    }),
     removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
     updateItem: (id: string, updatedFields: Partial<Omit<ShoppingItem, 'id'>>) =>
       set((state) => ({

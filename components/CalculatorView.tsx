@@ -1175,40 +1175,37 @@ INSTRUCCIONES CLAVE:
                     </div>
                   )}
 
-                  {/* Machine ID Card - Only show if NOT lifetime license */}
-                  {license.tier !== 'lifetime' && (
-
-                    <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-black border border-emerald-500/30 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-3 opacity-20">
-                        <Fingerprint size={64} className="text-emerald-500" />
-                      </div>
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3">Huella Digital del Dispositivo</p>
-                      <div className="flex flex-col gap-2 mb-2">
-                        <input
-                          id="machineId-input"
-                          type="text"
-                          readOnly
-                          value={machineId}
-                          onFocus={(e) => e.target.select()}
-                          onClick={(e) => (e.target as HTMLInputElement).select()}
-                          className="w-full bg-black/50 text-lg font-mono font-bold text-white tracking-wider px-3 py-2 rounded-lg border border-emerald-500/30 focus:border-emerald-500 focus:outline-none select-all"
-                        />
-                        <button
-                          onClick={() => handleCopyText('machineId', machineId)}
-                          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all ${copiedState === 'machineId'
-                            ? 'bg-emerald-500 text-black'
-                            : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black active:scale-95'
-                            }`}
-                        >
-                          {copiedState === 'machineId' ? <><Check size={18} /> ¡Copiado!</> : <><Copy size={18} /> Tocar para Copiar</>}
-                        </button>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <p className="text-[10px] text-gray-500">Este ID es único para tu navegador actual.</p>
-                        <p className="text-[9px] text-emerald-500/70 font-medium italic">⚠️ Tu licencia está vinculada exclusivamente a este navegador. Si cambias de navegador o dispositivo, contacta a soporte.</p>
-                      </div>
+                  {/* Machine ID Card - Always show for support/info purposes */}
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900/20 to-black border border-emerald-500/30 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-3 opacity-20">
+                      <Fingerprint size={64} className="text-emerald-500" />
                     </div>
-                  )}
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-3">Huella Digital del Dispositivo</p>
+                    <div className="flex flex-col gap-2 mb-2">
+                      <input
+                        id="machineId-input"
+                        type="text"
+                        readOnly
+                        value={machineId}
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                        className="w-full bg-black/50 text-lg font-mono font-bold text-white tracking-wider px-3 py-2 rounded-lg border border-emerald-500/30 focus:border-emerald-500 focus:outline-none select-all"
+                      />
+                      <button
+                        onClick={() => handleCopyText('machineId', machineId)}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all ${copiedState === 'machineId'
+                          ? 'bg-emerald-500 text-black'
+                          : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black active:scale-95'
+                          }`}
+                      >
+                        {copiedState === 'machineId' ? <><Check size={18} /> ¡Copiado!</> : <><Copy size={18} /> Tocar para Copiar</>}
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[10px] text-gray-500">Este ID es único para tu navegador actual.</p>
+                      <p className="text-[9px] text-emerald-500/70 font-medium italic">⚠️ Tu licencia está vinculada exclusivamente a este navegador. Si cambias de navegador o dispositivo, contacta a soporte.</p>
+                    </div>
+                  </div>
 
                   {/* Payment Info - Only show if license NOT active */}
                   {!license.active && (

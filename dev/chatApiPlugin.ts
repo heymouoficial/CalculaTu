@@ -31,23 +31,31 @@ export function devChatApiPlugin(config?: { apiKey?: string }): Plugin {
 
                 try {
                     const body = await parseBody(req);
-                    const { message, systemContext } = body;
+                    const { message, systemContext, history } = body;
 
                     if (!message) {
                         return json(res, 400, { error: 'Message is required' });
                     }
 
-                    if (!chatSession) {
-                        // Pass the API key directly to createChatSession
-                        chatSession = createChatSession(config?.apiKey);
+                    // Check for API Key
+                    if (!config?.apiKey) {
+                        return json(res, 500, {
+                            error: 'Missing API Key',
+                            details: 'VITE_GEMINI_API_KEY is not defined in your .env.local file.'
+                        });
                     }
 
-                    const responseText = await sendMessageToGemini(chatSession, message, systemContext);
+                    // Create fresh session per request for dev consistency
+                    const chatSession = createChatSession(config.apiKey);
+
+                    const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || []);
                     return json(res, 200, { text: responseText });
                 } catch (error: any) {
-                    // Log detailed error for debugging 500s
                     console.error('[DEV Chat] Error processing chat request:', error.message, error.stack);
-                    return json(res, 500, { error: 'Failed to process chat request' });
+                    return json(res, 500, {
+                        error: 'Failed to process chat request',
+                        details: error.message || 'Unknown error'
+                    });
                 }
             });
         }
