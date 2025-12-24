@@ -27,7 +27,7 @@
 
 ## Fase 2: Validación de Features Complementarias
 
--   [ ] **Task:** Implementar y probar la generación del voucher térmico (FR4).
+-   [x] **Task:** Implementar y probar la generación del voucher térmico (FR4). [e6c3e48]
     -   Sub-task: Asegurar que todos los datos sean precisos.
     -   Sub-task: Verificar la funcionalidad de compartir.
 -   [ ] **Task:** Probar el flujo completo de monetización (FR5).
