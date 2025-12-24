@@ -10,6 +10,7 @@ import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
 import { fetchGlobalRates } from './services/ratesService';
 import { supabase } from './services/supabaseClient';
+import { autoActivateTrial } from './utils/license';
 
 // FAQ Data
 const FAQS = [
@@ -82,7 +83,10 @@ const App: React.FC = () => {
   // Sync User Profile (Identity)
   useEffect(() => {
     const syncProfile = async () => {
-      if (!machineId || !supabase) return;
+      if (!machineId || machineId === 'M-LOADING...' || !supabase) return;
+      
+      // Auto-activate trial if first launch
+      await autoActivateTrial(machineId);
       
       const { data, error } = await supabase
         .from('profiles')
