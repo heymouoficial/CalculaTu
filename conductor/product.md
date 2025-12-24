@@ -20,7 +20,7 @@ The primary users are everyday consumers in Venezuela who need a quick, reliable
 -   **Device-Linked Licensing:** A secure licensing system that ties premium features to a user's unique device ID using signed JWTs.
 -   **Global & Local Exchange Rates:** The app uses a global exchange rate from a central database (Supabase), which can be temporarily overridden by a user-specific rate for 24 hours.
 -   **Progressive Web App (PWA):** The application is installable on mobile devices for easy access and offline availability.
--   **Voucher System:** Generador de tickets/receipts con estética térmica, listo para compartir como prueba de ahorro.
+-   **Voucher System:** Generador de tickets/receipts con estética térmica, incluyendo avatar de Savara y tasa de cambio utilizada, listo para compartir como prueba de ahorro.
 
 ## 4. Logros Técnicos Recientes
 
