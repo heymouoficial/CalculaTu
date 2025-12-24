@@ -759,6 +759,33 @@ export const Portality: React.FC = () => {
 
               </div>
             </div>
+
+            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
+               <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID de Usuario</label>
+                  <input
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
+                    placeholder="Pegar ID del cliente..."
+                  />
+                </div>
+                 <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Nueva Fecha de Expiración</label>
+                  <input
+                    type="date"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-blue-500/50"
+                  />
+                </div>
+                <button
+                  // onClick={handleExtendTrial}
+                  disabled={isBusy}
+                  className="w-full py-3 rounded-xl bg-blue-500/20 border border-blue-500/50 text-blue-400 font-black uppercase tracking-widest text-xs hover:bg-blue-500 hover:text-white transition-all"
+                >
+                  Extender Trial
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

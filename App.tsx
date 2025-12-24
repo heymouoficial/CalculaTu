@@ -1,4 +1,4 @@
-import { PortalView } from './components/PortalView';
+import { Portality } from './components/Portality';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
 import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
@@ -154,7 +154,7 @@ const App: React.FC = () => {
   };
 
   if (currentView === 'calculator') return <CalculatorView onBack={() => setCurrentView('landing')} />;
-  if (currentView === 'portal') return <PortalView />;
+  if (currentView === 'portal') return <Portality />;
 
   return (
     <div className="min-h-screen relative overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
