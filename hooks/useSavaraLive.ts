@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { ShoppingItem } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { getSavaraSystemInstruction } from '../utils/savaraLogic';
 
 const MODEL_ID = "gemini-2.0-flash-exp"; 
 const MODEL_ID_USER = "gemini-2.5-flash-native-audio-preview-12-2025"; 
@@ -90,10 +91,13 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
       console.log("🟢 Savara Conectada");
       setIsConnected(true);
 
-      // Inject Name into System Instruction if available
-      const personalizedInstruction = userName 
-        ? `${systemInstruction}\n\nEl usuario se llama ${userName}. Úsalo naturalmente.`
-        : systemInstruction;
+      // Inject Name, Items, and Rates into System Instruction using helper
+      const personalizedInstruction = getSavaraSystemInstruction(
+        systemInstruction,
+        userName,
+        items,
+        rates
+      );
 
       // 1. Setup Message
       const setupMsg = {
