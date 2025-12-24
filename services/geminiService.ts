@@ -20,44 +20,42 @@ const getGeminiApiKey = (): string | undefined => {
 // ==================== LANDING CHAT (SDK) ====================
 
 class SavaraChat {
-  private genAI: any;
-  private model: any;
+  private genAI: GoogleGenAI;
 
   constructor(apiKey?: string) {
     const key = apiKey || getGeminiApiKey();
     if (!key) throw new Error('CRITICAL: VITE_GEMINI_API_KEY not found in environment.');
     this.genAI = new GoogleGenAI({ apiKey: key });
-    this.model = this.genAI.getGenerativeModel({
-      model: CURRENT_MODEL,
-      systemInstruction: SAVARA_SYSTEM_PROMPT
-    });
   }
 
   async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: any[] = []): Promise<string> {
     try {
-      // Create a fresh model instance if there is dynamic instruction to include it
-      let activeModel = this.model;
-      if (dynamicSystemInstruction) {
-        activeModel = this.genAI.getGenerativeModel({
-          model: CURRENT_MODEL,
-          systemInstruction: `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO ADICIONAL:\n${dynamicSystemInstruction}`
-        });
-      }
+      const finalSystemInstruction = dynamicSystemInstruction
+        ? `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO ADICIONAL:\n${dynamicSystemInstruction}`
+        : SAVARA_SYSTEM_PROMPT;
 
-      const chat = activeModel.startChat({
-        history: history.map((h: any) => ({
+      // Build conversation contents
+      const contents = [
+        ...history.map((h: any) => ({
           role: h.role === 'model' ? 'model' : 'user',
           parts: [{ text: String(h.parts?.[0]?.text || h.text || '') }]
         })),
+        { role: 'user', parts: [{ text: userMessage }] }
+      ];
+
+      // Use the new SDK API
+      const response = await this.genAI.models.generateContent({
+        model: CURRENT_MODEL,
+        contents: contents,
+        config: {
+          systemInstruction: finalSystemInstruction
+        }
       });
 
-      const result = await chat.sendMessage(userMessage);
-      const response = await result.response;
-      return response.text();
+      return response.text || "Perdona, ¿me repites eso?";
 
     } catch (error: any) {
       console.error('[Savara Chat SDK] Error:', error);
-      // Fallback for quota or safety filters
       if (error.message?.includes('429')) throw new Error('Quota exceeded (429)');
       if (error.message?.includes('SAFETY')) return "Lo siento, no puedo responder a eso por políticas de seguridad.";
       throw error;
