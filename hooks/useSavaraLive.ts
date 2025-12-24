@@ -74,6 +74,14 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
             type: "object",
             properties: {}
           }
+        },
+        {
+          name: "get_shopping_list",
+          description: "Obtiene la lista actual de productos en el carrito de compras.",
+          parameters: {
+            type: "object",
+            properties: {}
+          }
         }
       ]
     }
@@ -96,7 +104,6 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
-        // ... (truncated for brevity, keep existing logic)
         console.log("🟢 Savara Conectada");
         setIsConnected(true);
         setError(null);
@@ -240,6 +247,13 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
                   eur: rates.EUR,
                   last_updated: new Date().toISOString() 
                 }
+              });
+            }
+            else if (call.name === "get_shopping_list") {
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { items: items }
               });
             }
           }
