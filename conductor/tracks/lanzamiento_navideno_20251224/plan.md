@@ -33,7 +33,7 @@
 -   [x] **Task:** Probar el flujo completo de monetización (FR5). [b88de58]
     -   Sub-task: Realizar una compra de prueba para la oferta "lifetime".
     -   Sub-task: Realizar una suscripción de prueba mensual.
--   [ ] **Task:** Conductor - User Manual Verification 'Fase 2: Validación de Features Complementarias' (Protocol in workflow.md)
+-   [x] **Task:** Conductor - User Manual Verification 'Fase 2: Validación de Features Complementarias' (Protocol in workflow.md) [checkpoint: 390a5df]
 
 ## Fase 3: Bug Fixing y Despliegue Final
 
