@@ -20,7 +20,7 @@ describe('getSavaraSystemInstruction', () => {
     const result = getSavaraSystemInstruction(baseInstruction, userName, items, rates, license);
     
     expect(result).toContain('Le quedan 2 días de prueba gratuita');
-    expect(result).toContain('sugiere sutilmente que el Plan Lifetime es la mejor inversión');
+    expect(result).toContain('Sugiere sutilmente que el Plan Lifetime es la mejor inversión');
   });
 
   it('should report PREMIUM status correctly', () => {

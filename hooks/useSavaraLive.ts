@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { useShallow } from 'zustand/react/shallow';
 import { ShoppingItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { getSavaraSystemInstruction } from '../utils/savaraLogic';
@@ -34,7 +35,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
     removeItem,
     updateItem,
     setUserName
-  } = useAppStore(s => ({
+  } = useAppStore(useShallow(s => ({
     items: s.items,
     rates: s.rates,
     userName: s.userName,
@@ -44,7 +45,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
     removeItem: s.removeItem,
     updateItem: s.updateItem,
     setUserName: s.setUserName
-  }));
+  })));
 
   // Tools definition
   const tools = [

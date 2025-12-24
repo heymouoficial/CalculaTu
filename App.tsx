@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Portality } from './components/Portality';
 import { ViewState } from './types';
 import { useAppStore } from './store/useAppStore';
+import { useShallow } from 'zustand/react/shallow';
 import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
 
 import { supabase } from './services/supabaseClient';
@@ -113,12 +114,12 @@ const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState('');
   const [chatTrigger, setChatTrigger] = useState<{ open: boolean; message?: string }>({ open: false });
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const { rates, setBaseRates, machineId, setUserName } = useAppStore(s => ({
+  const { rates, setBaseRates, machineId, setUserName } = useAppStore(useShallow(s => ({
     rates: s.rates,
     setBaseRates: s.setBaseRates,
     machineId: s.machineId,
     setUserName: s.setUserName
-  }));
+  })));
 
   // Sync User Profile (Identity)
   useEffect(() => {
