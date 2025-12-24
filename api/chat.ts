@@ -18,12 +18,15 @@ export default async function handler(
   try {
     // Create a fresh session for every request (Stateless/Serverless friendly)
     // We rely on the client sending the history.
-    const chatSession = createChatSession(); 
+    const chatSession = createChatSession();
 
     const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || []);
     return res.status(200).json({ text: responseText });
   } catch (error: any) {
-    console.error('[API Chat] Error:', error);
-    return res.status(500).json({ error: 'Failed to get response from Gemini' });
+    console.error('[API Chat] Error catch:', error.message || error);
+    return res.status(500).json({
+      error: 'Failed to get response from Savara',
+      details: error.message || 'Unknown error'
+    });
   }
 }

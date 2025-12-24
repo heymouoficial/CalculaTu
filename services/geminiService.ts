@@ -2,11 +2,12 @@
 
 // ==================== SHARED CONFIGURATION ====================
 
-const CURRENT_MODEL = 'gemini-1.5-flash-latest';
+const CURRENT_MODEL = 'gemini-1.5-flash'; // Using more stable alias
 
-const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú.
-Tu tono es humano, cálido y conciso. Ayuda al usuario con sus compras.
-Responde siempre en español. Máximo 20 palabras por respuesta.`;
+const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú (CalculaTu). 
+Tu tono es humano, cálido, profesional y conciso. Ayuda al usuario con sus compras y dudas sobre la app.
+Responde siempre en español. Sé extremadamente breve (máximo 25 palabras).
+Si te preguntan por precios o planes, menciónalos con entusiasmo.`;
 
 // Helper for Universal Environment Access
 const getGeminiApiKey = (): string | undefined => {
@@ -35,7 +36,7 @@ class SavaraChat {
   async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: Array<{ role: string, parts: { text: string }[] }> = []): Promise<string> {
     try {
       // Combine static persona with dynamic context if provided
-      const finalSystemInstruction = dynamicSystemInstruction 
+      const finalSystemInstruction = dynamicSystemInstruction
         ? `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO ADICIONAL:\n${dynamicSystemInstruction}`
         : SAVARA_SYSTEM_PROMPT;
 
@@ -67,12 +68,12 @@ class SavaraChat {
       }
 
       const data = await response.json();
-      
+
       // Extract text from response, with safer access
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text === undefined) {
-        console.warn('[Savara Chat] Unexpected response structure:', data);
-        return "Perdona, he recibido una respuesta inesperada del modelo.";
+        console.warn('[Savara Chat] Unexpected response structure. Full Data:', JSON.stringify(data, null, 2));
+        return "Perdona, he recibido una respuesta inesperada. ¿Podemos intentar con otra pregunta?";
       }
       return text || "Perdona, ¿me repites eso?";
 
