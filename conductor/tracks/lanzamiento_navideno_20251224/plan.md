@@ -22,7 +22,7 @@
     -   Sub-task: Simular error de API 429 y verificar mensaje amigable.
     -   Sub-task: Simular pérdida de conexión y verificar comportamiento.
     -   Sub-task: Probar flujo de denegación y habilitación de permiso de micrófono.
--   [ ] **Task:** Verificar la sincronización bidireccional entre la voz y la UI (FR3).
+-   [x] **Task:** Verificar la sincronización bidireccional entre la voz y la UI (FR3). [5c9597c]
 -   [ ] **Task:** Conductor - User Manual Verification 'Fase 1: Pruebas de Funcionalidad Central y Robustez' (Protocol in workflow.md)
 
 ## Fase 2: Validación de Features Complementarias
