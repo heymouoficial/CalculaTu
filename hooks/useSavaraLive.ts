@@ -37,13 +37,14 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
       function_declarations: [
         {
           name: "add_shopping_item",
-          description: "Agrega un producto a la lista de compras del usuario con su precio aproximado.",
+          description: "Agrega un producto a la lista de compras del usuario con su precio aproximado y cantidad.",
           parameters: {
             type: "object",
             properties: {
               product_name: { type: "string", description: "Nombre del producto (ej: Harina PAN)" },
               price: { type: "number", description: "Precio del producto" },
-              currency: { type: "string", enum: ["USD", "EUR", "VES"], description: "Moneda del precio (USD, EUR, VES). Si el usuario no especifica, asume USD." }
+              currency: { type: "string", enum: ["USD", "EUR", "VES"], description: "Moneda del precio (USD, EUR, VES). Si el usuario no especifica, asume USD." },
+              quantity: { type: "number", description: "Cantidad de unidades del producto. Si no se especifica, se asume 1." }
             },
             required: ["product_name", "price", "currency"]
           }
@@ -190,13 +191,13 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
 
           for (const call of data.toolCall.functionCalls) {
             if (call.name === "add_shopping_item") {
-              const { product_name, price, currency } = call.args;
+              const { product_name, price, currency, quantity } = call.args;
               const newItem: ShoppingItem = {
                   id: Date.now().toString(),
                   name: product_name,
                   price: Number(price),
                   currency: (currency as 'USD' | 'EUR' | 'VES') || 'USD',
-                  quantity: 1
+                  quantity: Number.isFinite(quantity) && quantity > 0 ? Number(quantity) : 1
               };
               addItem(newItem);
               if (config?.onItemAdded) config.onItemAdded(newItem);

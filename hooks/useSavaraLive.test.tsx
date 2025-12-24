@@ -197,9 +197,68 @@ describe('useSavaraLive', () => {
         const functionResponse = response.toolResponse.functionResponses[0];
         
         expect(functionResponse.name).toBe('get_shopping_list');
-        expect(functionResponse.response.items).toHaveLength(1);
-        expect(functionResponse.response.items[0].name).toBe('Manzanas');
-      });
-  });
-
-});
+                expect(functionResponse.response.items).toHaveLength(1);
+                expect(functionResponse.response.items[0].name).toBe('Manzanas');
+              });
+        
+            it('should handle add_shopping_item tool call with quantity', async () => {
+              // 1. Setup Mock WebSocket
+              let wsInstance: any;
+              const MockWebSocket = vi.fn(function() {
+                  wsInstance = {
+                      send: vi.fn(),
+                      close: vi.fn(),
+                      readyState: 1, // OPEN
+                      onopen: null, 
+                      onmessage: null,
+                      onerror: null,
+                      onclose: null
+                  };
+                  return wsInstance;
+              });
+              (MockWebSocket as any).OPEN = 1;
+              global.WebSocket = MockWebSocket as any;
+        
+              // Allow getUserMedia
+              (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({});
+          
+              const { result } = renderHook(() => useSavaraLive());
+          
+              await act(async () => {
+                await result.current.connect("Instruction");
+              });
+              
+              // 2. Simulate Tool Call from Gemini
+              const toolCallData = {
+                toolCall: {
+                  functionCalls: [
+                    {
+                      id: 'call_456',
+                      name: 'add_shopping_item',
+                      args: {
+                        product_name: 'Harina',
+                        price: 2,
+                        currency: 'USD',
+                        quantity: 3
+                      }
+                    }
+                  ]
+                }
+              };
+          
+              await act(async () => {
+                if (wsInstance.onmessage) {
+                   await wsInstance.onmessage({ data: JSON.stringify(toolCallData) });
+                }
+              });
+          
+              // 3. Verify addItem was called with correct quantity
+              expect(mockAddItem).toHaveBeenCalled();
+              const addedItem = mockAddItem.mock.calls[0][0];
+              expect(addedItem.name).toBe('Harina');
+              expect(addedItem.quantity).toBe(3);
+            });
+          });
+        
+        });
+        
