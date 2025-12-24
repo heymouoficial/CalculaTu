@@ -16,35 +16,33 @@ export default async function handler(
   }
 
   try {
-    // Verify API Key existence early to give better feedback
-    if (!process.env.GEMINI_API_KEY && !process.env.VITE_GEMINI_API_KEY) {
-      console.error('[API Chat] Missing Gemini API Key in environment.');
+    const key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!key) {
+      console.error('[API Chat] CRITICAL: No API Key found in environment.');
       return res.status(500).json({
-        error: 'Savara is currently unavailable (Configuration Error)',
+        error: 'Configuration Error',
         details: 'API Key not found in server environment.'
       });
     }
 
-    // Create a fresh session for every request (Stateless/Serverless friendly)
-    // We rely on the client sending the history.
-    const chatSession = createChatSession();
+    const chatSession = createChatSession(key);
+    console.log(`[API Chat] Sending message to Gemini. History length: ${history?.length || 0}`);
 
     const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || []);
     return res.status(200).json({ text: responseText });
   } catch (error: any) {
-    console.error('[API Chat] Error catch:', error.message || error);
+    console.error('[API Chat] CRITICAL ERROR:', {
+      message: error.message,
+      stack: error.stack,
+      historyCount: history?.length
+    });
 
-    // Check if it's an API Key error from the service
-    if (error.message?.includes('API_KEY')) {
-      return res.status(500).json({
-        error: 'Authentication failed',
-        details: 'The AI service could not be authenticated. Please check server logs.'
-      });
-    }
+    const status = error.message?.includes('429') ? 429 : 500;
+    const details = error.message || 'Unknown error';
 
-    return res.status(500).json({
-      error: 'Failed to get response from Savara',
-      details: error.message || 'Unknown error'
+    return res.status(status).json({
+      error: status === 429 ? 'Quota exceeded' : 'Failed to get response from Savara',
+      details
     });
   }
 }

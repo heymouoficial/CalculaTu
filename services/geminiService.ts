@@ -2,7 +2,7 @@
 
 // ==================== SHARED CONFIGURATION ====================
 
-const CURRENT_MODEL = 'gemini-1.5-flash'; // More stable model identifier
+const CURRENT_MODEL = 'gemini-1.5-flash-latest'; // More stable model identifier
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú (CalculaTu). 
 Tu tono es humano, cálido, profesional y conciso. Ayuda al usuario con sus compras y dudas sobre la app.
@@ -11,19 +11,10 @@ Si te preguntan por precios o planes, menciónalos con entusiasmo.`;
 
 // Helper for Universal Environment Access
 const getGeminiApiKey = (): string | undefined => {
-  // For Vercel Serverless Functions or other Node.js environments
-  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
-    return process.env.GEMINI_API_KEY;
-  }
-  // For Vite client-side
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
-  }
-  // Fallback for other potential setups
-  if (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) {
-    return process.env.VITE_GEMINI_API_KEY;
-  }
-  return undefined;
+  // Use VITE_ prefix for client side and non-prefixed for server side
+  const key = (typeof process !== 'undefined' && (process.env?.GEMINI_API_KEY || process.env?.VITE_GEMINI_API_KEY)) || 
+              (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY);
+  return key;
 };
 
 // ==================== LANDING CHAT (REST API) ====================
@@ -36,7 +27,7 @@ class SavaraChat {
     const key = apiKey || getGeminiApiKey();
     if (!key) throw new Error('CRITICAL: VITE_GEMINI_API_KEY not found in environment or constructor.');
     this.apiKey = key;
-    this.baseUrl = `https://generativelanguage.googleapis.com/v1/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
+    this.baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
   }
 
   async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: Array<{ role: string, parts: { text: string }[] }> = []): Promise<string> {
@@ -54,7 +45,7 @@ class SavaraChat {
 
       const payload = {
         contents,
-        systemInstruction: {
+        system_instruction: {
           parts: [{ text: finalSystemInstruction }]
         }
       };
