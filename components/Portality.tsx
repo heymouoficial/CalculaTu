@@ -88,10 +88,25 @@ export const Portality: React.FC = () => {
   const [globalEur, setGlobalEur] = useState<number>(0);
   const [globalUpdatedAt, setGlobalUpdatedAt] = useState<string | null>(null);
   const [contracts, setContracts] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [extendDate, setExtendDate] = useState('');
 
   const canGenerate = useMemo(() => !!deviceId.trim() && (!!portalKey.trim() || true), [deviceId, portalKey]);
   const isAdminAuthed = authEmail === 'multiversagroup@gmail.com';
+
+  const fetchProfiles = async () => {
+    if (!isAdminAuthed) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setProfiles(data || []);
+    } catch (e) {
+      console.error('Error fetching profiles:', e);
+    }
+  };
 
   const handleExtendTrial = async () => {
     if (!deviceId || !extendDate || !isAdminAuthed) return;
@@ -213,6 +228,7 @@ export const Portality: React.FC = () => {
         setAuthEmail(email);
         if (email === 'multiversagroup@gmail.com') {
           fetchContracts();
+          fetchProfiles();
         }
       } catch {
         setAuthEmail(null);
@@ -228,6 +244,7 @@ export const Portality: React.FC = () => {
           setAuthEmail(session.user.email);
           if (session.user.email === 'multiversagroup@gmail.com') {
             fetchContracts();
+            fetchProfiles();
           }
           // If we were resetting password and now have a session, exit reset mode
           if (isResettingPassword) {
@@ -347,6 +364,10 @@ export const Portality: React.FC = () => {
     try {
       const email = await signInWithPassword(adminEmail.trim(), adminPassword);
       setAuthEmail(email);
+      if (email === 'multiversagroup@gmail.com') {
+        fetchContracts();
+        fetchProfiles();
+      }
       setAdminPassword(''); // Clear password after successful login
       setStatus(`Login exitoso: ${email}`);
     } catch (e: any) {
@@ -730,8 +751,43 @@ export const Portality: React.FC = () => {
             </div>
           </div>
 
-          {/* === COLUMN 2: LICENSES === */}
+          {/* === COLUMN 2: LICENSES & USERS === */}
           <div className="space-y-5">
+            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-sm font-black uppercase tracking-widest text-gray-300">Usuarios Globales</h2>
+                <div className="px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-500">
+                  {profiles.length} REGISTRADOS
+                </div>
+              </div>
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {profiles.length === 0 ? (
+                  <p className="text-[10px] text-gray-600 font-mono text-center py-8">No hay usuarios registrados aún.</p>
+                ) : (
+                  profiles.map((p) => (
+                    <div key={p.machine_id} className="p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-white/80">{p.full_name || 'Sin Nombre'}</span>
+                        <button 
+                          onClick={() => {
+                            setDeviceId(p.machine_id);
+                            setStatus(`Usuario seleccionado: ${p.full_name || p.machine_id}`);
+                          }}
+                          className="text-[9px] bg-white/5 px-2 py-1 rounded text-gray-400 hover:bg-emerald-500 hover:text-black transition-all"
+                        >
+                          Cargar ID
+                        </button>
+                      </div>
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        <span className="text-[9px] text-emerald-500 font-mono">{p.machine_id}</span>
+                        {p.email && <span className="text-[8px] text-gray-500">{p.email}</span>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10 h-full">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Generador de Licencias</h2>
 
@@ -842,7 +898,7 @@ export const Portality: React.FC = () => {
                         <span className="text-[9px] text-gray-500">
                           Exp: {c.expires_at ? new Date(c.expires_at).toLocaleDateString() : '—'}
                         </span>
-                        <button 
+                        <button
                           onClick={() => {
                             setDeviceId(c.machine_id);
                             setToken(c.token);
@@ -859,19 +915,34 @@ export const Portality: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
-               <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID del Usuario</label>
-                  <input
-                    value={deviceId}
-                    onChange={(e) => setDeviceId(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
-                    placeholder="ID del cliente..."
-                  />
-                </div>
-                 <div>
+                        <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
+                          <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
+                           <div className="space-y-4">
+                            <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/5 mb-2">
+                              <button
+                                onClick={() => setDeviceId('GLOBAL_USER')}
+                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId === 'GLOBAL_USER' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                              >
+                                Asignar GLOBAL
+                              </button>
+                              <button
+                                onClick={() => setDeviceId('')}
+                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId !== 'GLOBAL_USER' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                              >
+                                Usuario Específico
+                              </button>
+                            </div>
+            
+                            <div>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID del Usuario</label>
+                              <input
+                                value={deviceId}
+                                onChange={(e) => setDeviceId(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
+                                placeholder="ID del cliente..."
+                                disabled={deviceId === 'GLOBAL_USER'}
+                              />
+                            </div>                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Nueva Fecha de Expiración</label>
                   <input
                     type="date"

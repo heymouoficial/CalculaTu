@@ -24,19 +24,22 @@ export const PromotionBanner: React.FC<PromotionBannerProps> = ({ onActivate }) 
     if (!isVisible) return null;
 
     return (
-        <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white py-3 px-4 relative z-[100] animate-fade-in shadow-lg">
+        <div className="bg-gradient-to-r from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a] text-white py-3 px-4 relative z-[100] animate-fade-in border-b border-emerald-500/30 shadow-[0_4px_30px_rgba(16,185,129,0.15)]">
             <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left">
                 <div className="flex items-center gap-2">
-                    <div className="bg-white/20 p-1.5 rounded-lg">
-                        <Sparkles size={16} className="text-emerald-100" />
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-amber-400/30 blur-lg rounded-full animate-pulse"></div>
+                        <div className="relative bg-gradient-to-br from-amber-400 to-orange-500 p-1.5 rounded-lg shadow-lg">
+                            <Sparkles size={16} className="text-black" />
+                        </div>
                     </div>
                     <p className="text-sm font-bold tracking-tight">
-                        🎁 REGALO DE NAVIDAD: <span className="text-emerald-50">24 HORAS DE SAVARA PRO GRATIS</span>
+                        🎁 REGALO DE NAVIDAD: <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">24 HORAS DE SAVARA PRO GRATIS</span>
                     </p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <span className="hidden sm:block opacity-40">|</span>
-                    <p className="text-xs font-medium opacity-90 hidden lg:block">
+                    <span className="hidden sm:block opacity-20 text-emerald-500">|</span>
+                    <p className="text-xs font-medium text-gray-400 hidden lg:block">
                         Prueba la asistente de voz inteligente hoy mismo sin costo.
                     </p>
                     <button
@@ -45,15 +48,16 @@ export const PromotionBanner: React.FC<PromotionBannerProps> = ({ onActivate }) 
                             setIsVisible(false);
                             localStorage.setItem('savara_promo_closed', 'true');
                         }}
-                        className="bg-emerald-500 text-black px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 active:scale-95"
+                        className="relative group bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black px-5 py-2 rounded-full text-sm font-black uppercase tracking-wide flex items-center gap-2 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 transition-all shadow-lg shadow-amber-500/30 active:scale-95"
                     >
-                        ACTIVAR AHORA <ArrowRight size={14} />
+                        <span className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                        <span className="relative">ACTIVAR AHORA</span> <ArrowRight size={14} className="relative" />
                     </button>
                 </div>
             </div>
             <button
                 onClick={handleClose}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white"
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded-full transition-colors text-white/50 hover:text-white"
                 aria-label="Cerrar anuncio"
             >
                 <X size={16} />

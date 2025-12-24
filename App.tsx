@@ -217,7 +217,7 @@ const App: React.FC = () => {
         <div className="absolute bottom-[10%] right-[-5%] w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[100px]" />
       </div>
 
-      <nav className="fixed top-0 w-full z-40 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md">
+      <nav className="sticky top-0 w-full z-40 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Logo size={36} />
