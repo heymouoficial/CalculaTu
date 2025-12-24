@@ -768,7 +768,7 @@ export const Portality: React.FC = () => {
                     <div key={p.machine_id} className="p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col gap-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono text-white/80">{p.full_name || 'Sin Nombre'}</span>
-                        <button 
+                        <button
                           onClick={() => {
                             setDeviceId(p.machine_id);
                             setStatus(`Usuario seleccionado: ${p.full_name || p.machine_id}`);
@@ -788,7 +788,7 @@ export const Portality: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10 h-full">
+            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Generador de Licencias</h2>
 
               <div className="space-y-4">
@@ -915,34 +915,34 @@ export const Portality: React.FC = () => {
               </div>
             </div>
 
-                        <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
-                          <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
-                           <div className="space-y-4">
-                            <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/5 mb-2">
-                              <button
-                                onClick={() => setDeviceId('GLOBAL_USER')}
-                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId === 'GLOBAL_USER' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                              >
-                                Asignar GLOBAL
-                              </button>
-                              <button
-                                onClick={() => setDeviceId('')}
-                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId !== 'GLOBAL_USER' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                              >
-                                Usuario Específico
-                              </button>
-                            </div>
-            
-                            <div>
-                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID del Usuario</label>
-                              <input
-                                value={deviceId}
-                                onChange={(e) => setDeviceId(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
-                                placeholder="ID del cliente..."
-                                disabled={deviceId === 'GLOBAL_USER'}
-                              />
-                            </div>                <div>
+            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
+              <div className="space-y-4">
+                <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/5 mb-2">
+                  <button
+                    onClick={() => setDeviceId('GLOBAL_USER')}
+                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId === 'GLOBAL_USER' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    Asignar GLOBAL
+                  </button>
+                  <button
+                    onClick={() => setDeviceId('')}
+                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId !== 'GLOBAL_USER' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    Usuario Específico
+                  </button>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID del Usuario</label>
+                  <input
+                    value={deviceId}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
+                    placeholder="ID del cliente..."
+                    disabled={deviceId === 'GLOBAL_USER'}
+                  />
+                </div>                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Nueva Fecha de Expiración</label>
                   <input
                     type="date"

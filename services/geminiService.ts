@@ -1,9 +1,9 @@
 // services/geminiService.ts
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // ==================== SHARED CONFIGURATION ====================
 
-const CURRENT_MODEL = 'gemini-1.5-flash'; 
+const CURRENT_MODEL = 'gemini-1.5-flash';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la voz oficial de CalculaTú (CalculaTu). 
 Tu tono es humano, cálido, profesional y conciso. Ayuda al usuario con sus compras y dudas sobre la app.
@@ -12,8 +12,8 @@ Si te preguntan por precios o planes, menciónalos con entusiasmo.`;
 
 // Helper for Universal Environment Access
 const getGeminiApiKey = (): string | undefined => {
-  const key = (typeof process !== 'undefined' && (process.env?.GEMINI_API_KEY || process.env?.VITE_GEMINI_API_KEY)) || 
-              (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY);
+  const key = (typeof process !== 'undefined' && (process.env?.GEMINI_API_KEY || process.env?.VITE_GEMINI_API_KEY)) ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY);
   return key;
 };
 
@@ -26,7 +26,7 @@ class SavaraChat {
   constructor(apiKey?: string) {
     const key = apiKey || getGeminiApiKey();
     if (!key) throw new Error('CRITICAL: VITE_GEMINI_API_KEY not found in environment.');
-    this.genAI = new GoogleGenerativeAI(key);
+    this.genAI = new GoogleGenAI({ apiKey: key });
     this.model = this.genAI.getGenerativeModel({
       model: CURRENT_MODEL,
       systemInstruction: SAVARA_SYSTEM_PROMPT
