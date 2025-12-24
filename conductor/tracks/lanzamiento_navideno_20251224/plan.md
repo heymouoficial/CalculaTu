@@ -18,7 +18,7 @@
 -   [x] **Task:** Validar la memoria contextual de Savara Pro (FR1.3). [94deb64]
     -   Sub-task: Verificar que las respuestas usen los datos del carrito en tiempo real.
     -   Sub-task: Verificar que Savara recuerde el nombre del usuario tras reiniciar.
--   [ ] **Task:** Simular y validar el manejo de errores (FR2).
+-   [x] **Task:** Simular y validar el manejo de errores (FR2). [fae64af]
     -   Sub-task: Simular error de API 429 y verificar mensaje amigable.
     -   Sub-task: Simular pérdida de conexión y verificar comportamiento.
     -   Sub-task: Probar flujo de denegación y habilitación de permiso de micrófono.
