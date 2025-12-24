@@ -1,7 +1,7 @@
 // services/geminiService.ts
 // Using REST API for maximum reliability across all environments
 
-const CURRENT_MODEL = 'gemini-2.0-flash';
+const CURRENT_MODEL = 'gemini-2.5-flash';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
 Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
