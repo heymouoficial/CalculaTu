@@ -23,7 +23,7 @@
     -   Sub-task: Simular pérdida de conexión y verificar comportamiento.
     -   Sub-task: Probar flujo de denegación y habilitación de permiso de micrófono.
 -   [x] **Task:** Verificar la sincronización bidireccional entre la voz y la UI (FR3). [5c9597c]
--   [~] **Task:** Conductor - User Manual Verification 'Fase 1: Pruebas de Funcionalidad Central y Robustez' (Protocol in workflow.md)
+-   [x] **Task:** Conductor - User Manual Verification 'Fase 1: Pruebas de Funcionalidad Central y Robustez' (Protocol in workflow.md) [checkpoint: 536081a]
 
 ## Fase 2: Validación de Features Complementarias
 
