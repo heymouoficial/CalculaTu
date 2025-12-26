@@ -11,3 +11,5 @@ export const FEATURES = {
     ONBOARDING_ENABLED: true,
     FEEDBACK_ENABLED: true,
 } as const;
+
+export const APP_PUBLIC_KEY = (import.meta.env.VITE_APP_PUBLIC_KEY || '').replace(/\\n/g, '\n');
