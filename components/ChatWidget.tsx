@@ -371,7 +371,7 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
           </div>
         )}
 
-        {/* Launcher Button - HIDDEN: Requested by user for visibility
+        {/* Launcher Button */}
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
@@ -380,7 +380,6 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
             <MessageCircle size={28} strokeWidth={2.5} />
           </button>
         )}
-        */}
 
         <style>{`
           @keyframes typing {
