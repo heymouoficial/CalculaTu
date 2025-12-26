@@ -434,7 +434,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Toggle Savara Logic
   const toggleSavara = async () => {
-    // FASE 3: Validate Feature Token before initializing Savara
+    // FASE 3: COMING SOON GLOBAL
+    // Para generar hype, mostramos el banner a TODOS (con o sin licencia)
+    // Cuando se lance en Enero, descomentamos la validación.
+
+    /*
     if (!license.active || !license.featureToken) {
       alert('Savara requiere una licencia activa con feature "voice".');
       return;
@@ -444,9 +448,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       alert('Tu licencia no incluye la feature "voice". Contacta soporte.');
       return;
     }
+    */
 
     // COMING SOON INTERRUPTION
-    // Instead of connecting, show the Coming Soon banner
     setShowServiceBanner(true);
     return;
 
@@ -1481,6 +1485,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         onHangUp={toggleSavara}
         latency={latency}
         isLowLatency={isLowLatency}
+      />
+      <ServiceUnavailableBanner
+        isOpen={showServiceBanner}
+        onClose={() => setShowServiceBanner(false)}
       />
     </div>
   );
