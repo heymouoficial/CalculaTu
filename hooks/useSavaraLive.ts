@@ -6,8 +6,8 @@ import { supabase } from '../services/supabaseClient';
 import { getSavaraSystemInstruction } from '../utils/savaraLogic';
 import { fetchCoreStats } from '../services/ratesService';
 
-const MODEL_ID = "gemini-2.5-flash-native-audio-dialog";
-const MODEL_ID_USER = "gemini-2.5-flash-native-audio-dialog";
+const MODEL_ID = "gemini-2.0-flash-exp";
+const MODEL_ID_USER = "gemini-2.0-flash-exp";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
