@@ -16,12 +16,13 @@ export default async function handler(
   }
 
   try {
+    // Check both env var names for compatibility
     const key = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     if (!key) {
-      console.error('[API Chat] CRITICAL: VITE_GEMINI_API_KEY not found in environment.');
+      console.error('[API Chat] CRITICAL: GEMINI_API_KEY not found in environment.');
       return res.status(500).json({
         error: 'Configuration Error',
-        details: 'API Key (VITE_GEMINI_API_KEY) not found in server environment.'
+        details: 'API Key not found. Add VITE_GEMINI_API_KEY or GEMINI_API_KEY in Vercel Settings → Environment Variables.'
       });
     }
 
