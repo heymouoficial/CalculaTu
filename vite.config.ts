@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       react(),
       // Mock Vercel license APIs for local development
       mode === 'development' && devLicenseApiPlugin(),
-      mode === 'development' && devChatApiPlugin({ apiKey: env.VITE_GEMINI_API_KEY }),
+      mode === 'development' && devChatApiPlugin({ apiKey: env.VITE_OPENAI_API_KEY }),
     ].filter(Boolean),
     resolve: {
       alias: {

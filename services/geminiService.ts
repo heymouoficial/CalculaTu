@@ -1,7 +1,7 @@
 // services/geminiService.ts
-// Using REST API for maximum reliability across all environments
+// Using OpenAI API Direct
 
-const CURRENT_MODEL = 'gemini-1.5-flash';
+const CURRENT_MODEL = 'gpt-4o-mini';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
 Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
@@ -22,25 +22,24 @@ PRECIOS PREMIUM:
 Responde siempre en español. Sé breve y útil.`;
 
 // Helper for Universal Environment Access
-const getGeminiApiKey = (): string | undefined => {
-  // Try VITE prefix first as requested for standardization across client and server (Vercel)
-  const key = (typeof process !== 'undefined' && process.env ? process.env.VITE_GEMINI_API_KEY : undefined) ||
-    (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined) ||
-    (typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined);
+const getOpenAIApiKey = (): string | undefined => {
+  // Check for standard OPENAI_API_KEY or VITE_ prefixed version
+  const key = (typeof process !== 'undefined' && process.env ? process.env.OPENAI_API_KEY : undefined) ||
+    (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_OPENAI_API_KEY : undefined) ||
+    (typeof process !== 'undefined' && process.env ? process.env.VITE_OPENAI_API_KEY : undefined);
   return key;
 };
 
-// ==================== LANDING CHAT (REST API - RELIABLE) ====================
+// ==================== LANDING CHAT (OpenAI API - Direct) ====================
 
 class SavaraChat {
   private apiKey: string;
 
   constructor(apiKey?: string) {
-    const key = apiKey || getGeminiApiKey();
+    const key = apiKey || getOpenAIApiKey();
     if (!key) {
-      // This error message is adapted for the service context, as 'res' is not available here.
-      console.error('[SavaraChat] CRITICAL: GEMINI_API_KEY not found in environment.');
-      throw new Error('CRITICAL: GEMINI_API_KEY not found in environment.');
+      console.error('[SavaraChat] CRITICAL: OPENAI_API_KEY not found in environment.');
+      throw new Error('CRITICAL: OPENAI_API_KEY not found in environment.');
     }
     this.apiKey = key;
   }
@@ -63,57 +62,56 @@ class SavaraChat {
       `;
     }
 
-    // Build conversation contents
-    const contents = [
+    // Build OpenAI-compatible messages
+    const messages = [
+      { role: 'system', content: finalSystemInstruction },
       ...history.map((h: any) => ({
-        role: h.role === 'model' ? 'model' : 'user',
-        parts: [{ text: String(h.parts?.[0]?.text || h.text || '') }]
+        role: h.role === 'model' ? 'assistant' : 'user',
+        content: String(h.parts?.[0]?.text || h.text || '')
       })),
-      { role: 'user', parts: [{ text: userMessage }] }
+      { role: 'user', content: userMessage }
     ];
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
+    const url = 'https://api.openai.com/v1/chat/completions';
 
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey
+          'Authorization': `Bearer ${this.apiKey}`
         },
         body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: finalSystemInstruction }]
-          },
-          contents
+          model: CURRENT_MODEL,
+          messages
         })
       });
 
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('[Savara REST] API Error:', response.status, errorData);
+        console.error('[Savara OpenAI] API Error:', response.status, errorData);
 
         if (response.status === 429) {
-          throw new Error('Quota exceeded (429)');
+          throw new Error('Rate limit exceeded (429)');
         }
-        if (response.status === 400) {
-          throw new Error(`Bad Request: ${errorData}`);
+        if (response.status === 401) {
+          throw new Error('Invalid API Key (401)');
         }
         throw new Error(`API request failed: ${response.status}`);
       }
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const text = data.choices?.[0]?.message?.content;
 
       if (!text) {
-        console.warn('[Savara REST] No text in response:', JSON.stringify(data));
+        console.warn('[Savara OpenAI] No text in response:', JSON.stringify(data));
         return "Perdona, ¿me repites eso?";
       }
 
       return text;
 
     } catch (error: any) {
-      console.error('[Savara REST] Error:', error.message);
+      console.error('[Savara OpenAI] Error:', error.message);
 
       if (error.message?.includes('SAFETY')) {
         return "Lo siento, no puedo responder a eso por políticas de seguridad.";

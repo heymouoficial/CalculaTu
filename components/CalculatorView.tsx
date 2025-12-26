@@ -16,6 +16,7 @@ import { Logo } from './Logo';
 import { WhatsAppIcon, BinanceIcon, BanescoIcon } from './BrandIcons';
 import { showToast, ToastContainer } from './Toast';
 import { SavaraCallModal } from './SavaraCallModal';
+import { ServiceUnavailableBanner } from './ServiceUnavailableBanner';
 import { supabase } from '../services/supabaseClient';
 import { useSavaraLive } from '../hooks/useSavaraLive';
 
@@ -28,10 +29,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const addItem = useAppStore(s => s.addItem);
   const removeItem = useAppStore(s => s.removeItem);
   const clearItems = useAppStore(s => s.clearItems);
-  const { 
-    connect: connectSavara, 
-    disconnect: disconnectSavara, 
+  const {
+    connect: connectSavara,
+    disconnect: disconnectSavara,
     isConnected: isSavaraConnected,
+    error: savaraError,
     latency,
     isLowLatency
   } = useSavaraLive({
@@ -44,6 +46,21 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       showToast('Llamada finalizada', 'item');
     }
   });
+
+  // Banner State
+  const [showServiceBanner, setShowServiceBanner] = useState(false);
+
+  // Watch for Savara Errors
+  useEffect(() => {
+    if (savaraError) {
+      // If error is related to connection/quota/permissions, show banner
+      if (savaraError.code === 'API_LIMIT_REACHED' || savaraError.code === 'CONNECTION_ERROR') {
+        setShowServiceBanner(true);
+      } else {
+        showToast(savaraError.message || 'Error en Savara', 'error');
+      }
+    }
+  }, [savaraError]);
 
   // Voucher Modal States
   const [showVoucher, setShowVoucher] = useState(false);
@@ -428,38 +445,26 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       return;
     }
 
+    // COMING SOON INTERRUPTION
+    // Instead of connecting, show the Coming Soon banner
+    setShowServiceBanner(true);
+    return;
+
+    /* 
+    // OLD CONNECTION LOGIC (Disabled for January Launch)
     if (isSavaraConnected) {
       disconnectSavara();
       showToast('Savara desconectada', 'item');
     } else {
       showToast('Iniciando Savara Pro...', 'success');
       try {
-        const productsSummary = items.map(i => `${i.quantity}x ${i.name} ($${i.price})`).join(', ') || 'Vacía';
-        const dynamicPrompt = `Eres Savara, la IA oficial de CalculaTú, creada por Multiversa (la Nave Nodriza). Tu misión es asistir al usuario en sus compras con precisión y amabilidad.
-
-DATOS EN TIEMPO REAL (Fuente Oficial: Banco Central de Venezuela):
-- Tasa Dólar BCV: ${rates.USD.toFixed(2)} Bolívares
-- Tasa Euro BCV: ${rates.EUR.toFixed(2)} Bolívares
-- Lista Actual: ${productsSummary}
-
-INSTRUCCIONES CLAVE:
-1. **Manejo de Monedas**: Di siempre "Dólares", "Euros" o "Bolívares". NUNCA uses símbolos ($) ni abreviaturas (Bs).
-2. **Consultas de Tasa**: Si te preguntan la tasa, responde explícitamente: "La tasa del Dólar en el BCV es..." o "La tasa del Euro en el BCV es...". Usa SIEMPRE los datos de arriba.
-3. **Personalidad**: Eres profesional, eficiente y cálida. Hablas español latino neutro. Si te preguntan quién te creó, responde con orgullo que eres un producto de Multiversa.
-4. **Acciones**:
-   - Cuando el usuario quiera agregar algo, usa la herramienta 'add_shopping_item'.
-   - Cuando quiera terminar, usa 'finish_list'.
-   - Si pregunta "cuánto es en bolívares", usa la Tasa Oficial arriba para calcularlo mentalmente y responder.
-5. **Respuestas Cortas**: En modo voz, sé concisa. Máximo 1-2 oraciones, salvo que estés dando un resumen detallado.
-
-¡Comencemos! Saluda al usuario y pregúntale qué vamos a comprar hoy.`;
-
-        await connectSavara(dynamicPrompt);
+         // ... connection logic ...
+         await connectSavara(dynamicPrompt);
       } catch (e: any) {
-        console.error('[Savara] Connection error:', e);
-        showToast(`Error de conexión: ${e.message || 'Desconocido'}`, 'error');
+         // ... error handling ...
       }
     }
+    */
   };
 
   // WhatsApp Activation Handler

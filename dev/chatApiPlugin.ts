@@ -41,7 +41,7 @@ export function devChatApiPlugin(config?: { apiKey?: string }): Plugin {
                     if (!config?.apiKey) {
                         return json(res, 500, {
                             error: 'Missing API Key',
-                            details: 'VITE_GEMINI_API_KEY is not defined in your .env.local file.'
+                            details: 'VITE_OPENAI_API_KEY is not defined in your .env.local file.'
                         });
                     }
 

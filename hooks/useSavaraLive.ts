@@ -1,205 +1,122 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { useShallow } from 'zustand/react/shallow';
-import { ShoppingItem } from '../types';
-import { supabase } from '../services/supabaseClient';
-import { getSavaraSystemInstruction } from '../utils/savaraLogic';
-import { fetchCoreStats } from '../services/ratesService';
 
-const MODEL_ID = "gemini-2.0-flash-exp";
-const MODEL_ID_USER = "gemini-2.0-flash-exp";
-
+const MODEL = "gemini-2.0-flash-exp";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
 
-export type SavaraError = {
-  code: 'CONNECTION_ERROR' | 'MIC_PERMISSION_DENIED' | 'API_LIMIT_REACHED' | 'UNKNOWN';
-  message: string;
-} | null;
+interface UseSavaraLiveProps {
+  onItemAdded?: (item: any) => void;
+  onHangUp?: () => void;
+}
 
-export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => void; onHangUp?: () => void }) => {
+export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<SavaraError>(null);
-  const [latency, setLatency] = useState<number>(0);
-  const [isLowLatency, setIsLowLatency] = useState(true);
+  const [error, setError] = useState<any>(null);
 
-  const ws = useRef<WebSocket | null>(null);
+  // Audio Context State
   const audioContext = useRef<AudioContext | null>(null);
-  const lastPingTime = useRef<number>(0);
-  const audioContextOutput = useRef<AudioContext | null>(null);
+  const mediaStream = useRef<MediaStream | null>(null);
   const workletNode = useRef<AudioWorkletNode | null>(null);
+  const audioContextOutput = useRef<AudioContext | null>(null);
+  const ws = useRef<WebSocket | null>(null);
   const nextStartTime = useRef<number>(0);
 
-  const {
-    items,
-    rates,
-    userName,
-    machineId,
-    license,
-    addItem,
-    removeItem,
-    updateItem,
-    setUserName
-  } = useAppStore(useShallow(s => ({
-    items: s.items,
-    rates: s.rates,
-    userName: s.userName,
-    machineId: s.machineId,
-    license: s.license,
-    addItem: s.addItem,
-    removeItem: s.removeItem,
-    updateItem: s.updateItem,
-    setUserName: s.setUserName
-  })));
+  // Acceso al Store para Function Calling
+  const addItem = useAppStore((state) => state.addItem);
+  const removeItem = useAppStore((state) => state.removeItem);
+  const updateItem = useAppStore((state) => state.updateItem);
+  const items = useAppStore((state) => state.items);
 
-  // Tools definition
+  // Definición de Herramientas (Function Calling)
   const tools = [
     {
       function_declarations: [
         {
           name: "add_shopping_item",
-          description: "Agrega un producto a la lista de compras del usuario con su precio aproximado y cantidad.",
+          description: "Adds an item to the shopping list with price and quantity.",
           parameters: {
             type: "object",
             properties: {
-              product_name: { type: "string", description: "Nombre del producto (ej: Harina PAN)" },
-              price: { type: "number", description: "Precio del producto" },
-              currency: { type: "string", enum: ["USD", "EUR", "VES"], description: "Moneda del precio (USD, EUR, VES). Si el usuario no especifica, asume USD." },
-              quantity: { type: "number", description: "Cantidad de unidades del producto. Si no se especifica, se asume 1." }
+              product_name: { type: "string", description: "Name of the product" },
+              price: { type: "string", description: "Price per unit (numeric string)" },
+              currency: { type: "string", description: "Currency code (USD, EUR, VES)" },
+              quantity: { type: "number", description: "Quantity of items" }
             },
-            required: ["product_name", "price", "currency"]
-          }
-        },
-        {
-          name: "finish_list",
-          description: "Finaliza la lista de compras y genera el recibo.",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "save_user_name",
-          description: "Guarda el nombre del usuario para recordarlo en el futuro.",
-          parameters: {
-            type: "object",
-            properties: {
-              name: { type: "string", description: "El nombre que el usuario me dijo." }
-            },
-            required: ["name"]
-          }
-        },
-        {
-          name: "get_latest_rates",
-          description: "Obtiene las tasas de cambio actuales de USD y EUR en Bolívares (BCV).",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "get_shopping_list",
-          description: "Obtiene la lista actual de productos en el carrito de compras.",
-          parameters: {
-            type: "object",
-            properties: {}
+            required: ["product_name", "price"]
           }
         },
         {
           name: "remove_shopping_item",
-          description: "Elimina un producto de la lista de compras basándose en su nombre.",
+          description: "Removes an item from the shopping list by name.",
           parameters: {
             type: "object",
             properties: {
-              product_name: { type: "string", description: "Nombre del producto a eliminar. Debe ser lo más exacto posible." }
+              product_name: { type: "string", description: "Name of the product to remove" }
             },
             required: ["product_name"]
           }
         },
         {
-          name: "update_shopping_item",
-          description: "Modifica un producto existente en la lista. Se puede ajustar la cantidad, el precio o el nombre.",
+          name: "update_shopping_item_quantity",
+          description: "Updates the quantity of an existing item.",
           parameters: {
             type: "object",
             properties: {
-              product_name: { type: "string", description: "Nombre del producto a actualizar." },
-              new_price: { type: "number", description: "El nuevo precio del producto." },
-              new_quantity: { type: "number", description: "La nueva cantidad de unidades del producto." },
-              new_name: { type: "string", description: "El nuevo nombre para el producto." }
+              product_name: { type: "string", description: "Name of the product" },
+              new_quantity: { type: "number", description: "New quantity" }
             },
-            required: ["product_name"]
+            required: ["product_name", "new_quantity"]
           }
         }
       ]
     }
   ];
 
-  const connect = useCallback(async (systemInstruction: string) => {
-    if (ws.current?.readyState === WebSocket.OPEN || isConnected) return;
-    setIsConnected(false); // Reset just in case
-    setError(null);
-
-    // Cleanup previous contexts if they exist
-    if (audioContext.current && audioContext.current.state !== 'closed') {
-      await audioContext.current.close().catch(() => { });
-    }
-    if (audioContextOutput.current && audioContextOutput.current.state !== 'closed') {
-      await audioContextOutput.current.close().catch(() => { });
-    }
-
+  const connect = useCallback(async (initialPrompt?: string) => {
     try {
-      // 1. Initialize Audio Contexts
+      if (ws.current?.readyState === WebSocket.OPEN) return;
+      console.log("🔵 Iniciando Savara Live...");
+      setError(null);
+
+      // 1. Get Microphone Stream
+      try {
+        mediaStream.current = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            autoGainControl: true,
+            noiseSuppression: true
+          }
+        });
+      } catch (micErr) {
+        throw { code: 'MIC_PERMISSION_DENIED', message: 'Permiso de micrófono denegado' };
+      }
+
+      // 2. Audio Context & Worklet
       audioContext.current = new AudioContext({ sampleRate: 16000 });
       await audioContext.current.audioWorklet.addModule('/pcm-processor.js');
 
+      // Output Context (24kHz typically from Gemini)
       audioContextOutput.current = new AudioContext({ sampleRate: 24000 });
       nextStartTime.current = audioContextOutput.current.currentTime;
 
-      // 2. Connect WebSocket
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
-      ws.current = new WebSocket(wsUrl);
+      // 3. WebSocket Connection
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) throw new Error("Falta VITE_GEMINI_API_KEY");
+
+      ws.current = new WebSocket(WS_URL);
 
       ws.current.onopen = () => {
-        console.log("🟢 Savara Conectada");
+        console.log("🟢 Savara Conectada (Sockets Optimized)");
         setIsConnected(true);
-        setError(null);
 
-        // Fetch CORE stats if Admin
-        const isAdmin = license.active || license.tier === 'lifetime';
-        let coreStats = null;
-        if (isAdmin) {
-          fetchCoreStats().then(stats => {
-            coreStats = stats;
-            // Note: In the current WS setup, setup happens once. 
-            // We'll proceed with what we have.
-          });
-          // To simplify for Alpha, let's make it more direct
-        }
-
-        // Inject Name, Items, and Rates into System Instruction using helper
-        const personalizedInstruction = getSavaraSystemInstruction(
-          systemInstruction,
-          userName,
-          items,
-          rates,
-          {
-            tier: license.tier,
-            expiresAt: license.expiresAt,
-            isPremium: isAdmin
-          },
-          isAdmin ? {
-            totalUsers: 2, // Placeholder for first-frame sync
-            activeSubscriptions: 1,
-            systemStatus: 'OPERATIONAL',
-            platform: 'Multiversa Core V1',
-            recentActivity: []
-          } : null
-        );
-
-        // 1. Setup Message
-        const setupMsg = {
+        // Handshake Init
+        const msg = {
           setup: {
-            model: `models/${MODEL_ID_USER}`,
+            model: "models/gemini-2.0-flash-exp",
+            tools: tools,
             generationConfig: {
               responseModalities: ["AUDIO"],
               speechConfig: {
@@ -207,295 +124,189 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
               }
             },
             systemInstruction: {
-              parts: [{ text: personalizedInstruction }]
-            },
-            tools: tools
+              parts: [{ text: initialPrompt || "Eres Savara, un asistente de compras." }]
+            }
           }
         };
-        ws.current?.send(JSON.stringify(setupMsg));
-
-        // 2. Kickstart Message (Force Hello)
-        // If we know the name, we greet personally. If not, we ask.
-        const greetingPrompt = userName
-          ? `Hola Savara. Soy ${userName}. Salúdame corto.`
-          : `Hola Savara. No sé mi nombre aún. Salúdame y pregúntame cómo me llamo para recordarlo.`;
-
-        const kickstartMsg = {
-          clientContent: {
-            turns: [{
-              role: "user",
-              parts: [{ text: greetingPrompt }]
-            }],
-            turnComplete: true
-          }
-        };
-        ws.current?.send(JSON.stringify(kickstartMsg));
-      };
-
-      ws.current.onerror = (error) => {
-        console.error("🔴 Savara WebSocket Error:", error);
-        setError({ code: 'CONNECTION_ERROR', message: "Error de conexión con Savara." });
-        setIsConnected(false);
-      };
-
-      ws.current.onclose = (event) => {
-        console.log(`🔴 Savara Desconectada. Code: ${event.code}, Reason: ${event.reason}`);
-        setIsConnected(false);
-
-        // Specific Quota Handling
-        if (event.reason?.toLowerCase().includes('quota') || event.code === 1011) {
-          setError({
-            code: 'API_LIMIT_REACHED',
-            message: "Has excedido tu cuota de Gemini. Verifica tu API Key o saldo en Google AI Studio."
-          });
-        }
-
-        if (audioContext.current?.state !== 'closed') audioContext.current?.close().catch(() => { });
-        if (audioContextOutput.current?.state !== 'closed') audioContextOutput.current?.close().catch(() => { });
+        ws.current?.send(JSON.stringify(msg));
       };
 
       ws.current.onmessage = async (event) => {
-        const arrivalTime = Date.now();
-        if (lastPingTime.current > 0) {
-          const rtt = arrivalTime - lastPingTime.current;
-          setLatency(rtt);
-          setIsLowLatency(rtt < 500); // Threshold for "Slow Connection"
-        }
-
-        let data;
         try {
+          let data;
           if (event.data instanceof Blob) {
             data = JSON.parse(await event.data.text());
           } else {
             data = JSON.parse(event.data);
           }
+
+          // Audio Response
+          if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
+            const base64Audio = data.serverContent.modelTurn.parts[0].inlineData.data;
+            if (audioContextOutput.current) {
+              playAudioChunk(base64Audio, audioContextOutput.current, nextStartTime);
+            }
+          }
+
+          // Tool Calls
+          if (data.toolCall) {
+            handleToolCall(data.toolCall);
+          }
+
         } catch (e) {
-          console.error("Error parsing WS message", e);
-          return;
-        }
-
-        const audioPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.inlineData?.data);
-        if (audioPart && audioContextOutput.current && audioContextOutput.current.state !== 'closed') {
-          playAudioChunk(audioPart.inlineData.data, audioContextOutput.current, nextStartTime);
-        }
-
-        // --- NEW: HANDLE JSON INTENTS ---
-        const textPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.text);
-        if (textPart) {
-          try {
-            // Attempt to parse JSON from the text part
-            const cleanText = textPart.text.replace(/```json/g, '').replace(/```/g, '').trim();
-            const parsed = JSON.parse(cleanText);
-
-            if (parsed.intent) {
-              const { action, itemName, price, currency, quantity } = parsed.intent;
-              console.log("🎯 Savara Intent Detected:", action, parsed.intent);
-
-              if (action === 'ADD_ITEM' && itemName && price) {
-                const newItem: ShoppingItem = {
-                  id: Date.now().toString(),
-                  name: itemName,
-                  price: Number(price),
-                  currency: (currency as 'USD' | 'EUR' | 'VES') || 'USD',
-                  quantity: Number(quantity) || 1
-                };
-                addItem(newItem);
-                if (config?.onItemAdded) config.onItemAdded(newItem);
-              }
-              else if (action === 'REMOVE_ITEM' && itemName) {
-                const itemToRemove = items.find(i => i.name.toLowerCase() === itemName.toLowerCase());
-                if (itemToRemove) removeItem(itemToRemove.id);
-              }
-              else if (action === 'CLEAR_CART') {
-                useAppStore.getState().clearItems();
-              }
-            }
-          } catch (e) {
-            // Not JSON or malformed, ignore for now and rely on tools
-          }
-        }
-
-        if (data.toolCall) {
-          console.log("🛠️ Savara Tool Call Received:", data.toolCall);
-          const responses = [];
-          let shouldHangUp = false;
-
-          for (const call of data.toolCall.functionCalls) {
-            if (call.name === "add_shopping_item") {
-              const { product_name, price, currency, quantity } = call.args;
-              const newItem: ShoppingItem = {
-                id: Date.now().toString(),
-                name: product_name,
-                price: Number(price),
-                currency: (currency as 'USD' | 'EUR' | 'VES') || 'USD',
-                quantity: Number.isFinite(quantity) && quantity > 0 ? Number(quantity) : 1
-              };
-              addItem(newItem);
-              if (config?.onItemAdded) config.onItemAdded(newItem);
-
-              responses.push({
-                id: call.id,
-                name: call.name,
-                response: { result: "Item agregado correctamente" }
-              });
-            }
-            else if (call.name === "finish_list") {
-              shouldHangUp = true;
-              responses.push({
-                id: call.id,
-                name: call.name,
-                response: { result: "Lista finalizada." }
-              });
-            }
-            else if (call.name === "save_user_name") {
-              const { name } = call.args;
-              console.log("👤 Saving user name:", name);
-
-              // 1. Update Local Store
-              setUserName(name);
-
-              // 2. Persist to Supabase
-              if (supabase && machineId) {
-                supabase.from('profiles').upsert({
-                  machine_id: machineId,
-                  full_name: name
-                }).then(({ error }) => {
-                  if (error) console.error("Error saving profile to DB:", error);
-                });
-              }
-
-              responses.push({
-                id: call.id,
-                name: call.name,
-                response: { result: `Nombre ${name} guardado exitosamente.` }
-              });
-            }
-            else if (call.name === "get_latest_rates") {
-              responses.push({
-                id: call.id,
-                name: call.name,
-                response: {
-                  usd: rates.USD,
-                  eur: rates.EUR,
-                  last_updated: new Date().toISOString()
-                }
-              });
-            }
-            else if (call.name === "remove_shopping_item") {
-              const { product_name } = call.args;
-              const itemToRemove = [...items].find(item => item.name.toLowerCase() === product_name.toLowerCase());
-
-              if (itemToRemove) {
-                removeItem(itemToRemove.id);
-                responses.push({ id: call.id, name: call.name, response: { result: `Item '${product_name}' eliminado.` } });
-              } else {
-                responses.push({ id: call.id, name: call.name, response: { result: `No encontré el item '${product_name}'.` } });
-              }
-            }
-            else if (call.name === "update_shopping_item") {
-              const { product_name, new_price, new_quantity, new_name } = call.args;
-              const itemToUpdate = [...items].find(item => item.name.toLowerCase() === product_name.toLowerCase());
-
-              if (itemToUpdate) {
-                const updatedFields: Partial<ShoppingItem> = {};
-                if (Number.isFinite(new_price)) updatedFields.price = new_price;
-                if (Number.isFinite(new_quantity) && new_quantity > 0) updatedFields.quantity = new_quantity;
-                if (new_name) updatedFields.name = new_name;
-
-                updateItem(itemToUpdate.id, updatedFields);
-                responses.push({ id: call.id, name: call.name, response: { result: `Item '${product_name}' actualizado.` } });
-              } else {
-                responses.push({ id: call.id, name: call.name, response: { result: `No encontré el item '${product_name}' para actualizar.` } });
-              }
-            }
-          }
-
-          if (ws.current?.readyState === WebSocket.OPEN) {
-            ws.current.send(JSON.stringify({
-              toolResponse: { functionResponses: responses }
-            }));
-          }
-
-          if (shouldHangUp && config?.onHangUp) {
-            setTimeout(() => config.onHangUp?.(), 2000); // User requested 2 seconds
-          }
+          console.error("Error parsing WS msg", e);
         }
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000
+      ws.current.onclose = (event) => {
+        console.log("🔴 Socket Closed", event.code, event.reason);
+        setIsConnected(false);
+        if (onHangUp) onHangUp(); // Trigger callback
+
+        if (event.code === 1011 || event.reason.includes("Quota") || event.reason.includes("quota")) {
+          setError({ code: 'API_LIMIT_REACHED', message: "Quota Exceeded or Blocked." });
+        } else if (event.code !== 1000) {
+          setError({ code: 'CONNECTION_ERROR', message: "Conexión cerrada inesperadamente." });
         }
-      });
+      };
 
-      await audioContext.current.resume();
+      ws.current.onerror = (event) => {
+        console.error("🔴 Socket Error", event);
+        setError({ code: 'CONNECTION_ERROR', message: "Error de conexión WebSocket." });
+        setIsConnected(false);
+      };
 
-      const source = audioContext.current.createMediaStreamSource(stream);
+      // 4. Setup Audio Processing Chain
+      const source = audioContext.current.createMediaStreamSource(mediaStream.current);
       workletNode.current = new AudioWorkletNode(audioContext.current, 'pcm-processor');
 
-      workletNode.current.port.onmessage = (e) => {
-        const pcmData = e.data;
-        const base64Audio = arrayBufferToBase64(pcmData);
-
+      workletNode.current.port.onmessage = (event) => {
         if (ws.current?.readyState === WebSocket.OPEN) {
-          const audioMsg = {
+          const pcmData = event.data; // Int16Array
+
+          // Convert Int16Array to Base64
+          const buffer = pcmData.buffer;
+          const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+
+          ws.current.send(JSON.stringify({
             realtimeInput: {
               mediaChunks: [{
                 mimeType: "audio/pcm",
-                data: base64Audio
+                data: base64
               }]
             }
-          };
-          ws.current.send(JSON.stringify(audioMsg));
+          }));
         }
       };
 
       source.connect(workletNode.current);
-    } catch (e: any) {
-      console.error("🔴 Savara Connection/Mic Error:", e);
-      setIsConnected(false);
 
-      // Categorize error
-      if (e.message?.includes("Permission denied") || e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        setError({ code: 'MIC_PERMISSION_DENIED', message: "Necesitamos permiso del micrófono para hablar contigo." });
-      } else {
-        setError({ code: 'UNKNOWN', message: "Error al iniciar Savara. Intenta de nuevo." });
+    } catch (err: any) {
+      console.error("Error init Savara:", err);
+
+      let errorData = { code: 'UNKNOWN_ERROR', message: err.message || "Error desconocido" };
+
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
+        errorData = { code: 'MIC_PERMISSION_DENIED', message: "Permiso de micrófono denegado." };
+      } else if (err.code === 'CONNECTION_ERROR') {
+        // Si ya viene formateado
+        errorData = err;
       }
+
+      setError(errorData);
+      setIsConnected(false);
     }
-  }, [items, rates, userName, machineId, addItem, removeItem, updateItem, setUserName]);
+  }, [addItem, onHangUp]);
 
   const disconnect = useCallback(() => {
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
-    }
-    if (audioContext.current && audioContext.current.state !== 'closed') {
-      audioContext.current.close().catch(() => { });
-    }
-    if (audioContextOutput.current && audioContextOutput.current.state !== 'closed') {
-      audioContextOutput.current.close().catch(() => { });
-    }
+    ws.current?.close();
+    mediaStream.current?.getTracks().forEach(track => track.stop());
+    audioContext.current?.close();
+    audioContextOutput.current?.close();
     setIsConnected(false);
   }, []);
 
-  return { connect, disconnect, isConnected, error, latency, isLowLatency };
+  const handleToolCall = (toolCall: any) => {
+    const functionCalls = toolCall.functionCalls;
+    const responses: any[] = [];
+
+    for (const call of functionCalls) {
+      if (call.name === "add_shopping_item") {
+        const { product_name, price, currency, quantity } = call.args;
+        const newItem = {
+          id: Date.now().toString(),
+          name: product_name,
+          price: Number(price),
+          currency: currency || 'USD',
+          quantity: Number(quantity) || 1
+        };
+        addItem(newItem);
+
+        if (onItemAdded) onItemAdded(newItem);
+
+        responses.push({
+          id: call.id,
+          name: call.name,
+          response: { result: "Item added successfully" }
+        });
+      }
+      else if (call.name === "remove_shopping_item") {
+        const { product_name } = call.args;
+        const itemToRemove = items.find(item => item.name.toLowerCase() === product_name.toLowerCase());
+        if (itemToRemove) {
+          removeItem(itemToRemove.id);
+          responses.push({
+            id: call.id,
+            name: call.name,
+            response: { result: `Item '${product_name}' eliminado correctamente.` }
+          });
+        } else {
+          responses.push({
+            id: call.id,
+            name: call.name,
+            response: { result: `Item '${product_name}' no encontrado en la lista.` }
+          });
+        }
+      }
+      else if (call.name === "update_shopping_item_quantity") {
+        const { product_name, new_quantity } = call.args;
+        const itemToUpdate = items.find(item => item.name.toLowerCase() === product_name.toLowerCase());
+        if (itemToUpdate) {
+          updateItem(itemToUpdate.id, { ...itemToUpdate, quantity: Number(new_quantity) });
+          responses.push({
+            id: call.id,
+            name: call.name,
+            response: { result: `Cantidad de '${product_name}' actualizada a ${new_quantity}.` }
+          });
+        } else {
+          responses.push({
+            id: call.id,
+            name: call.name,
+            response: { result: `Item '${product_name}' no encontrado para actualizar.` }
+          });
+        }
+      }
+    }
+
+    ws.current?.send(JSON.stringify({
+      toolResponse: {
+        functionResponses: responses
+      }
+    }));
+  };
+
+  return {
+    connect,
+    disconnect,
+    isConnected,
+    error,
+    latency: 0, // Mock for API compat
+    isLowLatency: false
+  };
 };
 
-// Helpers
-
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-}
-
+// Helper: Play Audio
 function playAudioChunk(base64String: string, context: AudioContext, nextStartTime: React.MutableRefObject<number>) {
-  if (context.state === 'closed') return;
   try {
     const binaryString = window.atob(base64String);
     const len = binaryString.length;
@@ -504,7 +315,6 @@ function playAudioChunk(base64String: string, context: AudioContext, nextStartTi
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // PCM 16-bit Little Endian
     const int16Data = new Int16Array(bytes.buffer);
     const float32Data = new Float32Array(int16Data.length);
 
