@@ -208,7 +208,29 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
     const activeLicense = license.active || license.tier === 'lifetime';
 
     try {
-      const systemContext = `DATOS EN TIEMPO REAL: Tasa USD: Bs ${rates.USD.toFixed(2)}, Tasa EUR: Bs ${rates.EUR.toFixed(2)}. ESTATUS USUARIO: ${activeLicense ? 'PREMIUM/PRO' : 'TRIAL'}.`;
+      const state = useAppStore.getState();
+      const userName = state.userName;
+      const machineId = state.machineId;
+      const isAdmin = state.license.tier === 'lifetime';
+
+      const systemContext = `
+      DATOS EN TIEMPO REAL: Tasa USD: Bs ${rates.USD.toFixed(2)}, Tasa EUR: Bs ${rates.EUR.toFixed(2)}. 
+      ESTATUS USUARIO: ${activeLicense ? 'PREMIUM/PRO' : 'TRIAL'}.
+      NOMBRE USUARIO: ${userName || 'No identificado'}.
+      MACHINE ID: ${machineId}.
+      ¿ES CREADOR/ADMIN?: ${isAdmin ? 'SÍ (Moisés)' : 'NO'}.
+      `;
+
+      // Fetch CORE stats if Admin
+      let coreStats = null;
+      if (isAdmin) {
+        try {
+          const { fetchCoreStats } = await import('../services/ratesService');
+          coreStats = await fetchCoreStats();
+        } catch (e) {
+          console.error('[ChatWidget] Failed to fetch core stats', e);
+        }
+      }
 
       // Construct history from previous messages
       // CRITICAL: Gemini requires the first message to be from 'user'.
@@ -225,7 +247,12 @@ export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: stri
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: textToSend, systemContext, history }),
+        body: JSON.stringify({
+          message: textToSend,
+          systemContext,
+          history,
+          coreStats: isAdmin ? coreStats : null
+        }),
       });
 
       if (!response.ok) {

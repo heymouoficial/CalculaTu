@@ -1,7 +1,7 @@
 // services/geminiService.ts
 // Using REST API for maximum reliability across all environments
 
-const CURRENT_MODEL = 'gemini-2.5-flash';
+const CURRENT_MODEL = 'gemini-1.5-flash';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
 Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
@@ -46,10 +46,23 @@ class SavaraChat {
     this.apiKey = key;
   }
 
-  async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: any[] = []): Promise<string> {
-    const finalSystemInstruction = dynamicSystemInstruction
+  async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: any[] = [], coreStats?: any): Promise<string> {
+    let finalSystemInstruction = dynamicSystemInstruction
       ? `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO ADICIONAL:\n${dynamicSystemInstruction}`
       : SAVARA_SYSTEM_PROMPT;
+
+    if (coreStats) {
+      finalSystemInstruction += `
+      ### CORE INTELLIGENCE (AUTORIZADO) ###
+      Blueprint: ${coreStats.systemStatus}
+      Users: ${coreStats.totalUsers}
+      Contracts: ${coreStats.activeSubscriptions}
+      Platform: ${coreStats.platform}
+      Recent Synchronizations: ${coreStats.recentActivity?.length || 0}
+      
+      IMPORTANTE: Eres Savara Core. Estos datos son confidenciales y solo para el Arquitecto (Moisés).
+      `;
+    }
 
     // Build conversation contents
     const contents = [
@@ -117,5 +130,6 @@ export const sendMessageToGemini = async (
   chat: SavaraChat,
   message: string,
   systemContext?: string,
-  history: any[] = []
-) => chat.sendMessage(message, systemContext, history);
+  history: any[] = [],
+  coreStats?: any
+) => chat.sendMessage(message, systemContext, history, coreStats);

@@ -4,8 +4,8 @@
 
 -   **Framework:** React 19
 -   **Build Tool:** Vite
--   **State Management:** Zustand
--   **Styling:** Tailwind CSS (con glassmorphism y utilidades personalizadas para Liquid Glass aesthetic)
+-   **State Management:** Zustand + TanStack Query
+-   **Styling:** Tailwind CSS 4 + ShadCN UI (with Liquid Glass aesthetic utilities)
 
 ## 2. Backend & API
 

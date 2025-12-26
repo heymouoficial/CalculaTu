@@ -9,7 +9,7 @@ export default async function handler(
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { message, systemContext, history } = req.body;
+  const { message, systemContext, history, coreStats } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
@@ -28,7 +28,7 @@ export default async function handler(
     const chatSession = createChatSession(key);
     console.log(`[API Chat] Sending message to Gemini. History length: ${history?.length || 0}`);
 
-    const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || []);
+    const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || [], coreStats);
     return res.status(200).json({ text: responseText });
   } catch (error: any) {
     console.error('[API Chat] CRITICAL ERROR:', {

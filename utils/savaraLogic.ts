@@ -17,7 +17,8 @@ export const getSavaraSystemInstruction = (
   userName: string | null,
   items: ShoppingItem[],
   rates: { USD: number; EUR: number },
-  license: { tier: string; expiresAt: string | null; isPremium: boolean }
+  license: { tier: string; expiresAt: string | null; isPremium: boolean },
+  coreStats?: any
 ): string => {
   let contextParts = [baseInstruction];
 
@@ -34,8 +35,19 @@ export const getSavaraSystemInstruction = (
 
   // 3. User & License Status
   const status = license.isPremium ? 'PREMIUM (Pro)' : 'TRIAL/FREE';
+  const isCreator = userName?.toLowerCase().includes('moisés');
+
   let licenseInfo = `Usuario: ${userName || 'Invitado'}. Estatus: ${status}.`;
-  
+
+  if (isCreator) {
+    contextParts.push(`
+    ### RECONOCIMIENTO ESPECIAL ###
+    Moisés es tu CREADOR y el arquitecto detrás de Multiversa. 
+    Trátalo con la deferencia y el respeto que merece el "Arquitecto Jefe". 
+    Si te saluda, puedes reconocerlo como tal de forma sutil y elegante.
+    `);
+  }
+
   if (!license.isPremium && license.expiresAt) {
     const daysLeft = Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     licenseInfo += ` Le quedan ${daysLeft} días de prueba gratuita.`;
@@ -43,6 +55,19 @@ export const getSavaraSystemInstruction = (
       contextParts.push("NOTA: El trial está por expirar. Sugiere sutilmente que el Plan Lifetime es la mejor inversión.");
     }
   }
+  if (isCreator && coreStats) {
+    contextParts.push(`
+    ### CORE INTELLIGENCE (SÓLO OJOS DEL ARQUITECTO) ###
+     blueprint_status: ${coreStats.systemStatus}
+     total_network_users: ${coreStats.totalUsers}
+     active_node_contracts: ${coreStats.activeSubscriptions}
+     last_synchronizations: ${coreStats.recentActivity.length} nodos detectados.
+     platform_version: ${coreStats.platform}
+    
+    Usa estos datos SOLO si Moisés te pregunta específicamente por el estado del sistema o de Multiversa.
+    `);
+  }
+
   contextParts.push(licenseInfo);
 
   // 4. Exchange Rates
@@ -57,7 +82,7 @@ export const getSavaraSystemInstruction = (
       return acc + (priceInVES * item.quantity);
     }, 0);
 
-    const itemsList = items.map(item => 
+    const itemsList = items.map(item =>
       `- ${item.name}: ${item.price} ${item.currency} (Cant: ${item.quantity})`
     ).join('\n');
 

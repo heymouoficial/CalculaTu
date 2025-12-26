@@ -10,6 +10,30 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
   // 1. Check if we have a remote contract first (Remote-First Sync)
   if (supabase) {
     try {
+      // 1.1 First check if the user is an admin in profiles
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('machine_id', machineId)
+        .maybeSingle();
+
+      if (profile?.role === 'admin') {
+        setLicense({
+          active: true,
+          tier: 'lifetime',
+          expiresAt: null,
+          token: 'ADMIN_AUTO_SYCHRONIZED',
+          featureToken: {
+            uic: machineId,
+            features: ['voice'],
+            expiresAt: null,
+            token: 'ADMIN_AUTO_SYCHRONIZED'
+          }
+        });
+        return;
+      }
+
+      // 1.2 Check for specific machine contract
       const { data, error } = await supabase
         .from('contracts')
         .select('*')
@@ -18,12 +42,41 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
         .maybeSingle();
 
       if (data && !error) {
-        // If we found a contract, use its data (Extended Trial or Paid License)
         setLicense({
           active: true,
           tier: data.plan as any,
           expiresAt: data.expires_at,
-          token: data.token
+          token: data.token,
+          featureToken: {
+            uic: machineId,
+            features: ['voice'],
+            expiresAt: data.expires_at,
+            token: data.token
+          }
+        });
+        return;
+      }
+
+      // 1.3 Fallback: Check for GLOBAL_USER active contract (Universal Master Key)
+      const { data: globalContract } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('machine_id', 'GLOBAL_USER')
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (globalContract) {
+        setLicense({
+          active: true,
+          tier: globalContract.plan as any,
+          expiresAt: globalContract.expires_at,
+          token: globalContract.token,
+          featureToken: {
+            uic: machineId,
+            features: ['voice'],
+            expiresAt: globalContract.expires_at,
+            token: globalContract.token
+          }
         });
         return;
       }

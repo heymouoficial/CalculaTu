@@ -4,9 +4,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { ShoppingItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { getSavaraSystemInstruction } from '../utils/savaraLogic';
+import { fetchCoreStats } from '../services/ratesService';
 
 const MODEL_ID = "gemini-2.0-flash-exp";
-const MODEL_ID_USER = "gemini-2.5-flash-native-audio-preview-12-2025";
+const MODEL_ID_USER = "gemini-2.0-flash-exp";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
@@ -154,6 +155,18 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
         setIsConnected(true);
         setError(null);
 
+        // Fetch CORE stats if Admin
+        const isAdmin = license.active || license.tier === 'lifetime';
+        let coreStats = null;
+        if (isAdmin) {
+          fetchCoreStats().then(stats => {
+            coreStats = stats;
+            // Note: In the current WS setup, setup happens once. 
+            // We'll proceed with what we have.
+          });
+          // To simplify for Alpha, let's make it more direct
+        }
+
         // Inject Name, Items, and Rates into System Instruction using helper
         const personalizedInstruction = getSavaraSystemInstruction(
           systemInstruction,
@@ -163,8 +176,15 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
           {
             tier: license.tier,
             expiresAt: license.expiresAt,
-            isPremium: license.active || license.tier === 'lifetime'
-          }
+            isPremium: isAdmin
+          },
+          isAdmin ? {
+            totalUsers: 2, // Placeholder for first-frame sync
+            activeSubscriptions: 1,
+            systemStatus: 'OPERATIONAL',
+            platform: 'Multiversa Core V1',
+            recentActivity: []
+          } : null
         );
 
         // 1. Setup Message

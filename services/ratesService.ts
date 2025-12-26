@@ -278,8 +278,30 @@ export async function updatePassword(newPassword: string): Promise<void> {
 }
 
 export async function signOut() {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  if (supabase) await supabase.auth.signOut();
+}
+
+/**
+ * CORE Intelligence: Fetch system-wide stats for admin context
+ */
+export async function fetchCoreStats() {
+  if (!supabase) return null;
+  try {
+    const { data: usersCount } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+    const { data: activeContracts } = await supabase.from('contracts').select('count', { count: 'exact', head: true }).eq('status', 'active');
+    const { data: recentGrowth } = await supabase.from('profiles').select('created_at').order('created_at', { ascending: false }).limit(5);
+
+    return {
+      totalUsers: usersCount || 0,
+      activeSubscriptions: activeContracts || 0,
+      recentActivity: recentGrowth?.map(u => u.created_at) || [],
+      systemStatus: 'OPERATIONAL',
+      platform: 'Multiversa Core V1'
+    };
+  } catch (err) {
+    console.error('[CoreStats] Error:', err);
+    return null;
+  }
 }
 
 
