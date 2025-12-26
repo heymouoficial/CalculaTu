@@ -6,7 +6,7 @@
 ## Phase 1: Security & Licensing (The "Warp" Logic)
 - [x] Task 1.1: Refactor `MachineID` generation to use SHA-256 and required device signals. [32bf8d0]
 - [x] Task 1.2: Update `useLicenseStore` to implement cryptographic validation with JWT. [b554df9]
-- [ ] Task 1.3: Securely store `NEXT_PUBLIC_APP_PUBLIC_KEY` and verify signatures.
+- [x] Task 1.3: Securely store `NEXT_PUBLIC_APP_PUBLIC_KEY` and verify signatures. [d87bc73]
 
 ## Phase 2: UI/UX Revolution (Mobile Layout Shift)
 - [ ] Task 2.1: Implement `StickyPricingHeader` with massive VES/USD totals in `CalculatorView`.
