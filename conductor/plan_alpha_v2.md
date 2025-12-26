@@ -9,7 +9,7 @@
 - [x] Task 1.3: Securely store `NEXT_PUBLIC_APP_PUBLIC_KEY` and verify signatures. [d87bc73]
 
 ## Phase 2: UI/UX Revolution (Mobile Layout Shift)
-- [ ] Task 2.1: Implement `StickyPricingHeader` with massive VES/USD totals in `CalculatorView`.
+- [x] Task 2.1: Implement `StickyPricingHeader` with massive VES/USD totals in `CalculatorView`. [0a0b822]
 - [ ] Task 2.2: Create `CommandDock` (Fixed Footer) for input and primary actions.
 - [ ] Task 2.3: Build Custom Numeric Keypad inside the Dock to avoid native keyboard shifts.
 - [ ] Task 2.4: Replace all Dialogs with Bottom Sheet Drawers (using ShadCN/Vaul).
