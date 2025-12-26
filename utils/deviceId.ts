@@ -68,61 +68,37 @@ async function saveUICToIndexedDB(uic: string): Promise<void> {
   }
 }
 
-function fnv1a64(input: string): bigint {
-  // 64-bit FNV-1a
-  let hash = 0xcbf29ce484222325n;
-  const prime = 0x100000001b3n;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= BigInt(input.charCodeAt(i));
-    hash = (hash * prime) & 0xffffffffffffffffn;
-  }
-  return hash;
-}
-
 function fingerprintString(): string {
   if (typeof window === 'undefined') return 'server';
   const nav = window.navigator as any;
+  const screen = window.screen || { width: 0, height: 0 };
   const tz = (() => {
     try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
     } catch {
-      return '';
-    }
-  })();
-
-  // Canvas Fingerprinting
-  const canvasHash = (() => {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return '';
-      canvas.width = 200;
-      canvas.height = 50;
-      ctx.textBaseline = 'top';
-      ctx.font = '16px "Arial"';
-      ctx.fillStyle = '#f60';
-      ctx.fillRect(125, 1, 62, 20);
-      ctx.fillStyle = '#069';
-      ctx.fillText('Multiversa Fingerprint v1', 2, 15);
-      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-      ctx.fillText('Multiversa Fingerprint v1', 4, 17);
-      return canvas.toDataURL();
-    } catch {
-      return 'canvas-error';
+      return 'UTC';
     }
   })();
 
   return [
     nav.userAgent || '',
-    nav.language || '',
-    (nav.languages || []).join(','),
-    tz,
-    nav.platform || '',
-    String(nav.hardwareConcurrency || ''),
-    String(nav.deviceMemory || ''),
-    `${window.screen?.width || ''}x${window.screen?.height || ''}x${window.screen?.colorDepth || ''}`,
-    canvasHash
+    String(screen.width || 0),
+    String(screen.height || 0),
+    tz
   ].join('|');
+}
+
+async function sha256(message: string): Promise<string> {
+  if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
+    // Fallback for SSR or environments without crypto
+    return 'server-or-no-crypto'; 
+  }
+  }
+  const msgUint8 = new TextEncoder().encode(message);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
 }
 
 // Legacy fallback: check localStorage for migration
@@ -159,9 +135,8 @@ export async function getOrCreateUIC(): Promise<string> {
 
   // 3. Generate new UIC
   const fp = fingerprintString();
-  const hash = fnv1a64(fp);
-  const base36 = hash.toString(36).toUpperCase();
-  const uic = `M-${base36.slice(0, 10).padEnd(10, '0')}`;
+  const hashHex = await sha256(fp);
+  const uic = `M-${hashHex.substring(0, 10).toUpperCase()}`;
   await saveUICToIndexedDB(uic);
   return uic;
 }
@@ -171,19 +146,15 @@ let cachedUIC: string | null = null;
 let uicPromise: Promise<string> | null = null;
 
 export function getOrCreateMachineId(): string {
-  // For Zustand store init, we need synchronous value
-  // Cache will be populated async on first call
   if (cachedUIC) return cachedUIC;
-  
+
   if (!uicPromise) {
     uicPromise = getOrCreateUIC().then((uic) => {
       cachedUIC = uic;
       return uic;
     });
   }
-  
-  // Return placeholder that will be updated when promise resolves
-  // Store will re-render when UIC is available
+
   return cachedUIC || 'M-LOADING...';
 }
 
@@ -193,9 +164,3 @@ if (typeof window !== 'undefined') {
     cachedUIC = uic;
   });
 }
-
-
-
-
-
-
