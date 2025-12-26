@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { jwtVerify } from 'jose';
+import { jwtVerify, importSPKI } from 'jose';
 
 export type LicenseTier = 'trial' | 'pro' | 'lifetime';
 
@@ -28,11 +28,12 @@ export const useLicenseStore = create<LicenseState>()(
       licenseToken: null,
       machineId: null,
 
-      setLicense: async (token, currentMachineId, secret) => {
+      setLicense: async (token, currentMachineId, publicKeyPem) => {
         try {
           // Validation logic (Anti-Warp)
-          const encoder = new TextEncoder();
-          const { payload } = await jwtVerify(token, encoder.encode(secret));
+          // Verify with Asymmetric Public Key (ES256)
+          const publicKey = await importSPKI(publicKeyPem, 'ES256');
+          const { payload } = await jwtVerify(token, publicKey);
 
           if (payload.sub !== currentMachineId) {
             return { success: false, error: 'Este token no pertenece a este dispositivo.' };
@@ -52,6 +53,7 @@ export const useLicenseStore = create<LicenseState>()(
 
           return { success: true };
         } catch (err: any) {
+          console.error('License validation error:', err);
           return { success: false, error: 'Token inválido o expirado.' };
         }
       },
