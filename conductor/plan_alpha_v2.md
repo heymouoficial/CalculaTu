@@ -4,7 +4,7 @@
 **Checkpoint:** [initial]
 
 ## Phase 1: Security & Licensing (The "Warp" Logic)
-- [ ] [~] Task 1.1: Refactor `MachineID` generation to use SHA-256 and required device signals.
+- [x] Task 1.1: Refactor `MachineID` generation to use SHA-256 and required device signals. [32bf8d0]
 - [ ] Task 1.2: Update `useLicenseStore` to implement cryptographic validation with JWT.
 - [ ] Task 1.3: Securely store `NEXT_PUBLIC_APP_PUBLIC_KEY` and verify signatures.
 
