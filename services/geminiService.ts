@@ -1,7 +1,7 @@
 // services/geminiService.ts
 // Using REST API for maximum reliability across all environments
 
-const CURRENT_MODEL = 'gemini-1.5-flash';
+const CURRENT_MODEL = 'gemini-2.5-flash';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
 Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
@@ -23,16 +23,11 @@ Responde siempre en español. Sé breve y útil.`;
 
 // Helper for Universal Environment Access
 const getGeminiApiKey = (): string | undefined => {
-  // Server-side (Vercel/Node)
-  if (typeof process !== 'undefined' && process.env) {
-    const key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    if (key) return key;
-  }
-  // Client-side (Vite)
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
-  }
-  return undefined;
+  // Try VITE prefix first as requested for standardization across client and server (Vercel)
+  const key = (typeof process !== 'undefined' && process.env ? process.env.VITE_GEMINI_API_KEY : undefined) ||
+    (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined) ||
+    (typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined);
+  return key;
 };
 
 // ==================== LANDING CHAT (REST API - RELIABLE) ====================
@@ -42,7 +37,11 @@ class SavaraChat {
 
   constructor(apiKey?: string) {
     const key = apiKey || getGeminiApiKey();
-    if (!key) throw new Error('CRITICAL: GEMINI_API_KEY not found in environment.');
+    if (!key) {
+      // This error message is adapted for the service context, as 'res' is not available here.
+      console.error('[SavaraChat] CRITICAL: GEMINI_API_KEY not found in environment.');
+      throw new Error('CRITICAL: GEMINI_API_KEY not found in environment.');
+    }
     this.apiKey = key;
   }
 
@@ -73,7 +72,7 @@ class SavaraChat {
       { role: 'user', parts: [{ text: userMessage }] }
     ];
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
 
     try {
       const response = await fetch(url, {

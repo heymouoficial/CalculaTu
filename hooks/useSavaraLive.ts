@@ -6,8 +6,8 @@ import { supabase } from '../services/supabaseClient';
 import { getSavaraSystemInstruction } from '../utils/savaraLogic';
 import { fetchCoreStats } from '../services/ratesService';
 
-const MODEL_ID = "gemini-2.0-flash-exp";
-const MODEL_ID_USER = "gemini-2.0-flash-exp";
+const MODEL_ID = "gemini-2.5-flash-native-audio-dialog";
+const MODEL_ID_USER = "gemini-2.5-flash-native-audio-dialog";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
@@ -135,8 +135,17 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
   ];
 
   const connect = useCallback(async (systemInstruction: string) => {
-    if (ws.current?.readyState === WebSocket.OPEN) return;
+    if (ws.current?.readyState === WebSocket.OPEN || isConnected) return;
+    setIsConnected(false); // Reset just in case
     setError(null);
+
+    // Cleanup previous contexts if they exist
+    if (audioContext.current && audioContext.current.state !== 'closed') {
+      await audioContext.current.close().catch(() => { });
+    }
+    if (audioContextOutput.current && audioContextOutput.current.state !== 'closed') {
+      await audioContextOutput.current.close().catch(() => { });
+    }
 
     try {
       // 1. Initialize Audio Contexts
@@ -232,8 +241,17 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
       ws.current.onclose = (event) => {
         console.log(`🔴 Savara Desconectada. Code: ${event.code}, Reason: ${event.reason}`);
         setIsConnected(false);
-        if (audioContext.current?.state !== 'closed') audioContext.current?.close();
-        if (audioContextOutput.current?.state !== 'closed') audioContextOutput.current?.close();
+
+        // Specific Quota Handling
+        if (event.reason?.toLowerCase().includes('quota') || event.code === 1011) {
+          setError({
+            code: 'API_LIMIT_REACHED',
+            message: "Has excedido tu cuota de Gemini. Verifica tu API Key o saldo en Google AI Studio."
+          });
+        }
+
+        if (audioContext.current?.state !== 'closed') audioContext.current?.close().catch(() => { });
+        if (audioContextOutput.current?.state !== 'closed') audioContextOutput.current?.close().catch(() => { });
       };
 
       ws.current.onmessage = async (event) => {
@@ -257,7 +275,7 @@ export const useSavaraLive = (config?: { onItemAdded?: (item: ShoppingItem) => v
         }
 
         const audioPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.inlineData?.data);
-        if (audioPart && audioContextOutput.current) {
+        if (audioPart && audioContextOutput.current && audioContextOutput.current.state !== 'closed') {
           playAudioChunk(audioPart.inlineData.data, audioContextOutput.current, nextStartTime);
         }
 
@@ -477,6 +495,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 }
 
 function playAudioChunk(base64String: string, context: AudioContext, nextStartTime: React.MutableRefObject<number>) {
+  if (context.state === 'closed') return;
   try {
     const binaryString = window.atob(base64String);
     const len = binaryString.length;

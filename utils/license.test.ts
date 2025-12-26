@@ -5,7 +5,7 @@ import { useAppStore } from '../store/useAppStore';
 describe('autoActivateTrial', () => {
   beforeEach(() => {
     // Clear localStorage and reset store
-    window.localStorage.clear();
+    localStorage.clear();
     useAppStore.setState({
       license: {
         active: false,

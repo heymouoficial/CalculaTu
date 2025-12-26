@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft, Calendar } from 'lucide-react';
+import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft, Calendar as CalendarIcon, Send, RefreshCcw } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlobalRates, resetPassword, updatePassword } from '../services/ratesService';
 import { supabase } from '../services/supabaseClient';
-import { DayPicker } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
 import { format, addDays, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
-import 'react-day-picker/style.css';
 
 // PIN Gate - Security layer before showing admin panel
 const PORTALITY_PIN = import.meta.env.VITE_PORTALITY_PIN || ''; // PIN must be set in .env.local
@@ -95,8 +94,26 @@ export const Portality: React.FC = () => {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [extendDate, setExtendDate] = useState('');
 
-  const canGenerate = useMemo(() => !!deviceId.trim() && (!!portalKey.trim() || true), [deviceId, portalKey]);
   const isAdminAuthed = authEmail === 'multiversagroup@gmail.com';
+
+  // LOGS SYSTEM
+  const [logs, setLogs] = useState<{ id: string; msg: string; type: 'info' | 'warn' | 'success'; time: string }[]>([]);
+
+  const addLog = (msg: string, type: 'info' | 'warn' | 'success' = 'info') => {
+    setLogs(prev => [{
+      id: Math.random().toString(36).substring(7),
+      msg,
+      type,
+      time: new Date().toLocaleTimeString()
+    }, ...prev].slice(0, 50));
+  };
+
+  useEffect(() => {
+    if (machineId && machineId !== 'LOADING...' && !deviceId) {
+      setDeviceId(machineId);
+      addLog(`M-Hash detectado: ${machineId}`, 'info');
+    }
+  }, [machineId, deviceId]);
 
   const fetchProfiles = async () => {
     if (!isAdminAuthed) return;
@@ -112,10 +129,50 @@ export const Portality: React.FC = () => {
     }
   };
 
+  const handleGeminiTest = async () => {
+    addLog('Iniciando Ping Diagnóstico a Gemini...', 'info');
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'ping' }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // The API returns { text: "..." } or similar
+        const responseText = data.text || data.response || '';
+        addLog(`Gemini respondió: ${responseText}`, 'success');
+      } else {
+        const errorData = await response.json();
+        const details = errorData.details || errorData.error || 'Error desconocido';
+        addLog(`Gemini Test Fallido: ${response.status} - ${details}`, 'warn');
+        if (details.includes('429') || details.toLowerCase().includes('quota')) {
+          addLog('🚨 Confirmado: Error 429 (Quota Exceeded). La cuenta actual no tiene saldo/cuota.', 'warn');
+        }
+      }
+    } catch (error: any) {
+      addLog(`Error de conexión con el servidor: ${error.message}`, 'warn');
+    }
+  };
+
   const handleExtendTrial = async () => {
     if (!deviceId || !extendDate || !isAdminAuthed) return;
+
+    // Date validation
+    const targetDate = new Date(extendDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (targetDate < today) {
+      setStatus('Error: No puedes asignar una fecha en el pasado.');
+      addLog('Intento de extensión fallido: Fecha en el pasado', 'warn');
+      return;
+    }
+
     setIsBusy(true);
     setStatus('');
+    addLog(`Extendiendo trial para ${deviceId}...`, 'info');
     try {
       const { error } = await supabase
         .from('contracts')
@@ -124,15 +181,17 @@ export const Portality: React.FC = () => {
           email: 'trial@portality.gen',
           plan: 'monthly',
           token: 'EXTENDED_VIA_DASHBOARD',
-          expires_at: new Date(extendDate).toISOString(),
+          expires_at: targetDate.toISOString(),
           status: 'active'
         }, { onConflict: 'machine_id' });
 
       if (error) throw error;
       setStatus('Trial extendido exitosamente ✅');
+      addLog(`Trial extendido: ${deviceId} hasta ${extendDate}`, 'success');
       fetchContracts();
     } catch (e: any) {
       setStatus(`Error: ${e.message}`);
+      addLog(`Error extendiendo trial: ${e.message}`, 'warn');
     } finally {
       setIsBusy(false);
     }
@@ -245,8 +304,10 @@ export const Portality: React.FC = () => {
     if (supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user?.email) {
-          setAuthEmail(session.user.email);
-          if (session.user.email === 'multiversagroup@gmail.com') {
+          const email = session.user.email;
+          setAuthEmail(email);
+          if (email === 'multiversagroup@gmail.com') {
+            addLog('Admin detectado. Sincronizando datos del Core...', 'info');
             fetchContracts();
             fetchProfiles();
           }
@@ -258,6 +319,8 @@ export const Portality: React.FC = () => {
           }
         } else {
           setAuthEmail(null);
+          setProfiles([]);
+          setContracts([]);
         }
       });
 
@@ -449,13 +512,16 @@ export const Portality: React.FC = () => {
   const handleSaveGlobalRates = async () => {
     setIsBusy(true);
     setStatus('');
+    addLog(`Publicando tasas manuales: $${globalUsd}...`, 'info');
     try {
       await upsertGlobalRates({ USD: globalUsd, EUR: globalEur, source: 'manual' });
       setStatus('Tasa global guardada en Supabase ✅');
+      addLog(`Tasas publicadas con éxito: $${globalUsd} / €${globalEur}`, 'success');
       const r = await fetchGlobalRates();
       if (r) setGlobalUpdatedAt(r.updatedAt ?? null);
     } catch (e: any) {
       setStatus(e?.message || 'No pude guardar la tasa global');
+      addLog(`Error publicando tasas: ${e.message}`, 'warn');
     } finally {
       setIsBusy(false);
     }
@@ -663,356 +729,259 @@ export const Portality: React.FC = () => {
 
   // === DASHBOARD VIEW (AUTHED) ===
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-10 animate-fade-in">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-black text-white px-4 py-10 animate-fade-in font-sans selection:bg-emerald-500/30">
+      <div className="max-w-[1400px] mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <ShieldCheck size={18} />
+        <div className="flex items-center justify-between mb-10 pb-6 border-b border-white/5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black shadow-lg shadow-emerald-500/20">
+              <ShieldCheck size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight">Portality <span className="text-emerald-500">Unlocked</span></h1>
-              <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
+                Portality <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded text-sm font-bold uppercase tracking-widest">Unlocked</span>
+              </h1>
+              <div className="flex items-center gap-2 mt-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <p className="text-xs text-gray-500 font-mono">{authEmail}</p>
+                <p className="text-xs text-gray-500 font-mono tracking-tighter">{authEmail}</p>
               </div>
             </div>
           </div>
           <button
             onClick={handleAdminLogout}
-            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/50 transition-all"
-            title="Cerrar Sesión"
+            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2 text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest"
           >
-            <LogOut size={16} />
+            <LogOut size={14} /> Cerrar Sesión
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          {/* === COLUMN 1: RATES === */}
-          <div className="space-y-5">
-            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-sm font-black uppercase tracking-widest text-gray-300">Tasa Global (Supabase)</h2>
-                <div className="px-2 py-1 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-gray-500">
-                  {globalUpdatedAt ? new Date(globalUpdatedAt).toLocaleTimeString() : 'Syncing...'}
+          {/* === LEFT COLUMN: RATES & METRICS (4/12) === */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-emerald-500/10 transition-colors"></div>
+
+              <div className="flex items-center justify-between mb-8 relative z-10">
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Tasa Oficial (BCV)</h2>
+                <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-500">
+                  {globalUpdatedAt ? format(new Date(globalUpdatedAt), 'HH:mm:ss') : 'Syncing...'}
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2 mb-2">
-                    <DollarSign size={12} className="text-blue-400" /> Precio USD (BCV)
+              <div className="space-y-6 relative z-10">
+                <div className="p-6 bg-black/40 border border-white/5 rounded-[2rem] hover:border-emerald-500/30 transition-colors group/input">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 flex items-center gap-2 mb-3">
+                    <DollarSign size={14} className="text-emerald-500" /> Precio USD
                   </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={globalUsd || ''}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(',', '.');
-                      if (/^\d*\.?\d*$/.test(val)) {
-                        setGlobalUsd(val as any);
-                      }
-                    }}
-                    onBlur={() => setGlobalUsd(parseFloat(String(globalUsd)) || 0)}
-                    className="w-full bg-transparent text-white font-mono font-bold text-2xl outline-none placeholder:text-gray-700"
-                    placeholder="0.00"
-                  />
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black text-gray-700 font-mono">Bs.</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={globalUsd || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(',', '.');
+                        if (/^\d*\.?\d*$/.test(val)) setGlobalUsd(val as any);
+                      }}
+                      className="w-full bg-transparent text-white font-mono font-black text-4xl outline-none placeholder:text-gray-800"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
-                <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2 mb-2">
-                    <Euro size={12} className="text-purple-400" /> Precio EUR (BCV)
+
+                <div className="p-6 bg-black/40 border border-white/5 rounded-[2rem] hover:border-blue-500/30 transition-colors group/input">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 flex items-center gap-2 mb-3">
+                    <Euro size={14} className="text-blue-500" /> Precio EUR
                   </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={globalEur || ''}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(',', '.');
-                      if (/^\d*\.?\d*$/.test(val)) {
-                        setGlobalEur(val as any);
-                      }
-                    }}
-                    onBlur={() => setGlobalEur(parseFloat(String(globalEur)) || 0)}
-                    className="w-full bg-transparent text-white font-mono font-bold text-2xl outline-none placeholder:text-gray-700"
-                    placeholder="0.00"
-                  />
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black text-gray-700 font-mono">Bs.</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={globalEur || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(',', '.');
+                        if (/^\d*\.?\d*$/.test(val)) setGlobalEur(val as any);
+                      }}
+                      className="w-full bg-transparent text-white font-mono font-black text-4xl outline-none placeholder:text-gray-800"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
 
                 <button
                   onClick={handleSaveGlobalRates}
                   disabled={isBusy}
-                  className="w-full py-4 rounded-xl bg-white text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+                  className="w-full py-5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5"
                 >
-                  <Save size={14} /> {isBusy ? 'Guardando...' : 'Publicar Tasas'}
+                  <Save size={16} /> {isBusy ? 'Guardando...' : 'Actualizar Base de Datos'}
                 </button>
+              </div>
+            </div>
 
-                {status && status.includes('Tasa') && (
-                  <p className="text-center text-[10px] text-emerald-500 font-mono bg-emerald-500/10 py-2 rounded-lg">{status}</p>
-                )}
+            {/* Quick Stats Summary */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 rounded-[2rem] bg-[#111] border border-white/5 text-center">
+                <p className="text-[10px] font-black text-gray-500 uppercase mb-1">Nodos</p>
+                <div className="text-2xl font-black">{profiles.length}</div>
+              </div>
+              <div className="p-6 rounded-[2rem] bg-[#111] border border-white/5 text-center">
+                <p className="text-[10px] font-black text-gray-500 uppercase mb-1">Activos</p>
+                <div className="text-2xl font-black text-emerald-500">{contracts.filter(c => c.status === 'active').length}</div>
               </div>
             </div>
           </div>
 
-          {/* === COLUMN 2: LICENSES & USERS === */}
-          <div className="space-y-5">
-            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
+          {/* === CENTER COLUMN: USERS & CONTRACTS (4/12) === */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="p-6 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-sm font-black uppercase tracking-widest text-gray-300">Usuarios Globales</h2>
-                <div className="px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-500">
-                  {profiles.length} REGISTRADOS
-                </div>
+                <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">Explorador de Nodos</h2>
+                <Fingerprint size={16} className="text-gray-700" />
               </div>
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+
+              <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
                 {profiles.length === 0 ? (
-                  <p className="text-[10px] text-gray-600 font-mono text-center py-8">No hay usuarios registrados aún.</p>
+                  <div className="flex flex-col items-center justify-center py-20 text-gray-600 italic">
+                    <Mail size={32} className="mb-4 opacity-10" />
+                    <p className="text-[11px]">Buscando señales...</p>
+                  </div>
                 ) : (
                   profiles.map((p) => (
-                    <div key={p.machine_id} className="p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-white/80">{p.full_name || 'Sin Nombre'}</span>
-                        <button
-                          onClick={() => {
-                            setDeviceId(p.machine_id);
-                            setStatus(`Usuario seleccionado: ${p.full_name || p.machine_id}`);
-                          }}
-                          className="text-[9px] bg-white/5 px-2 py-1 rounded text-gray-400 hover:bg-emerald-500 hover:text-black transition-all"
-                        >
-                          Cargar ID
-                        </button>
+                    <div
+                      key={p.machine_id}
+                      onClick={() => setDeviceId(p.machine_id)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer group ${deviceId === p.machine_id ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold text-white group-hover:text-emerald-400 transition-colors uppercase">{p.full_name || 'Agente Desconocido'}</span>
+                        <div className={`w-1.5 h-1.5 rounded-full ${p.role === 'admin' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
                       </div>
-                      <div className="flex flex-col gap-0.5 mt-1">
-                        <span className="text-[9px] text-emerald-500 font-mono">{p.machine_id}</span>
-                        {p.email && <span className="text-[8px] text-gray-500">{p.email}</span>}
-                      </div>
+                      <code className="text-[9px] text-gray-500 font-mono block truncate">{p.machine_id}</code>
                     </div>
                   ))
                 )}
               </div>
-            </div>
 
-            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Generador de Licencias</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID (Machine Hash)</label>
-                  <input
-                    value={deviceId}
-                    onChange={(e) => setDeviceId(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-emerald-500/50"
-                    placeholder="Pegar ID del cliente..."
-                  />
-                </div>
-
-                <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/5">
-                  <button
-                    onClick={() => setPlan('monthly')}
-                    className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${plan === 'monthly' ? 'bg-emerald-500 text-black shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    Mensual
-                  </button>
-                  <button
-                    onClick={() => setPlan('lifetime')}
-                    className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${plan === 'lifetime' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    Lifetime
-                  </button>
-                </div>
-
-                {plan === 'monthly' && (
-                  <div className="flex items-center gap-4 border border-white/10 rounded-xl p-3">
-                    <span className="text-[10px] font-black text-gray-500 uppercase">Validez:</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={24}
-                      value={months}
-                      onChange={(e) => setMonths(Math.max(1, Math.min(24, parseInt(e.target.value || '1', 10))))}
-                      className="w-16 bg-transparent text-center font-mono font-bold border-b border-white/20 outline-none"
-                    />
-                    <span className="text-xs text-gray-400">meses</span>
-                  </div>
-                )}
-
-                <div className="pt-4 border-t border-dashed border-gray-800">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={!canGenerate || isBusy}
-                    className="w-full py-3 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 font-black uppercase tracking-widest text-xs hover:bg-emerald-500 hover:text-black transition-all"
-                  >
-                    Generar Token Firmado
-                  </button>
-                </div>
-
-                {token && (
-                  <div className="mt-4 animate-fade-in space-y-3">
-                    <div className="relative group">
-                      <textarea
-                        readOnly
-                        value={token}
-                        onClick={(e) => (e.target as HTMLTextAreaElement).select()}
-                        className="w-full h-24 bg-black/60 border border-emerald-500/30 rounded-xl p-3 font-mono text-[10px] text-emerald-500/80 outline-none resize-none focus:border-emerald-500 transition-colors"
-                      />
-                      <button
-                        onClick={handleCopy}
-                        className={`absolute top-2 right-2 p-2 rounded-lg transition-all shadow-lg ${copied ? 'bg-emerald-500 text-black' : 'bg-white/10 text-white hover:bg-emerald-500 hover:text-black'}`}
-                      >
-                        {copied ? <Check size={14} /> : <Copy size={14} />}
-                      </button>
+              <div className="mt-6 pt-6 border-t border-white/5">
+                <h3 className="text-[10px] font-black uppercase text-gray-600 mb-4 tracking-widest">Últimos Contratos</h3>
+                <div className="space-y-2">
+                  {contracts.slice(0, 5).map(c => (
+                    <div key={c.id} className="flex items-center justify-between p-2 rounded-xl bg-black/20 text-[10px]">
+                      <span className="font-mono text-gray-500">{c.machine_id.slice(0, 8)}...</span>
+                      <span className={`font-black uppercase text-[8px] px-1.5 py-0.5 rounded ${c.plan === 'lifetime' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>{c.plan}</span>
                     </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
 
+          {/* === RIGHT COLUMN: LICENSE GEN (4/12) === */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl">
+              <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500 mb-8 flex items-center gap-2">
+                <KeyRound size={16} /> Forjado de Licencias
+              </h2>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-2 block">ID del Dispositivo</label>
+                  <div className="flex gap-2">
+                    <input
+                      value={deviceId}
+                      onChange={(e) => setDeviceId(e.target.value)}
+                      className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs text-emerald-400 outline-none focus:border-emerald-500/50"
+                      placeholder="M-XXXX-XXXX"
+                    />
                     <button
-                      onClick={handleCopy}
-                      className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all ${copied ? 'bg-emerald-500 text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                        }`}
+                      onClick={() => setDeviceId('GLOBAL_USER')}
+                      className={`px-3 rounded-xl border transition-all text-[9px] font-black ${deviceId === 'GLOBAL_USER' ? 'bg-purple-500 border-purple-400 text-white' : 'bg-white/5 border-white/10 text-gray-500'}`}
                     >
-                      {copied ? (
-                        <><Check size={14} /> ¡Copiado!</>
-                      ) : (
-                        <><Copy size={14} /> Copiar Token de Licencia</>
-                      )}
+                      GLOBAL
                     </button>
                   </div>
-                )}
-
-                {status && !status.includes('Tasa') && (
-                  <p className="text-center text-[10px] text-gray-400 font-mono mt-2 border-t border-white/5 pt-2">{status}</p>
-                )}
-
-              </div>
-            </div>
-
-            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Contratos Recientes</h2>
-              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                {contracts.length === 0 ? (
-                  <p className="text-[10px] text-gray-600 font-mono text-center py-8">No hay contratos registrados aún.</p>
-                ) : (
-                  contracts.map((c) => (
-                    <div key={c.id} className="p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-emerald-500">{c.machine_id}</span>
-                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${c.plan === 'lifetime' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                          {c.plan}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-[9px] text-gray-500">
-                          Exp: {c.expires_at ? new Date(c.expires_at).toLocaleDateString() : '—'}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setDeviceId(c.machine_id);
-                            setToken(c.token);
-                            setCopied(false);
-                          }}
-                          className="text-[9px] text-emerald-500/50 hover:text-emerald-500 transition-colors"
-                        >
-                          Cargar
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="p-6 rounded-[2rem] bg-[#111] border border-white/10">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-300 mb-6">Gestión de Trials</h2>
-              <div className="space-y-4">
-                <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/5 mb-2">
-                  <button
-                    onClick={() => setDeviceId('GLOBAL_USER')}
-                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId === 'GLOBAL_USER' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    Asignar GLOBAL
-                  </button>
-                  <button
-                    onClick={() => setDeviceId('')}
-                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${deviceId !== 'GLOBAL_USER' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    Usuario Específico
-                  </button>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Device ID del Usuario</label>
-                  <input
-                    value={deviceId}
-                    onChange={(e) => setDeviceId(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-blue-500/50"
-                    placeholder="ID del cliente..."
-                    disabled={deviceId === 'GLOBAL_USER'}
-                  />
-                </div>
-
-                {/* Quick Date Presets */}
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 block flex items-center gap-2">
-                    <Calendar size={12} className="text-blue-400" /> Fecha de Expiración
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 block flex items-center gap-2">
+                    <CalendarIcon size={14} className="text-blue-500" /> Vencimiento del Contrato
                   </label>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {[
-                      { label: '+7 días', days: 7 },
-                      { label: '+30 días', days: 30 },
-                      { label: '+90 días', days: 90 },
-                      { label: '+1 año', days: 365 },
-                    ].map((preset) => (
-                      <button
-                        key={preset.days}
-                        onClick={() => setExtendDate(format(addDays(new Date(), preset.days), 'yyyy-MM-dd'))}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-bold hover:bg-blue-500/30 transition-all"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
 
-                  {/* Interactive Calendar */}
-                  <div className="bg-black/40 border border-white/10 rounded-2xl p-3 overflow-hidden">
-                    <DayPicker
+                  <div className="p-4 bg-black/40 border border-white/10 rounded-[2rem] flex justify-center overflow-hidden">
+                    <Calendar
                       mode="single"
                       selected={extendDate ? new Date(extendDate) : undefined}
                       onSelect={(date) => date && setExtendDate(format(date, 'yyyy-MM-dd'))}
-                      locale={es}
                       disabled={{ before: new Date() }}
-                      modifiersClassNames={{
-                        selected: 'bg-blue-500 text-white rounded-lg',
-                        today: 'border-2 border-emerald-500 rounded-lg font-bold',
-                        disabled: 'text-gray-700 cursor-not-allowed opacity-30 line-through'
-                      }}
-                      classNames={{
-                        root: 'text-white text-sm',
-                        month_caption: 'text-white font-bold text-center mb-2',
-                        weekday: 'text-gray-500 text-[10px] font-bold',
-                        day: 'text-white hover:bg-white/10 rounded-lg transition-colors p-2 text-center cursor-pointer',
-                        day_button: 'w-full h-full',
-                        chevron: 'fill-white',
-                        nav: 'flex justify-between mb-2',
-                        months: 'flex flex-col'
-                      }}
+                      className="rounded-xl border border-white/5 bg-black/40"
                     />
                   </div>
-
-                  {extendDate && (
-                    <div className="mt-3 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-                      <span className="text-[10px] text-emerald-500 font-mono">
-                        Fecha seleccionada: <strong>{format(new Date(extendDate), 'dd MMM yyyy', { locale: es })}</strong>
-                      </span>
-                    </div>
-                  )}
                 </div>
+
                 <button
                   onClick={handleExtendTrial}
                   disabled={isBusy || !deviceId || !extendDate}
-                  className="w-full py-3 rounded-xl bg-blue-500/20 border border-blue-500/50 text-blue-400 font-black uppercase tracking-widest text-xs hover:bg-blue-500 hover:text-white transition-all disabled:opacity-30"
+                  className="w-full py-5 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black uppercase tracking-widest text-xs hover:from-blue-500 hover:to-blue-400 transition-all shadow-xl shadow-blue-500/20 disabled:opacity-20"
                 >
-                  {isBusy ? 'Procesando...' : 'Extender Trial / Forzar Licencia'}
+                  {isBusy ? 'Firmando Contrato...' : 'Firmar y Activar Licencia'}
                 </button>
+
+                {status && (
+                  <p className="text-center text-[10px] font-mono p-3 bg-white/5 rounded-xl border border-white/5 text-gray-400">{status}</p>
+                )}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* === BOTTOM SECTION: REAL-TIME LOGS & DIAGNOSTICS === */}
+        <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl relative overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Activity Logs (Real-time)</h2>
+              </div>
+              <button
+                onClick={() => setLogs([])}
+                className="text-[10px] font-black uppercase tracking-widest text-gray-600 hover:text-white transition-colors"
+              >
+                Limpiar Consola
+              </button>
+            </div>
+
+            <div className="font-mono text-[11px] space-y-2 h-[300px] overflow-y-auto pr-4 custom-scrollbar bg-black/40 p-6 rounded-3xl border border-white/5">
+              {logs.length === 0 ? (
+                <div className="text-gray-700 py-10 text-center italic">Esperando eventos del sistema...</div>
+              ) : (
+                logs.map(log => (
+                  <div key={log.id} className="flex gap-4 group">
+                    <span className="text-gray-600 shrink-0">[{log.time}]</span>
+                    <span className={`shrink-0 font-bold uppercase ${log.type === 'success' ? 'text-emerald-500' : log.type === 'warn' ? 'text-red-500' : 'text-blue-500'}`}>
+                      {log.type}
+                    </span>
+                    <span className="text-gray-300 group-hover:text-white transition-colors">{log.msg}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl flex flex-col justify-center items-center text-center group">
+            <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform">
+              <RefreshCcw size={32} className={isBusy ? 'animate-spin' : ''} />
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-widest mb-2">Gemini Diagnostics</h3>
+            <p className="text-[10px] text-gray-500 mb-6">Verifica si el API Key actual tiene cuota disponible y responde correctamente.</p>
+            <button
+              onClick={handleGeminiTest}
+              disabled={isBusy}
+              className="w-full py-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 font-bold text-xs uppercase hover:bg-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Send size={14} /> {isBusy ? 'Testeando...' : 'Testear Conectividad'}
+            </button>
           </div>
         </div>
       </div>

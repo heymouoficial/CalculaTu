@@ -16,16 +16,18 @@ export default async function handler(
   }
 
   try {
-    const key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    const key = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     if (!key) {
-      console.error('[API Chat] CRITICAL: No API Key found in environment.');
+      console.error('[API Chat] CRITICAL: VITE_GEMINI_API_KEY not found in environment.');
       return res.status(500).json({
         error: 'Configuration Error',
-        details: 'API Key not found in server environment.'
+        details: 'API Key (VITE_GEMINI_API_KEY) not found in server environment.'
       });
     }
 
     const chatSession = createChatSession(key);
+    const maskedKey = `${key.slice(0, 6)}...${key.slice(-4)}`;
+    console.log(`[API Chat] Using Key: ${maskedKey}`);
     console.log(`[API Chat] Sending message to Gemini. History length: ${history?.length || 0}`);
 
     const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || [], coreStats);

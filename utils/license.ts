@@ -105,7 +105,8 @@ export async function activateChristmasPromo(machineId: string): Promise<void> {
   // Don't downgrade a lifetime user
   if (license.tier === 'lifetime') return;
 
-  const expiresAt = new Date(Date.now() + TRIAL_DURATION_MS).toISOString();
+  // PRO Extendido hasta el 28 de Diciembre 2024 (00:00 hora local)
+  const expiresAt = new Date('2024-12-28T00:00:00').toISOString();
 
   setLicense({
     active: true,

@@ -9,6 +9,7 @@ import { useAppStore } from '../store/useAppStore';
 import { generateDiagnosticReport, formatDiagnosticReport } from '../utils/diagnostics';
 import { forceRefreshRates } from '../services/ratesService';
 import { OnboardingFlow, useOnboarding } from './OnboardingFlow';
+import { FeedbackButton } from './FeedbackForm';
 import { BUILD_VERSION } from '../config';
 import { Confetti } from './Confetti';
 import { Logo } from './Logo';
@@ -17,7 +18,6 @@ import { showToast, ToastContainer } from './Toast';
 import { SavaraCallModal } from './SavaraCallModal';
 import { supabase } from '../services/supabaseClient';
 import { useSavaraLive } from '../hooks/useSavaraLive';
-import { StickyPricingHeader } from './StickyPricingHeader';
 
 interface CalculatorViewProps {
   onBack: () => void;
@@ -28,9 +28,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const addItem = useAppStore(s => s.addItem);
   const removeItem = useAppStore(s => s.removeItem);
   const clearItems = useAppStore(s => s.clearItems);
-  const {
-    connect: connectSavara,
-    disconnect: disconnectSavara,
+  const { 
+    connect: connectSavara, 
+    disconnect: disconnectSavara, 
     isConnected: isSavaraConnected,
     latency,
     isLowLatency
@@ -494,14 +494,149 @@ INSTRUCCIONES CLAVE:
   return (
     <div className="h-screen bg-black flex flex-col font-sans overflow-hidden select-none relative">
 
-      <StickyPricingHeader 
-        totalBs={currentTotals.bs}
-        totalUsd={currentTotals.usd}
-        rateUsd={rates.USD}
-      />
+      {/* HEADER BAR */}
+      <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+
+        {/* Left: Back & Brand */}
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-white/10 transition-all">
+            <ArrowLeft size={18} />
+          </button>
+          <Logo size={32} />
+          <div className="flex flex-col">
+            <span className="text-sm font-black tracking-tight text-white leading-none">CalculaTú</span>
+            <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider flex items-center gap-1">
+              <Calendar size={8} /> {currentDateDisplay}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {items.length > 0 && license.active && (
+            <button
+              onClick={handleFinish}
+              className="p-2.5 bg-emerald-500 text-black rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:scale-105 transition-all animate-fade-in"
+              title="Generar Voucher (Pro)"
+            >
+              <ReceiptText size={18} strokeWidth={2.5} />
+            </button>
+          )}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:rotate-90 duration-500"
+          >
+            <Settings size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Totals Display */}
+      <div className="pt-20 pb-6 flex flex-col items-center justify-center bg-gradient-to-b from-emerald-500/5 to-transparent">
+        <span className="text-[10px] font-extrabold text-emerald-500 tracking-[0.3em] uppercase mb-1">Total a Pagar</span>
+        <div className="flex items-baseline gap-3 mb-4">
+          <span className="text-6xl font-bold tracking-tighter text-white font-mono">
+            {currentTotals.bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          <span className="text-2xl font-bold text-emerald-500 italic">Bs.</span>
+        </div>
+
+        {/* Budget Progress Bar - Enhanced with gradient */}
+        {budgetLimit > 0 && (() => {
+          const percentage = Math.min(100, (currentTotals.usd / budgetLimit) * 100);
+          const isOver = currentTotals.usd > budgetLimit;
+          const remaining = budgetLimit - currentTotals.usd;
+
+          // Progressive color based on percentage
+          const getBarColor = () => {
+            if (isOver) return 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]';
+            if (percentage > 80) return 'bg-gradient-to-r from-yellow-500 to-red-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]';
+            if (percentage > 50) return 'bg-gradient-to-r from-emerald-500 to-yellow-500';
+            return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]';
+          };
+
+          const getTextColor = () => {
+            if (isOver) return 'text-red-400';
+            if (percentage > 80) return 'text-yellow-400';
+            return 'text-emerald-400';
+          };
+
+          return (
+            <div className="w-full max-w-[280px] mt-2 mb-4 px-4">
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
+                <span className="text-gray-500">Presupuesto</span>
+                <span className={getTextColor()}>
+                  {Math.round(percentage)}%
+                </span>
+              </div>
+              <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/10">
+                <div
+                  className={`h-full transition-all duration-500 rounded-full ${getBarColor()}`}
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
+              <p className={`text-center text-[10px] mt-2 font-mono ${isOver ? 'text-red-400 font-bold' : 'text-gray-500'}`}>
+                {isOver
+                  ? `¡Excediste ${Math.abs(remaining).toFixed(2)} USD!`
+                  : `Quedan $${remaining.toFixed(2)} de $${budgetLimit.toFixed(2)}`}
+              </p>
+            </div>
+          );
+        })()}
+
+        {/* Currency Pills */}
+        <div className="flex gap-4">
+          <div className="bg-[#111] border border-white/5 rounded-full px-5 py-2 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+            <span className="text-sm font-bold font-mono text-gray-200">$ {currentTotals.usd.toFixed(2)}</span>
+          </div>
+          <div className="bg-[#111] border border-white/5 rounded-full px-5 py-2 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+            <span className="text-sm font-bold font-mono text-gray-200">€ {currentTotals.eur.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Rates Bar */}
+      <div className="w-full border-y border-white/5 bg-black/40 py-2 flex flex-col items-center gap-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-emerald-400/70 font-medium tracking-wider">Tasas en tiempo real • BCV</span>
+          <button
+            onClick={async () => {
+              setIsRefreshingRates(true);
+              const newRates = await forceRefreshRates();
+              if (newRates) {
+                setRatesTemporarily({ USD: newRates.USD, EUR: newRates.EUR });
+                showToast('Tasas actualizadas ✅', 'success');
+              } else {
+                showToast('Error al actualizar tasas', 'error');
+              }
+              setIsRefreshingRates(false);
+            }}
+            disabled={isRefreshingRates}
+            className="p-1 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50"
+            title="Actualizar tasas"
+          >
+            <RefreshCcw size={12} className={`text-emerald-400 ${isRefreshingRates ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+        <div className="flex justify-center gap-8 items-center text-xs font-black uppercase tracking-widest text-gray-500">
+          <div className="flex gap-2 items-center">
+            <DollarSign size={16} className="text-emerald-400" />
+            <span className="text-white font-mono">Bs {rates.USD.toFixed(2)}</span>
+            {renderDelta(rates.USD, rates.prevUSD)}
+          </div>
+          <div className="h-3 w-px bg-white/10"></div>
+          <div className="flex gap-2 items-center">
+            <Euro size={16} className="text-purple-400" />
+            <span className="text-white font-mono">Bs {rates.EUR.toFixed(2).replace('.', ',')}</span>
+            {renderDelta(rates.EUR, rates.prevEUR)}
+          </div>
+        </div>
+      </div>
 
       {/* Main Content Area (List) */}
-      <div className="flex-1 overflow-y-auto px-4 pb-48 pt-4 space-y-3 custom-scroll">
+      <div className="flex-1 relative overflow-hidden flex flex-col items-center px-4 pb-44">
         {items.length === 0 ? (
           <div className="mt-12 flex flex-col items-center justify-center opacity-50">
             <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 border border-white/5">
@@ -1313,6 +1448,9 @@ INSTRUCCIONES CLAVE:
         .animate-fade-in-up { animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
         .custom-scroll::-webkit-scrollbar { display: none; }
       `}</style>
+
+      {/* Feedback Button */}
+      <FeedbackButton />
 
       {/* Version Badge */}
       <div className="fixed bottom-2 right-2 z-30 text-[10px] text-gray-600 font-mono bg-black/50 px-2 py-0.5 rounded">
