@@ -16,7 +16,8 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
 
   // 0. Priority: Temporary Global Free Trial until Jan 2026
   if (isTemporaryFreeTrialActive()) {
-    if (!license.active || license.tier !== 'lifetime') {
+    const isPremium = license.active && (license.tier === 'lifetime' || license.tier === 'pro' || license.tier === 'monthly');
+    if (!isPremium) {
       setLicense({
         active: true,
         tier: 'trial',
