@@ -29,6 +29,22 @@ export const useLicenseStore = create<LicenseState>()(
       machineId: null,
 
       setLicense: async (token, currentMachineId, secret) => {
+        // 0. Priority: Temporary Free Pass 2026
+        if (token === 'TEMP_FREE_PASS_2026') {
+          const expiry = '2026-01-01T00:00:00Z';
+          if (new Date() < new Date(expiry)) {
+            set({
+              isPremium: true,
+              tier: 'trial',
+              expirationDate: expiry,
+              licenseToken: token,
+              machineId: currentMachineId,
+              userEmail: 'free@calculatu.com'
+            });
+            return { success: true };
+          }
+        }
+
         try {
           // Validation logic (Anti-Warp)
           const encoder = new TextEncoder();
