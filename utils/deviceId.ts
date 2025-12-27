@@ -68,15 +68,13 @@ async function saveUICToIndexedDB(uic: string): Promise<void> {
   }
 }
 
-function fnv1a64(input: string): bigint {
-  // 64-bit FNV-1a
-  let hash = 0xcbf29ce484222325n;
-  const prime = 0x100000001b3n;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= BigInt(input.charCodeAt(i));
-    hash = (hash * prime) & 0xffffffffffffffffn;
-  }
-  return hash;
+async function sha256(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const cryptoImpl = typeof window !== 'undefined' ? (window.crypto || (window as any).msCrypto) : crypto;
+  const hashBuffer = await cryptoImpl.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
 }
 
 function fingerprintString(): string {
@@ -159,9 +157,8 @@ export async function getOrCreateUIC(): Promise<string> {
 
   // 3. Generate new UIC
   const fp = fingerprintString();
-  const hash = fnv1a64(fp);
-  const base36 = hash.toString(36).toUpperCase();
-  const uic = `M-${base36.slice(0, 10).padEnd(10, '0')}`;
+  const hash = await sha256(fp);
+  const uic = `M-${hash.slice(0, 10).toUpperCase()}`;
   await saveUICToIndexedDB(uic);
   return uic;
 }
@@ -171,8 +168,6 @@ let cachedUIC: string | null = null;
 let uicPromise: Promise<string> | null = null;
 
 export function getOrCreateMachineId(): string {
-  // For Zustand store init, we need synchronous value
-  // Cache will be populated async on first call
   if (cachedUIC) return cachedUIC;
   
   if (!uicPromise) {
@@ -182,8 +177,6 @@ export function getOrCreateMachineId(): string {
     });
   }
   
-  // Return placeholder that will be updated when promise resolves
-  // Store will re-render when UIC is available
   return cachedUIC || 'M-LOADING...';
 }
 
@@ -193,9 +186,3 @@ if (typeof window !== 'undefined') {
     cachedUIC = uic;
   });
 }
-
-
-
-
-
-

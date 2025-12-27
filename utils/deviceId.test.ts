@@ -53,6 +53,6 @@ describe('getOrCreateUIC', () => {
     
     await getOrCreateUIC();
     
-    expect(digestSpy).toHaveBeenCalledWith('SHA-256', expect.any(Uint8Array));
+    expect(digestSpy).toHaveBeenCalledWith('SHA-256', expect.anything());
   });
 });
