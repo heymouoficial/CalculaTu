@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
 
-const MODEL = "gemini-2.0-flash-exp";
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const MODEL = "models/gemini-2.0-flash-exp";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
 
 interface UseSavaraLiveProps {
@@ -144,7 +144,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
 
         const msg = {
           setup: {
-            model: "models/gemini-2.0-flash-exp",
+            model: MODEL,
             tools: tools,
             generationConfig: {
               responseModalities: ["AUDIO"],

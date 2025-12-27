@@ -1,7 +1,7 @@
 // services/geminiService.ts
-// Using OpenAI API Direct
+// Using Google Gemini API Direct
 
-const CURRENT_MODEL = 'gpt-4o-mini';
+const CURRENT_MODEL = 'gemini-1.5-flash-latest';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
 Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
@@ -22,24 +22,22 @@ PRECIOS PREMIUM:
 Responde siempre en español. Sé breve y útil.`;
 
 // Helper for Universal Environment Access
-const getOpenAIApiKey = (): string | undefined => {
-  // Check for standard OPENAI_API_KEY or VITE_ prefixed version
-  const key = (typeof process !== 'undefined' && process.env ? process.env.OPENAI_API_KEY : undefined) ||
-    (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_OPENAI_API_KEY : undefined) ||
-    (typeof process !== 'undefined' && process.env ? process.env.VITE_OPENAI_API_KEY : undefined);
+const getGeminiApiKey = (): string | undefined => {
+  const key = (typeof process !== 'undefined' && process.env ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : undefined) ||
+    (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
   return key;
 };
 
-// ==================== LANDING CHAT (OpenAI API - Direct) ====================
+// ==================== LANDING CHAT (Gemini API - Direct) ====================
 
 class SavaraChat {
   private apiKey: string;
 
   constructor(apiKey?: string) {
-    const key = apiKey || getOpenAIApiKey();
+    const key = apiKey || getGeminiApiKey();
     if (!key) {
-      console.error('[SavaraChat] CRITICAL: OPENAI_API_KEY not found in environment.');
-      throw new Error('CRITICAL: OPENAI_API_KEY not found in environment.');
+      console.error('[SavaraChat] CRITICAL: GEMINI_API_KEY not found in environment.');
+      throw new Error('CRITICAL: GEMINI_API_KEY not found in environment.');
     }
     this.apiKey = key;
   }
@@ -62,61 +60,57 @@ class SavaraChat {
       `;
     }
 
-    // Build OpenAI-compatible messages
-    const messages = [
-      { role: 'system', content: finalSystemInstruction },
+    // Build Gemini-compatible contents
+    const contents = [
       ...history.map((h: any) => ({
-        role: h.role === 'model' ? 'assistant' : 'user',
-        content: String(h.parts?.[0]?.text || h.text || '')
+        role: h.role === 'model' ? 'model' : 'user',
+        parts: [{ text: String(h.parts?.[0]?.text || h.text || '') }]
       })),
-      { role: 'user', content: userMessage }
+      { role: 'user', parts: [{ text: userMessage }] }
     ];
 
-    const url = 'https://api.openai.com/v1/chat/completions';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
 
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: CURRENT_MODEL,
-          messages
+          contents,
+          systemInstruction: {
+            parts: [{ text: finalSystemInstruction }]
+          },
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 150,
+          }
         })
       });
 
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('[Savara OpenAI] API Error:', response.status, errorData);
+        console.error('[Savara Gemini] API Error:', response.status, errorData);
 
         if (response.status === 429) {
           throw new Error('Rate limit exceeded (429)');
-        }
-        if (response.status === 401) {
-          throw new Error('Invalid API Key (401)');
         }
         throw new Error(`API request failed: ${response.status}`);
       }
 
       const data = await response.json();
-      const text = data.choices?.[0]?.message?.content;
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!text) {
-        console.warn('[Savara OpenAI] No text in response:', JSON.stringify(data));
+        console.warn('[Savara Gemini] No text in response:', JSON.stringify(data));
         return "Perdona, ¿me repites eso?";
       }
 
       return text;
 
     } catch (error: any) {
-      console.error('[Savara OpenAI] Error:', error.message);
-
-      if (error.message?.includes('SAFETY')) {
-        return "Lo siento, no puedo responder a eso por políticas de seguridad.";
-      }
-
+      console.error('[Savara Gemini] Error:', error.message);
       throw error;
     }
   }

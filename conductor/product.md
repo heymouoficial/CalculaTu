@@ -16,7 +16,7 @@ The primary users are everyday consumers in Venezuela who need a quick, reliable
 
 -   **Multi-Currency Calculator:** A manual, offline-friendly mode for quick addition of product prices with totals displayed in Bs, USD, and EUR.
 -   **Savara AI (Chatbot):** A real-time chat widget on the landing page, powered by the Gemini API (gemini-2.5-flash), to assist users.
--   **Savara Pro (Voice Assistant):** Asistente de voz bidireccional premium (WebSocket + gemini-2.5-flash-native-audio-preview) con memoria contextual dinámica: lee la lista de productos y tasas BCV en tiempo real para respuestas inteligentes (ej: '¿Cuánto llevo?' o '¿Me alcanza para X?').
+-   **Savara Pro (Voice Assistant):** Asistente de voz bidireccional premium con **Identidad y Acceso al Core**. Gemini Live API sincronizada con la huella digital (MachineID) del usuario. Capaz de consultar perfiles, estados de licencia y tasas oficiales directamente desde Supabase mediante Function Calling en tiempo real.
 -   **Device-Linked Licensing:** A secure licensing system that ties premium features to a user's unique device ID using signed JWTs.
 -   **Global & Local Exchange Rates:** The app uses a global exchange rate from a central database (Supabase), which can be temporarily overridden by a user-specific rate for 24 hours.
 -   **Progressive Web App (PWA):** The application is installable on mobile devices for easy access and offline availability.
