@@ -3,7 +3,7 @@ import { RATES } from '../constants';
 import { getOrCreateMachineId, getOrCreateUIC } from '../utils/deviceId';
 import { ShoppingItem, ExchangeRate } from '../types';
 
-export type LicenseTier = 'trial' | 'freemium' | 'pro' | 'lifetime';
+export type LicenseTier = 'trial' | 'freemium' | 'monthly' | 'pro' | 'lifetime';
 
 export type FeatureToken = {
   uic: string;
