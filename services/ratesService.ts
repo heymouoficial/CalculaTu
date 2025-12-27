@@ -304,6 +304,26 @@ export async function fetchCoreStats() {
   }
 }
 
+/**
+ * Fetch historical rates for visualization
+ */
+export async function fetchHistoricalRates(limit: number = 30) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('exchange_rates_history')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('[HistoricalRates] Error:', err);
+    return [];
+  }
+}
+
+
 
 
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft, Calendar as CalendarIcon, Send, RefreshCcw } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlobalRates, resetPassword, updatePassword } from '../services/ratesService';
+import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlobalRates, resetPassword, updatePassword, fetchHistoricalRates } from '../services/ratesService';
 import { supabase } from '../services/supabaseClient';
 import { Calendar } from '@/components/ui/calendar';
 import { format, addDays, addMonths } from 'date-fns';
@@ -90,14 +90,21 @@ export const Portality: React.FC = () => {
   const [globalUsd, setGlobalUsd] = useState<number>(0);
   const [globalEur, setGlobalEur] = useState<number>(0);
   const [globalUpdatedAt, setGlobalUpdatedAt] = useState<string | null>(null);
+  const [historicalRates, setHistoricalRates] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [profileSearch, setProfileSearch] = useState('');
   const [extendDate, setExtendDate] = useState('');
 
   const isAdminAuthed = authEmail === 'multiversagroup@gmail.com';
 
   // LOGS SYSTEM
   const [logs, setLogs] = useState<{ id: string; msg: string; type: 'info' | 'warn' | 'success'; time: string }[]>([]);
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [nodeStatus, setNodeStatus] = useState<{ gemini: 'online' | 'error' | 'loading', supabase: 'online' | 'error' | 'loading' }>({
+    gemini: 'loading',
+    supabase: 'loading'
+  });
 
   const addLog = (msg: string, type: 'info' | 'warn' | 'success' = 'info') => {
     setLogs(prev => [{
@@ -106,6 +113,21 @@ export const Portality: React.FC = () => {
       type,
       time: new Date().toLocaleTimeString()
     }, ...prev].slice(0, 50));
+  };
+
+  const fetchSystemLogs = async () => {
+    if (!isAdminAuthed) return;
+    try {
+      const { data, error } = await supabase
+        .from('system_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      setSystemLogs(data || []);
+    } catch (e) {
+      console.error('Error fetching system logs:', e);
+    }
   };
 
   useEffect(() => {
@@ -172,14 +194,14 @@ export const Portality: React.FC = () => {
 
     setIsBusy(true);
     setStatus('');
-    addLog(`Extendiendo trial para ${deviceId}...`, 'info');
+    addLog(`${deviceId === 'GLOBAL_USER' ? 'Activando Pase Global' : 'Extendiendo trial'} para ${deviceId}...`, 'info');
     try {
       const { error } = await supabase
         .from('contracts')
         .upsert({
           machine_id: deviceId,
-          email: 'trial@portality.gen',
-          plan: 'monthly',
+          email: deviceId === 'GLOBAL_USER' ? 'global@portality.gen' : 'customer@portality.gen',
+          plan: deviceId === 'GLOBAL_USER' ? 'lifetime' : 'monthly',
           token: 'EXTENDED_VIA_DASHBOARD',
           expires_at: targetDate.toISOString(),
           status: 'active'
@@ -292,6 +314,7 @@ export const Portality: React.FC = () => {
         if (email === 'multiversagroup@gmail.com') {
           fetchContracts();
           fetchProfiles();
+          fetchSystemLogs();
         }
       } catch {
         setAuthEmail(null);
@@ -299,6 +322,32 @@ export const Portality: React.FC = () => {
     };
 
     checkSession();
+
+    // Polling for real-time data
+    const interval = setInterval(() => {
+      if (authEmail === 'multiversagroup@gmail.com') {
+        fetchSystemLogs();
+        checkConnectivity();
+      }
+    }, 10000);
+
+    const checkConnectivity = async () => {
+      // Check Supabase
+      if (supabase) {
+        const { error } = await supabase.from('exchange_rates').select('id').eq('id', 1).single();
+        setNodeStatus(prev => ({ ...prev, supabase: error ? 'error' : 'online' }));
+      }
+
+      // Check Gemini (Simple ping)
+      try {
+        const resp = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: 'ping' }), headers: { 'Content-Type': 'application/json' } });
+        setNodeStatus(prev => ({ ...prev, gemini: resp.ok ? 'online' : 'error' }));
+      } catch {
+        setNodeStatus(prev => ({ ...prev, gemini: 'error' }));
+      }
+    };
+
+    checkConnectivity();
 
     // Listen for auth state changes (persistence)
     if (supabase) {
@@ -326,6 +375,7 @@ export const Portality: React.FC = () => {
 
       return () => {
         subscription.unsubscribe();
+        clearInterval(interval);
       };
     }
 
@@ -337,6 +387,10 @@ export const Portality: React.FC = () => {
         setGlobalEur(r.EUR);
         setGlobalUpdatedAt(r.updatedAt ?? null);
       })
+      .catch(() => { });
+
+    fetchHistoricalRates(10)
+      .then(setHistoricalRates)
       .catch(() => { });
   }, [isResettingPassword]);
 
@@ -519,6 +573,9 @@ export const Portality: React.FC = () => {
       addLog(`Tasas publicadas con éxito: $${globalUsd} / €${globalEur}`, 'success');
       const r = await fetchGlobalRates();
       if (r) setGlobalUpdatedAt(r.updatedAt ?? null);
+      
+      const hist = await fetchHistoricalRates(10);
+      setHistoricalRates(hist);
     } catch (e: any) {
       setStatus(e?.message || 'No pude guardar la tasa global');
       addLog(`Error publicando tasas: ${e.message}`, 'warn');
@@ -810,6 +867,32 @@ export const Portality: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Trend Visualizer */}
+                {historicalRates.length > 0 && (
+                  <div className="px-2 pt-2">
+                    <div className="flex items-end justify-between h-12 gap-1">
+                      {historicalRates.slice().reverse().map((rate, i) => {
+                        const min = Math.min(...historicalRates.map(r => r.usd));
+                        const max = Math.max(...historicalRates.map(r => r.usd));
+                        const range = max - min || 1;
+                        const height = ((rate.usd - min) / range) * 100;
+                        return (
+                          <div
+                            key={i}
+                            className="bg-emerald-500/20 w-full rounded-t-sm hover:bg-emerald-500 transition-all group/bar relative"
+                            style={{ height: `${Math.max(height, 5)}%` }}
+                          >
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-white text-[8px] text-black font-bold rounded opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                              {rate.usd.toFixed(2)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest mt-2 text-center">Tendencia Últimos 10 Cambios</p>
+                  </div>
+                )}
+
                 <button
                   onClick={handleSaveGlobalRates}
                   disabled={isBusy}
@@ -841,6 +924,17 @@ export const Portality: React.FC = () => {
                 <Fingerprint size={16} className="text-gray-700" />
               </div>
 
+              {/* Profile Search */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={profileSearch}
+                  onChange={(e) => setProfileSearch(e.target.value)}
+                  placeholder="Filtrar nodos..."
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-emerald-500/50 transition-all placeholder:text-gray-700"
+                />
+              </div>
+
               <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
                 {profiles.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-gray-600 italic">
@@ -848,10 +942,18 @@ export const Portality: React.FC = () => {
                     <p className="text-[11px]">Buscando señales...</p>
                   </div>
                 ) : (
-                  profiles.map((p) => (
+                  profiles
+                    .filter(p => 
+                      (p.full_name?.toLowerCase().includes(profileSearch.toLowerCase())) ||
+                      (p.machine_id?.toLowerCase().includes(profileSearch.toLowerCase()))
+                    )
+                    .map((p) => (
                     <div
                       key={p.machine_id}
-                      onClick={() => setDeviceId(p.machine_id)}
+                      onClick={() => {
+                        setDeviceId(p.machine_id);
+                        addLog(`Nodo seleccionado: ${p.full_name || 'Anónimo'}`, 'info');
+                      }}
                       className={`p-4 rounded-2xl border transition-all cursor-pointer group ${deviceId === p.machine_id ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -940,9 +1042,23 @@ export const Portality: React.FC = () => {
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl relative overflow-hidden">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Activity Logs (Real-time)</h2>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                  <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Activity Logs</h2>
+                </div>
+                
+                {/* Node Status Mini-Dashboard */}
+                <div className="flex items-center gap-4 border-l border-white/10 pl-6">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${nodeStatus.supabase === 'online' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Supabase</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${nodeStatus.gemini === 'online' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Gemini</span>
+                  </div>
+                </div>
               </div>
               <button
                 onClick={() => setLogs([])}
@@ -953,18 +1069,30 @@ export const Portality: React.FC = () => {
             </div>
 
             <div className="font-mono text-[11px] space-y-2 h-[300px] overflow-y-auto pr-4 custom-scrollbar bg-black/40 p-6 rounded-3xl border border-white/5">
-              {logs.length === 0 ? (
+              {/* Persistent System Logs */}
+              {systemLogs.map(log => (
+                <div key={log.id} className="flex gap-4 group border-b border-white/[0.02] pb-1 mb-1 last:border-0">
+                  <span className="text-gray-600 shrink-0">[{format(new Date(log.created_at), 'HH:mm:ss')}]</span>
+                  <span className={`shrink-0 font-black uppercase text-[9px] ${log.level === 'error' ? 'text-red-500' : log.level === 'success' ? 'text-emerald-500' : 'text-purple-500'}`}>
+                    {log.level || 'SYS'}
+                  </span>
+                  <span className="text-gray-400 group-hover:text-white transition-colors">{log.message}</span>
+                </div>
+              ))}
+
+              {/* Session Logs (Original) */}
+              {logs.map(log => (
+                <div key={log.id} className="flex gap-4 group opacity-60 italic">
+                  <span className="text-gray-600 shrink-0">[{log.time}]</span>
+                  <span className={`shrink-0 font-bold uppercase text-[9px] ${log.type === 'success' ? 'text-emerald-500' : log.type === 'warn' ? 'text-red-500' : 'text-blue-500'}`}>
+                    {log.type}
+                  </span>
+                  <span className="text-gray-500 group-hover:text-gray-300 transition-colors">{log.msg}</span>
+                </div>
+              ))}
+
+              {logs.length === 0 && systemLogs.length === 0 && (
                 <div className="text-gray-700 py-10 text-center italic">Esperando eventos del sistema...</div>
-              ) : (
-                logs.map(log => (
-                  <div key={log.id} className="flex gap-4 group">
-                    <span className="text-gray-600 shrink-0">[{log.time}]</span>
-                    <span className={`shrink-0 font-bold uppercase ${log.type === 'success' ? 'text-emerald-500' : log.type === 'warn' ? 'text-red-500' : 'text-blue-500'}`}>
-                      {log.type}
-                    </span>
-                    <span className="text-gray-300 group-hover:text-white transition-colors">{log.msg}</span>
-                  </div>
-                ))
               )}
             </div>
           </div>
