@@ -433,41 +433,27 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Toggle Savara Logic
   const toggleSavara = async () => {
-    // FASE 3: COMING SOON GLOBAL
-    // Para generar hype, mostramos el banner a TODOS (con o sin licencia)
-    // Cuando se lance en Enero, descomentamos la validación.
+    // 0. Priority: Temporary Free Trial 2026
+    const isFreeTrial = new Date() < new Date('2026-01-01T00:00:00Z');
 
-    /*
-    if (!license.active || !license.featureToken) {
-      alert('Savara requiere una licencia activa con feature "voice".');
+    if (!isFreeTrial && (!license.active || !license.featureToken)) {
+      setShowServiceBanner(true);
       return;
     }
 
-    if (!license.featureToken.features.includes('voice')) {
-      alert('Tu licencia no incluye la feature "voice". Contacta soporte.');
-      return;
-    }
-    */
-
-    // COMING SOON INTERRUPTION
-    setShowServiceBanner(true);
-    return;
-
-    /* 
-    // OLD CONNECTION LOGIC (Disabled for January Launch)
     if (isSavaraConnected) {
       disconnectSavara();
       showToast('Savara desconectada', 'item');
     } else {
       showToast('Iniciando Savara Pro...', 'success');
       try {
-         // ... connection logic ...
-         await connectSavara(dynamicPrompt);
+        const dynamicPrompt = `El usuario tiene ${items.length} productos en el carrito. Total actual: Bs ${currentTotals.bs.toFixed(2)}.`;
+        await connectSavara(dynamicPrompt);
       } catch (e: any) {
-         // ... error handling ...
+        console.error('Error connecting to Savara:', e);
+        showToast('Error al conectar con Savara', 'error');
       }
     }
-    */
   };
 
   // WhatsApp Activation Handler
@@ -884,17 +870,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 <button
                   onClick={handleDownloadVoucher}
                   disabled={isDownloading}
-                  className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 border-r border-gray-100"
-                >
-                  {isDownloading ? <RefreshCcw size={14} className="animate-spin" /> : <Download size={14} />}
-                  Descargar
-                </button>
-                <button
-                  onClick={handleShareVoucher}
                   className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                 >
-                  <Share2 size={14} />
-                  Compartir
+                  {isDownloading ? <RefreshCcw size={14} className="animate-spin" /> : <Download size={14} />}
+                  Descargar Recibo (JPG)
                 </button>
               </div>
             ) : (
@@ -904,10 +883,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 </p>
                 <div className="flex w-full gap-2 opacity-40 grayscale">
                   <div className="flex-1 py-3 bg-white text-black border border-gray-200 font-bold uppercase tracking-widest text-[9px] rounded flex items-center justify-center gap-2 cursor-not-allowed">
-                    <Lock size={12} /> JPEG
-                  </div>
-                  <div className="flex-1 py-3 bg-white text-black border border-gray-200 font-bold uppercase tracking-widest text-[9px] rounded flex items-center justify-center gap-2 cursor-not-allowed">
-                    <Lock size={12} /> Compartir
+                    <Lock size={12} /> Descargar JPEG
                   </div>
                 </div>
               </div>
@@ -1485,6 +1461,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       <ServiceUnavailableBanner
         isOpen={showServiceBanner}
         onClose={() => setShowServiceBanner(false)}
+        onActivate={toggleSavara}
       />
     </div>
   );

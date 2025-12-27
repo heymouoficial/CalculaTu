@@ -3,11 +3,17 @@ import { Sparkles, X, Rocket } from 'lucide-react';
 
 interface ServiceUnavailableBannerProps {
     onClose: () => void;
+    onActivate?: () => void;
     isOpen: boolean;
 }
 
-export const ServiceUnavailableBanner: React.FC<ServiceUnavailableBannerProps> = ({ onClose, isOpen }) => {
+export const ServiceUnavailableBanner: React.FC<ServiceUnavailableBannerProps> = ({ onClose, onActivate, isOpen }) => {
     if (!isOpen) return null;
+
+    const handleActivate = () => {
+        if (onActivate) onActivate();
+        onClose();
+    };
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fade-in">
@@ -34,18 +40,18 @@ export const ServiceUnavailableBanner: React.FC<ServiceUnavailableBannerProps> =
                     </h3>
 
                     <div className="bg-emerald-500/10 rounded-xl px-4 py-2 border border-emerald-500/20">
-                        <p className="text-emerald-400 font-bold text-sm tracking-wide">LANZAMIENTO ENERO DE 2026</p>
+                        <p className="text-emerald-400 font-bold text-sm tracking-wide italic">PRUEBA GRATUITA ACTIVA</p>
                     </div>
 
                     <p className="text-sm text-gray-400 leading-relaxed max-w-[260px]">
-                        Estamos calibrando los motores de nuestra IA de voz para brindarte una experiencia perfecta.
+                        Disfruta de Savara Pro sin costo hasta el <strong>1 de enero de 2026</strong> como regalo de año nuevo.
                     </p>
 
                     <button
-                        onClick={onClose}
-                        className="w-full py-3 mt-4 bg-emerald-500 text-black font-black uppercase tracking-wider rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-500/20"
+                        onClick={handleActivate}
+                        className="w-full py-4 mt-4 bg-emerald-500 text-black font-black uppercase tracking-wider rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-500/20"
                     >
-                        ¡Avísame Cuando Salga!
+                        ¡Probar Savara Pro Ahora!
                     </button>
                 </div>
             </div>

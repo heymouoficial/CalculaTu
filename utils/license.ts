@@ -2,10 +2,36 @@ import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
 
 const TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
+const TEMP_FREE_TRIAL_EXPIRY = '2026-01-01T00:00:00Z';
+
+export function isTemporaryFreeTrialActive(): boolean {
+  const now = new Date();
+  const expiry = new Date(TEMP_FREE_TRIAL_EXPIRY);
+  return now < expiry;
+}
 
 export async function autoActivateTrial(machineId: string): Promise<void> {
   const state = useAppStore.getState();
   const { license, setLicense } = state;
+
+  // 0. Priority: Temporary Global Free Trial until Jan 2026
+  if (isTemporaryFreeTrialActive()) {
+    if (!license.active || license.tier !== 'lifetime') {
+      setLicense({
+        active: true,
+        tier: 'trial',
+        expiresAt: TEMP_FREE_TRIAL_EXPIRY,
+        token: 'TEMP_FREE_PASS_2026',
+        featureToken: {
+          uic: machineId,
+          features: ['voice'],
+          expiresAt: TEMP_FREE_TRIAL_EXPIRY,
+          token: 'TEMP_FREE_PASS_2026'
+        }
+      });
+      return;
+    }
+  }
 
   // 1. Check if we have a remote contract first (Remote-First Sync)
   if (supabase) {
