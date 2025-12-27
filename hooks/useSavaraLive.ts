@@ -4,7 +4,6 @@ import { supabase } from '../services/supabaseClient';
 
 const MODEL = "models/gemini-2.0-flash-exp";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
-const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
 
 interface UseSavaraLiveProps {
   onItemAdded?: (item: any) => void;
@@ -121,10 +120,14 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       nextStartTime.current = audioContextOutput.current.currentTime;
 
       // 3. WebSocket Connection
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Falta VITE_GEMINI_API_KEY");
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
+      if (!apiKey) {
+        console.error("❌ Savara Error: No se encontró VITE_GEMINI_API_KEY en el entorno.");
+        throw new Error("Falta la configuración de API Key (Gemini) en este dispositivo.");
+      }
 
-      ws.current = new WebSocket(WS_URL);
+      const WS_URL_DYNAMIC = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      ws.current = new WebSocket(WS_URL_DYNAMIC);
 
       ws.current.onopen = () => {
         console.log("🟢 Savara Conectada (Sockets Optimized)");
