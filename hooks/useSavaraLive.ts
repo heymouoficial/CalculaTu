@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { supabase } from '../services/supabaseClient';
 
 const MODEL = "gemini-2.0-flash-exp";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -8,9 +9,11 @@ const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativel
 interface UseSavaraLiveProps {
   onItemAdded?: (item: any) => void;
   onHangUp?: () => void;
+  userName?: string | null;
+  machineId?: string | null;
 }
 
-export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}) => {
+export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: UseSavaraLiveProps = {}) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<any>(null);
 
@@ -68,6 +71,21 @@ export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}
             },
             required: ["product_name", "new_quantity"]
           }
+        },
+        {
+          name: "get_user_profile",
+          description: "Fetches the user's profile information from the database.",
+          parameters: { type: "object", properties: {} }
+        },
+        {
+          name: "check_license_status",
+          description: "Checks the current license status and expiration for the user.",
+          parameters: { type: "object", properties: {} }
+        },
+        {
+          name: "get_bcv_rate",
+          description: "Gets the current official BCV exchange rate from the database.",
+          parameters: { type: "object", properties: {} }
         }
       ]
     }
@@ -113,6 +131,17 @@ export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}
         setIsConnected(true);
 
         // Handshake Init
+        const identityPrompt = `
+          Eres Savara, la asistente inteligente de CalculaTú.
+          Tu tono es cálido, profesional y extremadamente conciso.
+          ${userName ? `Estás hablando con ${userName}.` : ''}
+          ${machineId ? `El ID de dispositivo del usuario es: ${machineId}.` : ''}
+          Tienes acceso a la base de datos de Multiversa para consultas.
+          Responde siempre en español. Sé breve y útil.
+          
+          ${initialPrompt || ''}
+        `.trim();
+
         const msg = {
           setup: {
             model: "models/gemini-2.0-flash-exp",
@@ -124,7 +153,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}
               }
             },
             systemInstruction: {
-              parts: [{ text: initialPrompt || "Eres Savara, un asistente de compras." }]
+              parts: [{ text: identityPrompt }]
             }
           }
         };
@@ -150,7 +179,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}
 
           // Tool Calls
           if (data.toolCall) {
-            handleToolCall(data.toolCall);
+            await handleToolCall(data.toolCall);
           }
 
         } catch (e) {
@@ -226,11 +255,12 @@ export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}
     setIsConnected(false);
   }, []);
 
-  const handleToolCall = (toolCall: any) => {
+  const handleToolCall = async (toolCall: any) => {
     const functionCalls = toolCall.functionCalls;
     const responses: any[] = [];
 
     for (const call of functionCalls) {
+      // 1. Existing Cart Tools
       if (call.name === "add_shopping_item") {
         const { product_name, price, currency, quantity } = call.args;
         const newItem = {
@@ -241,31 +271,17 @@ export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}
           quantity: Number(quantity) || 1
         };
         addItem(newItem);
-
         if (onItemAdded) onItemAdded(newItem);
-
-        responses.push({
-          id: call.id,
-          name: call.name,
-          response: { result: "Item added successfully" }
-        });
+        responses.push({ id: call.id, name: call.name, response: { result: "Item added successfully" } });
       }
       else if (call.name === "remove_shopping_item") {
         const { product_name } = call.args;
         const itemToRemove = items.find(item => item.name.toLowerCase() === product_name.toLowerCase());
         if (itemToRemove) {
           removeItem(itemToRemove.id);
-          responses.push({
-            id: call.id,
-            name: call.name,
-            response: { result: `Item '${product_name}' eliminado correctamente.` }
-          });
+          responses.push({ id: call.id, name: call.name, response: { result: `Item '${product_name}' eliminado.` } });
         } else {
-          responses.push({
-            id: call.id,
-            name: call.name,
-            response: { result: `Item '${product_name}' no encontrado en la lista.` }
-          });
+          responses.push({ id: call.id, name: call.name, response: { result: `Item '${product_name}' no encontrado.` } });
         }
       }
       else if (call.name === "update_shopping_item_quantity") {
@@ -273,18 +289,35 @@ export const useSavaraLive = ({ onItemAdded, onHangUp }: UseSavaraLiveProps = {}
         const itemToUpdate = items.find(item => item.name.toLowerCase() === product_name.toLowerCase());
         if (itemToUpdate) {
           updateItem(itemToUpdate.id, { ...itemToUpdate, quantity: Number(new_quantity) });
-          responses.push({
-            id: call.id,
-            name: call.name,
-            response: { result: `Cantidad de '${product_name}' actualizada a ${new_quantity}.` }
-          });
+          responses.push({ id: call.id, name: call.name, response: { result: `Cantidad de '${product_name}' actualizada.` } });
         } else {
-          responses.push({
-            id: call.id,
-            name: call.name,
-            response: { result: `Item '${product_name}' no encontrado para actualizar.` }
-          });
+          responses.push({ id: call.id, name: call.name, response: { result: `Item '${product_name}' no encontrado.` } });
         }
+      }
+      // 2. New Supabase Tools
+      else if (call.name === "get_user_profile") {
+        if (!supabase || !machineId) {
+          responses.push({ id: call.id, name: call.name, response: { error: "Database not available" } });
+          continue;
+        }
+        const { data, error: dbErr } = await supabase.from('profiles').select('*').eq('machine_id', machineId).maybeSingle();
+        responses.push({ id: call.id, name: call.name, response: dbErr ? { error: dbErr.message } : { profile: data } });
+      }
+      else if (call.name === "check_license_status") {
+        if (!supabase || !machineId) {
+          responses.push({ id: call.id, name: call.name, response: { error: "Database not available" } });
+          continue;
+        }
+        const { data, error: dbErr } = await supabase.from('contracts').select('*').eq('machine_id', machineId).eq('status', 'active').maybeSingle();
+        responses.push({ id: call.id, name: call.name, response: dbErr ? { error: dbErr.message } : { license: data || "No active license found" } });
+      }
+      else if (call.name === "get_bcv_rate") {
+        if (!supabase) {
+          responses.push({ id: call.id, name: call.name, response: { error: "Database not available" } });
+          continue;
+        }
+        const { data, error: dbErr } = await supabase.from('bcv_rates').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+        responses.push({ id: call.id, name: call.name, response: dbErr ? { error: dbErr.message } : { rates: data } });
       }
     }
 

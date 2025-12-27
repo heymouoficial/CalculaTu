@@ -28,6 +28,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const addItem = useAppStore(s => s.addItem);
   const removeItem = useAppStore(s => s.removeItem);
   const clearItems = useAppStore(s => s.clearItems);
+  const userName = useAppStore(s => s.userName);
+  const machineId = useAppStore(s => s.machineId);
+
   const {
     connect: connectSavara,
     disconnect: disconnectSavara,
@@ -36,6 +39,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     latency,
     isLowLatency
   } = useSavaraLive({
+    userName,
+    machineId,
     onItemAdded: (item) => {
       const currencySymbol = item.currency === 'USD' ? '$' : item.currency === 'EUR' ? '€' : 'Bs';
       showToast(`${item.quantity}x ${item.name} (${currencySymbol} ${item.price}) agregado`, 'item');
@@ -97,7 +102,6 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const clearTemporaryRates = useAppStore(s => s.clearTemporaryRates);
   const ratesOverrideExpiresAt = useAppStore(s => s.ratesOverrideExpiresAt);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const machineId = useAppStore(s => s.machineId);
 
   // Onboarding for first-time users
   const { showOnboarding, completeOnboarding } = useOnboarding();
