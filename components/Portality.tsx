@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft, Calendar as CalendarIcon, Send, RefreshCcw } from 'lucide-react';
+import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft, Calendar as CalendarIcon, Send, RefreshCcw, Download } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlobalRates, resetPassword, updatePassword, fetchHistoricalRates } from '../services/ratesService';
 import { supabase } from '../services/supabaseClient';
@@ -980,8 +980,38 @@ export const Portality: React.FC = () => {
             </div>
           </div>
 
-          {/* === RIGHT COLUMN: LICENSE GEN (4/12) === */}
+          {/* === RIGHT COLUMN: LICENSE GEN & KNOWLEDGE (4/12) === */}
           <div className="lg:col-span-4 space-y-6">
+            {/* Knowledge Manager */}
+            <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl relative group overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-purple-500/10 transition-colors"></div>
+               <h2 className="text-xs font-black uppercase tracking-widest text-purple-400 mb-6 flex items-center gap-2 relative z-10">
+                 <RefreshCcw size={16} /> Brain Ingestion (RAG)
+               </h2>
+               
+               <div className="space-y-4 relative z-10">
+                 <div className="border-2 border-dashed border-white/5 rounded-3xl p-8 flex flex-col items-center justify-center text-center hover:border-purple-500/30 transition-all cursor-pointer bg-white/[0.01]">
+                    <Download className="text-gray-600 mb-2" size={24} />
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Arrastra PDF / TXT</p>
+                    <p className="text-[8px] text-gray-700 mt-1">Límite 2MB • Vectorización Automática</p>
+                 </div>
+                 
+                 <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
+                    <p className="text-[9px] text-gray-600 font-mono mb-2 uppercase">Memoria Reciente</p>
+                    <div className="space-y-2">
+                       <div className="flex items-center justify-between text-[10px] text-gray-400">
+                          <span className="truncate max-w-[120px]">reglas_negocio.pdf</span>
+                          <span className="text-emerald-500 font-black">ACTIVE</span>
+                       </div>
+                       <div className="flex items-center justify-between text-[10px] text-gray-400">
+                          <span className="truncate max-w-[120px]">promociones_enero.txt</span>
+                          <span className="text-emerald-500 font-black">ACTIVE</span>
+                       </div>
+                    </div>
+                 </div>
+               </div>
+            </div>
+
             <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl">
               <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500 mb-8 flex items-center gap-2">
                 <KeyRound size={16} /> Forjado de Licencias

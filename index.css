@@ -5,13 +5,39 @@
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'Plus Jakarta Mono', monospace;
+  
+  --color-glass-bg: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-neon-lime: #ccff00;
+  --color-deep-purple: #8b5cf6;
+  --color-emerald-esmerald: #10b981;
 }
 
 body {
   font-family: var(--font-sans);
   background-color: #050505;
+  background-image: radial-gradient(circle at 50% -20%, #1e1e1e 0%, #050505 80%);
   color: white;
   overflow-x: hidden;
+}
+
+.glass-panel {
+  background: var(--color-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.neon-pulse {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+  100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
 }
 
 /* Custom scrollbar */

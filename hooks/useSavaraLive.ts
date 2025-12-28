@@ -3,9 +3,11 @@ import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
 import { syncVoiceUsage } from '../services/usageService';
 
-const MODEL = "models/gemini-2.0-flash-exp"; // Fallback/Standard
-const MODEL_LIVE = "gemini-2.5-flash-native-audio-preview-12-2025"; // Optimized for Live
+const MODEL = "models/gemini-2.5-flash"; 
+const MODEL_LIVE_PRIMARY = "gemini-2.5-flash-native-audio-dialog"; 
+const MODEL_LIVE_FALLBACK = "gemini-2.0-flash-exp";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
+const SILENCE_TIMEOUT_MS = 60000; // 60 seconds
 
 interface UseSavaraLiveProps {
   onItemAdded?: (item: any) => void;
@@ -17,6 +19,8 @@ interface UseSavaraLiveProps {
 export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: UseSavaraLiveProps = {}) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<any>(null);
+  const [currentModel, setCurrentModel] = useState(MODEL_LIVE_PRIMARY);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Audio Context State
   const audioContext = useRef<AudioContext | null>(null);
@@ -25,6 +29,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   const audioContextOutput = useRef<AudioContext | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const nextStartTime = useRef<number>(0);
+  const retryCount = useRef(0);
 
   // Acceso al Store para Function Calling y Metering
   const addItem = useAppStore((state) => state.addItem);
@@ -36,6 +41,19 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   const voiceUsageSeconds = useAppStore((state) => state.voiceUsageSeconds);
   const license = useAppStore((state) => state.license);
   const unsyncedSeconds = useRef(0);
+
+  // Silence Timer Logic
+  const resetSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current = setTimeout(() => {
+      console.log("🕒 Silence Timeout reached (60s). Disconnecting...");
+      disconnect();
+      setError({ 
+        code: 'SILENCE_TIMEOUT', 
+        message: "Sesión cerrada por inactividad (1 min)." 
+      });
+    }, SILENCE_TIMEOUT_MS);
+  }, []);
 
   // Initial Fetch
   useEffect(() => {
@@ -200,7 +218,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
 
         const msg = {
           setup: {
-            model: `models/${MODEL_LIVE}`,
+            model: `models/${currentModel}`,
             tools: tools,
             generationConfig: {
               responseModalities: ["AUDIO"],
@@ -214,9 +232,11 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
           }
         };
         ws.current?.send(JSON.stringify(msg));
+        resetSilenceTimer();
       };
 
       ws.current.onmessage = async (event) => {
+        resetSilenceTimer();
         try {
           let data;
           if (event.data instanceof Blob) {
@@ -244,15 +264,28 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       };
 
       ws.current.onclose = (event) => {
-        console.log("🔴 Socket Closed", event.code, event.reason);
+        console.log(`🔴 Socket Closed (${currentModel})`, event.code, event.reason);
         setIsConnected(false);
-        if (onHangUp) onHangUp(); // Trigger callback
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
-        if (event.code === 1011 || event.reason.includes("Quota") || event.reason.includes("quota")) {
-          setError({ code: 'API_LIMIT_REACHED', message: "Quota Exceeded or Blocked." });
+        // RETRY LOGIC for Quota/Model Issues
+        if ((event.code === 1011 || event.reason.toLowerCase().includes("quota")) && retryCount.current === 0) {
+           console.warn(`⚠️ Quota/Model Error with ${MODEL_LIVE_PRIMARY}. Retrying with fallback: ${MODEL_LIVE_FALLBACK}...`);
+           retryCount.current = 1;
+           setCurrentModel(MODEL_LIVE_FALLBACK);
+           // Slight delay before retry to allow state update
+           setTimeout(() => connect(initialPrompt), 500);
+           return;
+        }
+
+        if (onHangUp) onHangUp(); // Trigger callback if not retrying
+
+        if (event.code === 1011 || event.reason.toLowerCase().includes("quota")) {
+          setError({ code: 'API_LIMIT_REACHED', message: "Servidores de Google saturados (Quota). Intenta más tarde." });
         } else if (event.code !== 1000) {
           setError({ code: 'CONNECTION_ERROR', message: "Conexión cerrada inesperadamente." });
         }
+        retryCount.current = 0; // Reset retry on final fail
       };
 
       ws.current.onerror = (event) => {
@@ -281,6 +314,8 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
               }]
             }
           }));
+          // Note: We don't reset timer here to avoid resetting on every 100ms packet, 
+          // only on server response or user speaking might be better, but let's stick to simple logic first.
         }
       };
 

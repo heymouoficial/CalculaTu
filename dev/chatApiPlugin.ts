@@ -1,5 +1,4 @@
 import type { Connect, Plugin } from 'vite';
-import { createChatSession, sendMessageToGemini } from '../services/geminiService';
 
 async function parseBody(req: Connect.IncomingMessage): Promise<any> {
     return new Promise((resolve) => {
@@ -18,44 +17,61 @@ function json(res: any, status: number, data: object) {
     res.end(JSON.stringify(data));
 }
 
-// Simple in-memory session store for dev
-let chatSession: any = null;
-
 export function devChatApiPlugin(config?: { apiKey?: string }): Plugin {
     return {
         name: 'dev-chat-api',
         configureServer(server) {
-            // POST /api/chat
-            server.middlewares.use('/api/chat', async (req, res, next) => {
+            console.log('[DevPlugin] 🚀 Chat API Plugin LOADED (Gemini 2.5 Optimized)');
+            
+            server.middlewares.use(async (req, res, next) => {
+                if (!req.url?.startsWith('/api/chat')) return next();
                 if (req.method !== 'POST') return next();
 
                 try {
                     const body = await parseBody(req);
                     const { message, systemContext, history } = body;
 
-                    if (!message) {
-                        return json(res, 400, { error: 'Message is required' });
-                    }
-
-                    // Check for API Key
                     if (!config?.apiKey) {
-                        return json(res, 500, {
-                            error: 'Missing API Key',
-                            details: 'VITE_OPENAI_API_KEY is not defined in your .env.local file.'
-                        });
+                        return json(res, 500, { error: 'Missing API Key' });
                     }
 
-                    // Create fresh session per request for dev consistency
-                    const chatSession = createChatSession(config.apiKey);
+                    const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
+                    Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
+                    Responde siempre en español.`;
 
-                    const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || []);
-                    return json(res, 200, { text: responseText });
-                } catch (error: any) {
-                    console.error('[DEV Chat] Error processing chat request:', error.message, error.stack);
-                    return json(res, 500, {
-                        error: 'Failed to process chat request',
-                        details: error.message || 'Unknown error'
+                    const contents = [
+                        ...(history || []).map((h: any) => ({
+                            role: h.role === 'model' ? 'model' : 'user',
+                            parts: [{ text: String(h.parts?.[0]?.text || h.text || '') }]
+                        })),
+                        { role: 'user', parts: [{ text: message }] }
+                    ];
+
+                    // USANDO MODELO 2.5 FLASH SEGÚN TU LISTA DE CUOTAS
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${config.apiKey}`;
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents,
+                            systemInstruction: { parts: [{ text: systemContext || SAVARA_SYSTEM_PROMPT }] },
+                            generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
+                        })
                     });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        console.error('[DevPlugin] API ERROR:', data);
+                        return json(res, response.status, { error: 'API Error', details: data });
+                    }
+
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "No obtuve respuesta.";
+                    return json(res, 200, { text });
+
+                } catch (error: any) {
+                    return json(res, 500, { error: 'Internal Error', details: error.message });
                 }
             });
         }

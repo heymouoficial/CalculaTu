@@ -1,34 +1,17 @@
 // services/geminiService.ts
-// Using Google Gemini API Direct
+// Using Google Gemini API Direct (Gemini 2.5 Updated)
 
-const CURRENT_MODEL = 'gemini-1.5-flash-latest';
+const CURRENT_MODEL = 'gemini-2.5-flash';
 
 const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
 Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
-
-SOBRE CALCULATÚ:
-- App venezolana para calcular compras en Bs/USD/EUR
-- Convierte precios automáticamente usando la tasa BCV del día
-- Tiene un modo voz PRO para dictar productos
-
-PROMOCIÓN NAVIDAD 2024:
-- 🎁 FREEPASS: Savara Pro GRATIS hasta el 1 de Enero.
-- Solo deben hacer clic en "ACTIVAR AHORA" en el banner superior.
-
-PRECIOS PROMOCIÓN LANZAMIENTO:
-- Pro Mensual: $1 (Oferta hasta 01 Ene) - Incluye 30 min voz/mes. (Precio futuro: $3)
-- Pro Lifetime: $10 (Oferta hasta 31 Ene) - Incluye 60 min voz/mes. (Precio futuro: $20)
-
 Responde siempre en español. Sé breve y útil.`;
 
-// Helper for Universal Environment Access
 const getGeminiApiKey = (): string | undefined => {
   const key = (typeof process !== 'undefined' && process.env ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : undefined) ||
     (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
   return key;
 };
-
-// ==================== LANDING CHAT (Gemini API - Direct) ====================
 
 class SavaraChat {
   private apiKey: string;
@@ -36,31 +19,16 @@ class SavaraChat {
   constructor(apiKey?: string) {
     const key = apiKey || getGeminiApiKey();
     if (!key) {
-      console.error('[SavaraChat] CRITICAL: GEMINI_API_KEY not found in environment.');
-      throw new Error('CRITICAL: GEMINI_API_KEY not found in environment.');
+      throw new Error('CRITICAL: GEMINI_API_KEY not found.');
     }
     this.apiKey = key;
   }
 
-  async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: any[] = [], coreStats?: any): Promise<string> {
-    let finalSystemInstruction = dynamicSystemInstruction
-      ? `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO ADICIONAL:\n${dynamicSystemInstruction}`
+  async sendMessage(userMessage: string, dynamicSystemInstruction?: string, history: any[] = []): Promise<string> {
+    const finalSystemInstruction = dynamicSystemInstruction
+      ? `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO:\n${dynamicSystemInstruction}`
       : SAVARA_SYSTEM_PROMPT;
 
-    if (coreStats) {
-      finalSystemInstruction += `
-      ### CORE INTELLIGENCE (AUTORIZADO) ###
-      Blueprint: ${coreStats.systemStatus}
-      Users: ${coreStats.totalUsers}
-      Contracts: ${coreStats.activeSubscriptions}
-      Platform: ${coreStats.platform}
-      Recent Synchronizations: ${coreStats.recentActivity?.length || 0}
-      
-      IMPORTANTE: Eres Savara Core. Estos datos son confidenciales y solo para el Arquitecto (Moisés).
-      `;
-    }
-
-    // Build Gemini-compatible contents
     const contents = [
       ...history.map((h: any) => ({
         role: h.role === 'model' ? 'model' : 'user',
@@ -71,56 +39,25 @@ class SavaraChat {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: {
-            parts: [{ text: finalSystemInstruction }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 150,
-          }
-        })
-      });
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: finalSystemInstruction }] },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
+      })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('[Savara Gemini] API Error:', response.status, errorData);
-
-        if (response.status === 429) {
-          throw new Error('Rate limit exceeded (429)');
-        }
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!text) {
-        console.warn('[Savara Gemini] No text in response:', JSON.stringify(data));
-        return "Perdona, ¿me repites eso?";
-      }
-
-      return text;
-
-    } catch (error: any) {
-      console.error('[Savara Gemini] Error:', error.message);
-      throw error;
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`API Error ${response.status}: ${JSON.stringify(errorData)}`);
     }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Perdona, ¿me repites eso?";
   }
 }
 
 export const createChatSession = (apiKey?: string) => new SavaraChat(apiKey);
-export const sendMessageToGemini = async (
-  chat: SavaraChat,
-  message: string,
-  systemContext?: string,
-  history: any[] = [],
-  coreStats?: any
-) => chat.sendMessage(message, systemContext, history, coreStats);
+export const sendMessageToGemini = async (chat: SavaraChat, message: string, systemContext?: string, history: any[] = []) => chat.sendMessage(message, systemContext, history);
