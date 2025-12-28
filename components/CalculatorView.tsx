@@ -55,13 +55,19 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   // Banner State
   const [showServiceBanner, setShowServiceBanner] = useState(false);
 
-  // Watch for Savara Errors
+  // Watch for Savara Errors - ONLY SHOW BANNER ONCE
   useEffect(() => {
     if (savaraError) {
-      // If error is related to connection/quota/permissions, show banner
-      if (savaraError.code === 'API_LIMIT_REACHED' || savaraError.code === 'CONNECTION_ERROR') {
-        setShowServiceBanner(true);
-      } else {
+      // If error is related to connection/quota/permissions, show banner ONCE
+      if (savaraError.code === 'API_LIMIT_REACHED' || savaraError.code === 'CONNECTION_ERROR' || savaraError.code === 'MODEL_NOT_FOUND') {
+        const alreadyShown = localStorage.getItem('savara_error_banner_shown');
+        if (!alreadyShown) {
+          setShowServiceBanner(true);
+          localStorage.setItem('savara_error_banner_shown', 'true');
+        }
+        // Always show a toast as fallback notification
+        showToast('Savara Pro temporalmente no disponible', 'error');
+      } else if (savaraError.code !== 'RETRYING') {
         showToast(savaraError.message || 'Error en Savara', 'error');
       }
     }
@@ -1087,23 +1093,23 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <div className="p-4 bg-black/40 border border-white/10 rounded-xl space-y-3">
                       <div className="flex items-center justify-between text-xs font-bold mb-1">
                         <span className="text-white flex items-center gap-2">
-                           <Mic size={14} className="text-emerald-400" />
-                           {Math.floor(voiceUsageSeconds / 60)} min usados
+                          <Mic size={14} className="text-emerald-400" />
+                          {Math.floor(voiceUsageSeconds / 60)} min usados
                         </span>
                         <span className="text-gray-500">de {license.tier === 'lifetime' ? '60' : '30'} min</span>
                       </div>
-                      
+
                       {/* Progress Bar */}
                       <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/10">
-                        <div 
-                           className={`h-full transition-all duration-500 rounded-full ${voiceUsageSeconds > (license.tier === 'lifetime' ? 3300 : 1500) ? 'bg-red-500' : 'bg-emerald-500'}`}
-                           style={{ width: `${Math.min(100, (voiceUsageSeconds / (license.tier === 'lifetime' ? 3600 : 1800)) * 100)}%` }}
+                        <div
+                          className={`h-full transition-all duration-500 rounded-full ${voiceUsageSeconds > (license.tier === 'lifetime' ? 3300 : 1500) ? 'bg-red-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min(100, (voiceUsageSeconds / (license.tier === 'lifetime' ? 3600 : 1800)) * 100)}%` }}
                         />
                       </div>
-                      
+
                       <p className="text-[10px] text-gray-500 mt-1 leading-relaxed italic">
-                        {license.tier === 'lifetime' 
-                          ? 'Tu plan Lifetime incluye 60 min mensuales de voz.' 
+                        {license.tier === 'lifetime'
+                          ? 'Tu plan Lifetime incluye 60 min mensuales de voz.'
                           : 'Tu plan incluye 30 min mensuales de voz.'}
                       </p>
                     </div>

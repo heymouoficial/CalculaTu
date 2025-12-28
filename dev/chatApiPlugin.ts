@@ -22,7 +22,7 @@ export function devChatApiPlugin(config?: { apiKey?: string }): Plugin {
         name: 'dev-chat-api',
         configureServer(server) {
             console.log('[DevPlugin] 🚀 Chat API Plugin LOADED (Gemini 2.5 Optimized)');
-            
+
             server.middlewares.use(async (req, res, next) => {
                 if (!req.url?.startsWith('/api/chat')) return next();
                 if (req.method !== 'POST') return next();
@@ -35,9 +35,18 @@ export function devChatApiPlugin(config?: { apiKey?: string }): Plugin {
                         return json(res, 500, { error: 'Missing API Key' });
                     }
 
+                    // Lógica DIRECTA con Identidad Centralizada (Sincronizada)
                     const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
-                    Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
-                    Responde siempre en español.`;
+                    Tu tono es cálido, profesional y conciso, pero informativo cuando se requiere.
+                    Responde siempre en español. Sé útil.
+                    
+                    SOBRE CALCULATÚ: App venezolana de compras. Convierte Bs/USD/EUR con tasa BCV.
+                    PROMOCIÓN: Pro GRATIS hasta 1 de Enero 2026.
+                    CREADOR: Moisés Vera.`;
+
+                    const finalSystemInstruction = systemContext
+                        ? `${SAVARA_SYSTEM_PROMPT}\n\nCONTEXTO DINÁMICO:\n${systemContext}`
+                        : SAVARA_SYSTEM_PROMPT;
 
                     const contents = [
                         ...(history || []).map((h: any) => ({
@@ -47,7 +56,7 @@ export function devChatApiPlugin(config?: { apiKey?: string }): Plugin {
                         { role: 'user', parts: [{ text: message }] }
                     ];
 
-                    // USANDO MODELO 2.5 FLASH SEGÚN TU LISTA DE CUOTAS
+                    // USANDO MODELO 2.5 FLASH (Dashboard User)
                     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${config.apiKey}`;
 
                     const response = await fetch(url, {
@@ -55,8 +64,8 @@ export function devChatApiPlugin(config?: { apiKey?: string }): Plugin {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             contents,
-                            systemInstruction: { parts: [{ text: systemContext || SAVARA_SYSTEM_PROMPT }] },
-                            generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
+                            systemInstruction: { parts: [{ text: finalSystemInstruction }] },
+                            generationConfig: { temperature: 0.9, maxOutputTokens: 8192 }
                         })
                     });
 

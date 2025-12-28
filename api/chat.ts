@@ -38,7 +38,30 @@ export default async function handler(
     console.log(`[API Chat] Using Key: ${maskedKey}`);
     console.log(`[API Chat] Sending message to Gemini. History length: ${history?.length || 0}`);
 
-    const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || [], coreStats);
+    // Inject Product Context (read from file)
+    let productContext = '';
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const productPath = path.join(process.cwd(), 'conductor', 'product.md');
+      if (fs.existsSync(productPath)) {
+        productContext = fs.readFileSync(productPath, 'utf-8');
+      }
+    } catch (e) {
+      console.warn('[API Chat] Failed to read product.md', e);
+    }
+
+    const enhancedSystemContext = `
+    ${productContext}
+    
+    ${systemContext || ''}
+    
+    REGLA DE ORO DE TASAS:
+    Usa SIEMPRE las tasas proporcionadas en el contexto (USD: ${req.body.coreStats?.rates?.USD || '??'}, EUR: ${req.body.coreStats?.rates?.EUR || '??'}).
+    NO inventes valores.
+    `;
+
+    const responseText = await sendMessageToGemini(chatSession, message, enhancedSystemContext, history || []);
     return res.status(200).json({ text: responseText });
   } catch (error: unknown) {
     const err = error as Error;

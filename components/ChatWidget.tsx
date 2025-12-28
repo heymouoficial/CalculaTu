@@ -168,13 +168,31 @@ const MessageContent: React.FC<{ text: string }> = ({ text }) => {
 
 export const ChatWidget: React.FC<{ defaultOpen?: boolean; initialMessage?: string; onClose?: () => void }> = ({ defaultOpen = false, initialMessage, onClose }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'model', text: '¡Hola! Soy **Savara AI** 🎙️. Tu compañera experta de **CalculaTú**. ¿En qué te puedo ayudar hoy?' }
-  ]);
+
+  // Load chat history from sessionStorage on mount
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('savara_chat_history');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch { /* ignore */ }
+      }
+    }
+    return [{ id: 'welcome', role: 'model', text: '¡Hola! Soy **Savara AI** 🎙️. Tu compañera experta de **CalculaTú**. ¿En qué te puedo ayudar hoy?' }];
+  });
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const rates = useAppStore(state => state.rates);
+
+  // Save messages to sessionStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem('savara_chat_history', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (defaultOpen && !isOpen) setIsOpen(true);

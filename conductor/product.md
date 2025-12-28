@@ -23,20 +23,24 @@ The primary users are everyday consumers in Venezuela who need a quick, reliable
 -   **Voucher System:** Generador de tickets/receipts con estética térmica, incluyendo avatar de Savara y tasa de cambio utilizada, listo para compartir como prueba de ahorro.
 -   **Portality Admin Panel:** Panel de administración con autenticación, generación de licencias JWT, gestión de trials con calendario interactivo, y publicación de tasas BCV.
 
-## 4. Estado Actual (24 Diciembre 2024)
+## 4. Estado Actual (28 Diciembre 2024)
 
 ### ✅ FUNCIONANDO
 - Banner promocional navideño con botón dorado "ACTIVAR AHORA"
 - Botón otorga 24h de Savara Pro gratis
 - Calculadora multi-moneda (manual mode)
-- Tasas BCV en Supabase (USD: 291.35, EUR: 342.94)
+- Tasas BCV en Supabase (USD: 294.96, EUR: 347.77)
 - Portality admin panel con calendario interactivo react-day-picker
 - Sistema de licencias JWT con device lock
 - Social media links (TikTok, Instagram, Threads, Facebook, LinkedIn, X)
 - Voice mode (Savara Live) via WebSocket
+- **[NUEVO] Chatbot con memoria de conversación** (sessionStorage)
+- **[NUEVO] Respuestas largas sin truncar** (8192 tokens max)
+- **[NUEVO] Savara no repite saludos innecesarios**
+- **[NUEVO] Banner de error solo aparece 1 vez (localStorage)**
 
-### ⚠️ REQUIERE ACCIÓN URGENTE
-- **GEMINI_API_KEY en Vercel**: El chat en producción falla porque falta configurar la variable de entorno `GEMINI_API_KEY` en Vercel. Ver sección "Deployment" abajo.
+### ⚠️ REQUIERE ACCIÓN (No Bloqueante)
+- **Límites de cuota Free Tier**: El modelo Live API (`gemini-2.0-flash-exp`) solo permite 2 llamadas/día en Free Tier. Solución: Configurar facturación para obtener $300 de crédito gratuito.
 
 ### 🔧 PROBLEMAS CONOCIDOS (NO BLOQUEANTES)
 - Lint errors de Deno en supabase/functions (solo IDE, no afecta producción)
@@ -47,7 +51,7 @@ The primary users are everyday consumers in Venezuela who need a quick, reliable
 -   **Frontend:** React 19, Vite 6.4
 -   **State Management:** Zustand
 -   **Artificial Intelligence:** Gemini 2.5 Flash (REST API directa a v1beta)
--   **Voice AI:** Gemini 2.5 Flash Native Audio Preview (WebSocket)
+-   **Voice AI:** Gemini 2.0 Flash Exp (WebSocket bidiGenerateContent)
 -   **Backend & Database:** Supabase for database and authentication
 -   **Serverless Functions:** Vercel Functions for handling license creation and verification via JWT (`jose` library)
 -   **Deployment:** Vercel
@@ -72,14 +76,26 @@ GEMINI_API_KEY=AIzaSyB2pUIh2GWNX-C5sxC_3cLIztmcptdliRU
 
 ## 7. Modelos Gemini Usados
 
-| Función | Modelo | Endpoint |
-|---------|--------|----------|
-| Chat (Landing) | `gemini-2.5-flash` | REST API v1beta |
-| Voz (Calculator) | `gemini-2.5-flash-native-audio-preview-12-2025` | WebSocket bidiGenerateContent |
+| Función | Modelo | Endpoint | Límite Free Tier |
+|---------|--------|----------|------------------|
+| Chat (Landing) | `gemini-2.5-flash` | REST API v1beta | 5 RPM, 250K TPM |
+| Voz (Calculator) | `gemini-2.0-flash-exp` | WebSocket v1alpha | 2 RPD (!!!) |
 
 ## 8. Próximos Pasos
 
-1. Configurar `GEMINI_API_KEY` en Vercel y redeploy
-2. Verificar chat funcionando en producción
-3. Monitorear uso de API Gemini (quota limits)
-4. Preparar métricas de uso para análisis post-navidad
+1. ✅ ~~Configurar `GEMINI_API_KEY` en Vercel y redeploy~~ (Completado)
+2. ✅ ~~Verificar chat funcionando en producción~~ (Completado)
+3. **[PENDIENTE]** Configurar facturación en Google AI Studio para aumentar límites
+4. **[PENDIENTE]** Implementar sistema de API Keys de backup/fallback
+5. **[PENDIENTE]** Preparar métricas de uso para análisis post-navidad
+
+## 9. Sesión 28-Dic-2024 - Resumen de Cambios
+
+### Archivos Modificados:
+- `constants.tsx` - Añadidas reglas de conversación para evitar saludos repetidos
+- `services/geminiService.ts` - Tokens aumentados a 8192, modelo corregido
+- `dev/chatApiPlugin.ts` - Límite oculto de 200 tokens removido, modelo actualizado
+- `hooks/useSavaraLive.ts` - Mejor manejo de errores (1008, quota), modelo corregido
+- `components/CalculatorView.tsx` - Banner de error solo 1 vez (localStorage)
+- `components/ChatWidget.tsx` - Memoria de chat persistente (sessionStorage)
+

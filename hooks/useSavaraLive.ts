@@ -2,10 +2,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
 import { syncVoiceUsage } from '../services/usageService';
+import productContext from '../conductor/product.md?raw';
 
-const MODEL = "models/gemini-2.5-flash"; 
-const MODEL_LIVE_PRIMARY = "gemini-2.5-flash-native-audio-dialog"; 
-const MODEL_LIVE_FALLBACK = "gemini-2.0-flash-exp";
+
+const MODEL = "models/gemini-2.5-flash";
+const MODEL_LIVE_PRIMARY = "gemini-2.0-flash-exp"; // Este sí conecta (el nombre del dashboard NO coincide con la API)
+const MODEL_LIVE_FALLBACK = "gemini-2.0-flash-exp"; // Mismo modelo, solo para evitar loops
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
 const SILENCE_TIMEOUT_MS = 60000; // 60 seconds
 
@@ -37,7 +39,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   const updateItem = useAppStore((state) => state.updateItem);
   const items = useAppStore((state) => state.items);
   const incrementVoiceUsage = useAppStore((state) => state.incrementVoiceUsage);
-  const fetchRemoteUsage = useAppStore((state) => state.fetchRemoteUsage); // Get fetch action
+  const fetchRemoteUsage = useAppStore((state) => state.fetchRemoteUsage);
   const voiceUsageSeconds = useAppStore((state) => state.voiceUsageSeconds);
   const license = useAppStore((state) => state.license);
   const unsyncedSeconds = useRef(0);
@@ -48,9 +50,9 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
     silenceTimerRef.current = setTimeout(() => {
       console.log("🕒 Silence Timeout reached (60s). Disconnecting...");
       disconnect();
-      setError({ 
-        code: 'SILENCE_TIMEOUT', 
-        message: "Sesión cerrada por inactividad (1 min)." 
+      setError({
+        code: 'SILENCE_TIMEOUT',
+        message: "Sesión cerrada por inactividad (1 min)."
       });
     }, SILENCE_TIMEOUT_MS);
   }, []);
@@ -59,7 +61,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   useEffect(() => {
     fetchRemoteUsage().catch(console.error);
   }, []);
-  
+
   // Metering Interval & Sync
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -67,26 +69,26 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       interval = setInterval(() => {
         incrementVoiceUsage(1);
         unsyncedSeconds.current += 1;
-        
+
         // Sync to Backend every 10 seconds
         if (unsyncedSeconds.current >= 10) {
-           if (machineId) {
-             syncVoiceUsage(machineId, unsyncedSeconds.current).then(() => {
-               unsyncedSeconds.current = 0;
-             });
-           }
+          if (machineId) {
+            syncVoiceUsage(machineId, unsyncedSeconds.current).then(() => {
+              unsyncedSeconds.current = 0;
+            });
+          }
         }
-        
-        // Dynamic Limit: Lifetime = 60 min (3600s), Others = 30 min (1800s)
-        const LIMIT_SECONDS = license.tier === 'lifetime' ? 3600 : 1800;
-        
+
+        // Dynamic Limit: 60 min for everyone during Winter Promo
+        const LIMIT_SECONDS = 3600;
+
         if (voiceUsageSeconds >= LIMIT_SECONDS) {
-           console.warn("Límite de uso de voz alcanzado.");
-           disconnect();
-           setError({ 
-             code: 'USAGE_LIMIT_REACHED', 
-             message: `Has alcanzado tu límite de voz (${LIMIT_SECONDS / 60} min).` 
-           });
+          console.warn("Límite de uso de voz alcanzado.");
+          disconnect();
+          setError({
+            code: 'USAGE_LIMIT_REACHED',
+            message: `Has alcanzado tu límite de voz (${LIMIT_SECONDS / 60} min).`
+          });
         }
       }, 1000);
     }
@@ -148,6 +150,17 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
           name: "get_bcv_rate",
           description: "Gets the current official BCV exchange rate from the database.",
           parameters: { type: "object", properties: {} }
+        },
+        {
+          name: "save_user_name",
+          description: "Saves the user's name to their profile in the database.",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "The user's name" }
+            },
+            required: ["name"]
+          }
         }
       ]
     }
@@ -156,11 +169,11 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   const connect = useCallback(async (initialPrompt?: string) => {
     try {
       if (ws.current?.readyState === WebSocket.OPEN) return;
-      
+
       // Check Usage Limit Before Connecting
-      const LIMIT_SECONDS = 1800; // 30 Mins Promo
+      const LIMIT_SECONDS = 3600; // 60 Mins Promo
       if (useAppStore.getState().voiceUsageSeconds >= LIMIT_SECONDS) {
-        setError({ code: 'USAGE_LIMIT_REACHED', message: "Has alcanzado tu límite mensual de voz (30 min)." });
+        setError({ code: 'USAGE_LIMIT_REACHED', message: "Has alcanzado tu límite mensual de voz (60 min)." });
         return;
       }
 
@@ -204,12 +217,19 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
         console.log("🟢 Savara Conectada (Sockets Optimized)");
         setIsConnected(true);
 
-        // Handshake Init
         const identityPrompt = `
+          ${productContext}
+
           Eres Savara, la asistente inteligente de CalculaTú.
           Tu tono es cálido, profesional y extremadamente conciso.
+          Habla claro, amigable y directo al grano. CERO TECNICISMOS.
           ${userName ? `Estás hablando con ${userName}.` : ''}
           ${machineId ? `El ID de dispositivo del usuario es: ${machineId}.` : ''}
+          
+          REGLA DE ORO: NO INVENTES TASAS DE CAMBIO.
+          Usa SIEMPRE la herramienta 'get_bcv_rate' para obtener la tasa del día desde la base de datos.
+          Si no puedes obtener la tasa, dilo honestamente.
+
           Tienes acceso a la base de datos de Multiversa para consultas.
           Responde siempre en español. Sé breve y útil.
           
@@ -268,20 +288,34 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
         setIsConnected(false);
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
-        // RETRY LOGIC for Quota/Model Issues
-        if ((event.code === 1011 || event.reason.toLowerCase().includes("quota")) && retryCount.current === 0) {
-           console.warn(`⚠️ Quota/Model Error with ${MODEL_LIVE_PRIMARY}. Retrying with fallback: ${MODEL_LIVE_FALLBACK}...`);
-           retryCount.current = 1;
-           setCurrentModel(MODEL_LIVE_FALLBACK);
-           // Slight delay before retry to allow state update
-           setTimeout(() => connect(initialPrompt), 500);
-           return;
+        // Determine error type
+        const isQuotaError = event.code === 1011 || event.reason?.toLowerCase().includes("quota");
+        const isModelNotFound = event.code === 1008 || event.reason?.toLowerCase().includes("not found");
+
+        // DON'T RETRY on model not found - it won't help
+        if (isModelNotFound) {
+          console.error("❌ Modelo Live no encontrado. Verificar nombre en API.");
+          setError({
+            code: 'MODEL_NOT_FOUND',
+            message: "El modelo de voz no está disponible. Contacta soporte."
+          });
+          if (onHangUp) onHangUp();
+          return;
+        }
+
+        // RETRY ONCE for Quota Issues (with delay)
+        if (isQuotaError && retryCount.current === 0) {
+          console.warn(`⚠️ Quota agotada. Reintentando en 5 segundos...`);
+          retryCount.current = 1;
+          setError({ code: 'RETRYING', message: "Cuota agotada. Reintentando..." });
+          setTimeout(() => connect(initialPrompt), 5000); // 5 second delay
+          return;
         }
 
         if (onHangUp) onHangUp(); // Trigger callback if not retrying
 
-        if (event.code === 1011 || event.reason.toLowerCase().includes("quota")) {
-          setError({ code: 'API_LIMIT_REACHED', message: "Servidores de Google saturados (Quota). Intenta más tarde." });
+        if (isQuotaError) {
+          setError({ code: 'API_LIMIT_REACHED', message: "Servidores de Google saturados. Intenta en 1-2 minutos." });
         } else if (event.code !== 1000) {
           setError({ code: 'CONNECTION_ERROR', message: "Conexión cerrada inesperadamente." });
         }
@@ -344,13 +378,13 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
     // 1. Cerrar WebSocket si está abierto
     if (ws.current) {
       // Evitar bucles: quitar listeners antes de cerrar para no disparar 'onclose' de nuevo
-      ws.current.onclose = null; 
+      ws.current.onclose = null;
       ws.current.onerror = null;
       ws.current.onmessage = null;
       ws.current.close();
       ws.current = null;
     }
-  
+
     // 2. Limpieza de Audio IDEMPOTENTE (El fix del error)
     if (audioContext.current) {
       // Solo intentar cerrar si NO está cerrado ya
@@ -361,13 +395,13 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       }
       audioContext.current = null;
     }
-  
+
     // 3. Desconectar Worklet si existe
     if (workletNode.current) {
       workletNode.current.disconnect();
       workletNode.current = null;
     }
-    
+
     // 4. Limpiar media stream
     if (mediaStream.current) {
       mediaStream.current.getTracks().forEach(track => track.stop());
@@ -455,6 +489,22 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
         }
         const { data, error: dbErr } = await supabase.from('bcv_rates').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
         responses.push({ id: call.id, name: call.name, response: dbErr ? { error: dbErr.message } : { rates: data } });
+      }
+      else if (call.name === "save_user_name") {
+        const { name } = call.args;
+        if (!supabase || !machineId) {
+          responses.push({ id: call.id, name: call.name, response: { error: "Database/ID unavailable" } });
+          continue;
+        }
+        // Update Profile in Supabase
+        const { error: upsertErr } = await supabase.from('profiles').upsert({ machine_id: machineId, display_name: name, updated_at: new Date() });
+
+        if (!upsertErr) {
+          // Also update local store
+          useAppStore.getState().setUserName(name);
+        }
+
+        responses.push({ id: call.id, name: call.name, response: upsertErr ? { error: upsertErr.message } : { result: `Name ${name} saved successfully.` } });
       }
     }
 

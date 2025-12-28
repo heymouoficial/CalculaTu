@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
       // Always load chat plugin if key exists to prevent 404s in local preview
       devChatApiPlugin({ apiKey: env.VITE_GEMINI_API_KEY }),
     ].filter(Boolean),
+    assetsInclude: ['**/*.md'],
     resolve: {
       alias: {
         '@': rootDir,

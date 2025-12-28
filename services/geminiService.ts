@@ -1,11 +1,11 @@
 // services/geminiService.ts
-// Using Google Gemini API Direct (Gemini 2.5 Updated)
+// Using Google Gemini API Direct (Gemini 1.5 Flash - Stable)
 
-const CURRENT_MODEL = 'gemini-2.5-flash';
+import { SAVARA_IDENTITY } from '../constants';
 
-const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú.
-Tu tono es cálido, profesional y extremadamente conciso (máximo 30 palabras).
-Responde siempre en español. Sé breve y útil.`;
+const CURRENT_MODEL = 'gemini-2.5-flash'; // As seen in User Dashboard
+
+const SAVARA_SYSTEM_PROMPT = SAVARA_IDENTITY;
 
 const getGeminiApiKey = (): string | undefined => {
   const key = (typeof process !== 'undefined' && process.env ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : undefined) ||
@@ -39,22 +39,29 @@ class SavaraChat {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${this.apiKey}`;
 
+    console.log("[GeminiService] PROMPT PREVIEW:", finalSystemInstruction.slice(0, 500));
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents,
         systemInstruction: { parts: [{ text: finalSystemInstruction }] },
-        generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
+        generationConfig: {
+          temperature: 0.9,
+          maxOutputTokens: 8192 // UNLEASHED - MAX ALLOWED
+        }
       })
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`API Error ${response.status}: ${JSON.stringify(errorData)}`);
+      const errorData = await response.json();
+      console.error("[GeminiService] API ERROR:", errorData);
+      throw new Error(`API Error ${response.status}: ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
+    console.log("[GeminiService] FULL RESPONSE:", JSON.stringify(data, null, 2));
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "Perdona, ¿me repites eso?";
   }
 }
