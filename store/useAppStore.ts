@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { RATES } from '../constants';
 import { getOrCreateMachineId, getOrCreateUIC } from '../utils/deviceId';
 import { ShoppingItem, ExchangeRate } from '../types';
+import { fetchVoiceUsage, syncVoiceUsage } from '../services/usageService';
 
 export type LicenseTier = 'trial' | 'freemium' | 'monthly' | 'pro' | 'lifetime';
 
@@ -36,6 +37,7 @@ type AppState = {
   setUserName: (name: string | null) => void;
   incrementVoiceUsage: (seconds: number) => void;
   resetVoiceUsage: () => void;
+  fetchRemoteUsage: () => Promise<void>; // New action
   setHasGreeted: (hasGreeted: boolean) => void;
   setBaseRates: (rates: ExchangeRate) => void;
   setRatesTemporarily: (rates: ExchangeRate) => void; // 24h cache
@@ -240,6 +242,19 @@ export const useAppStore = create<AppState>((set) => {
         persistVoiceUsage(0, now);
         return { voiceUsageSeconds: 0, lastUsageReset: now };
       }),
+
+    fetchRemoteUsage: async () => {
+      // Don't fetch if no machineId yet
+      const id = getOrCreateMachineId();
+      if (!id) return;
+      
+      const remote = await fetchVoiceUsage(id);
+      if (remote) {
+        set({ voiceUsageSeconds: remote.usage });
+        // Update local storage too to keep them in sync
+        persistVoiceUsage(remote.usage, new Date().toISOString());
+      }
+    },
 
     setHasGreeted: (hasGreeted) => set({ hasGreeted }),
 

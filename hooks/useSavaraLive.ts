@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
+import { syncVoiceUsage } from '../services/usageService';
 
 const MODEL = "models/gemini-2.0-flash-exp"; // Fallback/Standard
 const MODEL_LIVE = "gemini-2.5-flash-native-audio-preview-12-2025"; // Optimized for Live
@@ -31,15 +32,32 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   const updateItem = useAppStore((state) => state.updateItem);
   const items = useAppStore((state) => state.items);
   const incrementVoiceUsage = useAppStore((state) => state.incrementVoiceUsage);
+  const fetchRemoteUsage = useAppStore((state) => state.fetchRemoteUsage); // Get fetch action
   const voiceUsageSeconds = useAppStore((state) => state.voiceUsageSeconds);
   const license = useAppStore((state) => state.license);
+  const unsyncedSeconds = useRef(0);
+
+  // Initial Fetch
+  useEffect(() => {
+    fetchRemoteUsage().catch(console.error);
+  }, []);
   
-  // Metering Interval
+  // Metering Interval & Sync
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isConnected) {
       interval = setInterval(() => {
         incrementVoiceUsage(1);
+        unsyncedSeconds.current += 1;
+        
+        // Sync to Backend every 10 seconds
+        if (unsyncedSeconds.current >= 10) {
+           if (machineId) {
+             syncVoiceUsage(machineId, unsyncedSeconds.current).then(() => {
+               unsyncedSeconds.current = 0;
+             });
+           }
+        }
         
         // Dynamic Limit: Lifetime = 60 min (3600s), Others = 30 min (1800s)
         const LIMIT_SECONDS = license.tier === 'lifetime' ? 3600 : 1800;
@@ -329,8 +347,15 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       audioContextOutput.current = null;
     }
 
+    // 6. Final Sync
+    if (unsyncedSeconds.current > 0 && machineId) {
+      syncVoiceUsage(machineId, unsyncedSeconds.current).then(() => {
+        unsyncedSeconds.current = 0;
+      });
+    }
+
     setIsConnected(false);
-  }, []);
+  }, [machineId]); // Added dependency on machineId because it's used in callback
 
   const handleToolCall = async (toolCall: any) => {
     const functionCalls = toolCall.functionCalls;

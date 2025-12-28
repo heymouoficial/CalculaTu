@@ -12,6 +12,12 @@ vi.mock('../store/useAppStore', () => ({
   useAppStore: Object.assign(vi.fn(), { getState: mockGetState }),
 }));
 
+// Mock usageService
+vi.mock('../services/usageService', () => ({
+  syncVoiceUsage: vi.fn().mockResolvedValue(true),
+  fetchVoiceUsage: vi.fn().mockResolvedValue({ usage: 0, limit: 1800 })
+}));
+
 describe('useSavaraLive', () => {
   let mockAddItem: any, mockRemoveItem: any, mockUpdateItem: any;
   let mockItems: any[];
@@ -40,6 +46,7 @@ describe('useSavaraLive', () => {
         machineId: 'test-id',
         voiceUsageSeconds: 0,
         incrementVoiceUsage: vi.fn(),
+        fetchRemoteUsage: vi.fn().mockResolvedValue(undefined), // Mocked here
         license: { tier: 'monthly', active: true },
     };
 
