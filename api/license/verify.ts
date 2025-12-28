@@ -1,32 +1,6 @@
 import { jwtVerify } from 'jose';
-
-// --- Utils Inlined ---
-function json(res: any, status: number, body: any) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(body));
-}
-
-function readBody(req: any): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk: any) => {
-      data += chunk;
-    });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
-  });
-}
-
-async function readJson(req: any): Promise<any> {
-  const raw = await readBody(req);
-  try {
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-// ---------------------
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { json, readJson } from './_utils';
 
 type VerifyBody = {
   token?: string;
@@ -39,7 +13,7 @@ function getEnv(name: string): string | undefined {
 
 // NOTE: This is a placeholder for a real auth system.
 // In a real app, you'd check a session or a proper admin API key.
-function requireAdminAccess(req: any): boolean {
+function requireAdminAccess(req: VercelRequest): boolean {
   try {
     // TEMPORARY: Allow access from localhost for development
     const host = req.headers['host'] || '';
@@ -48,21 +22,24 @@ function requireAdminAccess(req: any): boolean {
     }
     const expected = getEnv('PORTAL_KEY');
     if (!expected) return true; // Allow if not configured
-    const provided = String(req.headers['x-portality-key'] || req.headers['x-portal-key'] || '').trim();
+
+    const headerVal = req.headers['x-portality-key'] || req.headers['x-portal-key'];
+    const provided = (Array.isArray(headerVal) ? headerVal[0] : headerVal || '').trim();
+
     return provided === expected;
   } catch {
     return false;
   }
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
 
     const secret = getEnv('LICENSE_SIGNING_KEY');
     if (!secret) return json(res, 500, { error: 'LICENSE_SIGNING_KEY is not set' });
 
-    const body = (await readJson(req)) as VerifyBody;
+    const body = await readJson<VerifyBody>(req);
     const token = String(body.token || '').trim();
     const deviceId = String(body.deviceId || '').trim();
 
@@ -103,8 +80,9 @@ export default async function handler(req: any, res: any) {
     console.log(`[license/verify] Token valid. Plan: ${plan}, Exp: ${exp}`);
 
     return json(res, 200, { valid: true, plan, expiresAt: exp, features });
-  } catch (e: any) {
-    console.error('[license/verify] Validation failed:', e.message);
+  } catch (e: unknown) {
+    const error = e as Error;
+    console.error('[license/verify] Validation failed:', error.message);
     return json(res, 200, { valid: false, error: 'El token es inválido o expiró.' });
   }
 }

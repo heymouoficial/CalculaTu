@@ -1,33 +1,25 @@
-export function json(res: any, status: number, body: any) {
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+export function json(res: VercelResponse, status: number, body: unknown) {
   res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(body));
 }
 
-export async function readJson(req: any): Promise<any> {
-  const raw = await readBody(req);
+export async function readJson<T = unknown>(req: VercelRequest): Promise<T> {
+  const body = await readBody(req);
   try {
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+    return JSON.parse(body) as T;
+  } catch (e) {
+    return {} as T;
   }
 }
 
-function readBody(req: any): Promise<string> {
+function readBody(req: VercelRequest): Promise<string> {
   return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk: any) => {
-      data += chunk;
-    });
-    req.on('end', () => resolve(data));
+    let body = '';
+    req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+    req.on('end', () => { resolve(body); });
     req.on('error', reject);
   });
 }
-
-
-
-
-
-
-
-

@@ -12,12 +12,12 @@ SOBRE CALCULATÚ:
 - Tiene un modo voz PRO para dictar productos
 
 PROMOCIÓN NAVIDAD 2024:
-- 🎁 24 horas GRATIS de Savara Pro (asistente de voz)
-- Solo deben hacer clic en "ACTIVAR AHORA" en el banner verde
+- 🎁 FREEPASS: Savara Pro GRATIS hasta el 1 de Enero.
+- Solo deben hacer clic en "ACTIVAR AHORA" en el banner superior.
 
-PRECIOS PREMIUM:
-- Pro Mensual: $2.99/mes - voz ilimitada
-- Pro Lifetime: $24.99 una vez - para siempre
+PRECIOS PROMOCIÓN LANZAMIENTO:
+- Pro Mensual: $1 (Oferta hasta 01 Ene) - Incluye 30 min voz/mes. (Precio futuro: $3)
+- Pro Lifetime: $10 (Oferta hasta 31 Ene) - Incluye 60 min voz/mes. (Precio futuro: $20)
 
 Responde siempre en español. Sé breve y útil.`;
 

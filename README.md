@@ -13,8 +13,8 @@
 - **Asistente de Voz Bidireccional:** Habla con Savara para agregar productos ("Agrega 2 harinas y un queso") o consultar precios.
 - **Latencia Ultra-Baja:** Optimizado con WebSockets y `AudioWorklet` para respuestas casi instantáneas.
 - **Límites Inteligentes:** Sistema de "Taxímetro" de voz con persistencia en la nube.
-  - **FreePass / Promo:** 30 min/mes.
-  - **Lifetime:** 60 min/mes.
+  - **FreePass / Promo:** 30 min/mes ($1/mes - Launch Promo).
+  - **Lifetime:** 60 min/mes ($10 Lifetime - Launch Promo).
 - **Contexto Financiero:** Savara conoce la tasa del día y convierte divisas automáticamente mientras hablas.
 
 ### 🛡️ Modo Búnker (Offline-First)

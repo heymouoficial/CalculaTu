@@ -2,17 +2,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import createHandler from './create';
 import verifyHandler from './verify';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Mock Response
 class MockResponse {
   statusCode: number = 0;
   headers: Record<string, string> = {};
-  body: any = null;
+  body: string = '';
 
   setHeader(key: string, value: string) {
     this.headers[key] = value;
   }
-  
+
   status(code: number) {
     this.statusCode = code;
     return this;
@@ -32,24 +33,28 @@ class MockResponse {
 class MockRequest {
   method: string;
   headers: Record<string, string> = {};
-  body: any;
+  body: any; // Used if we were using req.body, but we are using stream reading
   callbacks: Record<string, Function> = {};
 
-  constructor(method: string, body: any, headers: Record<string, string> = {}) {
+  // This is used by our readBody function
+
+  constructor(method: string, bodyVal: any, headers: Record<string, string> = {}) {
     this.method = method;
-    this.body = JSON.stringify(body);
+    this.body = JSON.stringify(bodyVal);
     this.headers = headers;
   }
 
   on(event: string, callback: Function) {
     this.callbacks[event] = callback;
     if (event === 'data') {
-       callback(this.body);
+      // Simulate buffer chunk
+      callback(Buffer.from(this.body));
     }
     if (event === 'end') {
-       // Trigger end immediately for simplicity in test
-       setTimeout(() => callback(), 0); 
+      // Trigger end immediately for simplicity in test
+      setTimeout(() => callback(), 0);
     }
+    return this;
   }
 }
 
@@ -72,7 +77,7 @@ describe('License API Flow', () => {
     });
     const createRes = new MockResponse();
 
-    await createHandler(createReq as any, createRes as any);
+    await createHandler(createReq as unknown as VercelRequest, createRes as unknown as VercelResponse);
 
     expect(createRes.statusCode).toBe(200);
     const createData = JSON.parse(createRes.body);
@@ -88,11 +93,11 @@ describe('License API Flow', () => {
     });
     const verifyRes = new MockResponse();
 
-    await verifyHandler(verifyReq as any, verifyRes as any);
+    await verifyHandler(verifyReq as unknown as VercelRequest, verifyRes as unknown as VercelResponse);
 
     expect(verifyRes.statusCode).toBe(200);
     const verifyData = JSON.parse(verifyRes.body);
-    
+
     expect(verifyData.valid).toBe(true);
     expect(verifyData.plan).toBe('lifetime');
     expect(verifyData.features).toContain('voice');
@@ -107,7 +112,7 @@ describe('License API Flow', () => {
       'x-portal-key': PORTAL_KEY
     });
     const createRes = new MockResponse();
-    await createHandler(createReq as any, createRes as any);
+    await createHandler(createReq as unknown as VercelRequest, createRes as unknown as VercelResponse);
     const token = JSON.parse(createRes.body).token;
 
     // 2. VERIFY for Machine B
@@ -117,7 +122,7 @@ describe('License API Flow', () => {
     });
     const verifyRes = new MockResponse();
 
-    await verifyHandler(verifyReq as any, verifyRes as any);
+    await verifyHandler(verifyReq as unknown as VercelRequest, verifyRes as unknown as VercelResponse);
 
     const verifyData = JSON.parse(verifyRes.body);
     expect(verifyData.valid).toBe(false);

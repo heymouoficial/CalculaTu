@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createChatSession, sendMessageToGemini } from '../services/geminiService';
 
+interface ChatRequestBody {
+  message?: string;
+  systemContext?: string;
+  history?: any[]; // TODO: Define strict Content type from Google AI SDK
+  coreStats?: any;
+}
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse,
@@ -9,7 +16,7 @@ export default async function handler(
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { message, systemContext, history, coreStats } = req.body;
+  const { message, systemContext, history, coreStats } = req.body as ChatRequestBody;
 
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
@@ -33,15 +40,16 @@ export default async function handler(
 
     const responseText = await sendMessageToGemini(chatSession, message, systemContext, history || [], coreStats);
     return res.status(200).json({ text: responseText });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     console.error('[API Chat] CRITICAL ERROR:', {
-      message: error.message,
-      stack: error.stack,
+      message: err.message,
+      stack: err.stack,
       historyCount: history?.length
     });
 
-    const status = error.message?.includes('429') ? 429 : 500;
-    const details = error.message || 'Unknown error';
+    const status = err.message?.includes('429') ? 429 : 500;
+    const details = err.message || 'Unknown error';
 
     return res.status(status).json({
       error: status === 429 ? 'Quota exceeded' : 'Failed to get response from Savara',

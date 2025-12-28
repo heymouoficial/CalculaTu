@@ -1,32 +1,6 @@
 import { SignJWT } from 'jose';
-
-// --- Utils Inlined ---
-function json(res: any, status: number, body: any) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(body));
-}
-
-function readBody(req: any): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk: any) => {
-      data += chunk;
-    });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
-  });
-}
-
-async function readJson(req: any): Promise<any> {
-  const raw = await readBody(req);
-  try {
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-// ---------------------
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { json, readJson } from './_utils';
 
 type CreateBody = {
   deviceId?: string;
@@ -38,7 +12,7 @@ function getEnv(name: string): string | undefined {
   return process.env[name];
 }
 
-function requirePortalKey(req: any): boolean {
+function requirePortalKey(req: VercelRequest): boolean {
   try {
     // TEMPORARY: Allow access from localhost for development
     const host = req.headers['host'] || '';
@@ -52,7 +26,10 @@ function requirePortalKey(req: any): boolean {
     if (!expected || expected.trim() === '') return true;
 
     // Check headers
-    const provided = String(req.headers['x-portality-key'] || req.headers['x-portal-key'] || '').trim();
+    // headers values can be string or string[]
+    const headerVal = req.headers['x-portality-key'] || req.headers['x-portal-key'];
+    const provided = (Array.isArray(headerVal) ? headerVal[0] : headerVal || '').trim();
+
     return provided === expected.trim();
   } catch (err) {
     console.error('Error checking portal key:', err);
@@ -64,11 +41,11 @@ function computeExpiry(plan: 'monthly' | 'lifetime', months?: number): Date | nu
   if (plan === 'lifetime') {
     return new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000); // 100 years
   }
-  const m = Math.max(1, Math.min(24, Number.isFinite(months as any) ? Number(months) : 1));
+  const m = Math.max(1, Math.min(24, Number.isFinite(months) ? Number(months) : 1));
   return new Date(Date.now() + m * 30 * 24 * 60 * 60 * 1000);
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     console.log('[license/create] Request received');
 
@@ -91,7 +68,7 @@ export default async function handler(req: any, res: any) {
     // Parse Body
     let body: CreateBody;
     try {
-      body = (await readJson(req)) as CreateBody;
+      body = await readJson<CreateBody>(req);
     } catch (err) {
       console.error('[license/create] Error reading body:', err);
       return json(res, 400, { error: 'Invalid JSON body' });
@@ -118,7 +95,7 @@ export default async function handler(req: any, res: any) {
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .setIssuedAt()
       .setSubject(deviceId)
-      .setExpirationTime(expiresAt ? Math.floor(expiresAt.getTime() / 1000) : undefined as any)
+      .setExpirationTime(expiresAt ? Math.floor(expiresAt.getTime() / 1000) : '100y')
       .sign(encoder.encode(secret));
 
     console.log('[license/create] Success');
@@ -130,11 +107,12 @@ export default async function handler(req: any, res: any) {
       expiresAt: expiresAt ? expiresAt.toISOString() : null,
     });
 
-  } catch (err: any) {
-    console.error('[license/create] CRITICAL ERROR:', err);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error('[license/create] CRITICAL ERROR:', error);
     return json(res, 500, {
-      error: err?.message || 'Internal server error',
-      stack: process.env.NODE_ENV === 'development' ? err?.stack : undefined
+      error: error?.message || 'Internal server error',
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
     });
   }
 }

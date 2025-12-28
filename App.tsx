@@ -322,11 +322,15 @@ const App: React.FC = () => {
 
             {/* MONTHLY TIER */}
             <div className="p-8 rounded-3xl bg-[#111] border border-white/10 flex flex-col h-[460px] relative">
+              <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl rounded-tr-3xl uppercase tracking-wider">
+                Hasta 01 Ene
+              </div>
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-emerald-400 mb-2">Pro Mensual</h3>
                 <div className="flex flex-col">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-white"></span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-white">$1</span>
+                    <span className="text-lg text-gray-500 line-through decoration-red-500/50">$3</span>
                     <span className="text-sm text-gray-500">/mes</span>
                   </div>
                   <span className="text-sm font-mono text-emerald-500 mt-1">
@@ -337,10 +341,10 @@ const App: React.FC = () => {
               </div>
               <ul className="space-y-4 mb-8 flex-1">
                 <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-emerald-500" /> <strong>Todo lo Gratis</strong></li>
-                <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-emerald-500" /> Asistente de Voz (Savara)</li>
+                <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-emerald-500" /> <strong>30 Minutos</strong> de Voz</li>
                 <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-emerald-500" /> Historial de Compras</li>
               </ul>
-              <button onClick={() => handlePlanClick('Mensual ')} className="w-full py-3 rounded-xl bg-white text-black font-bold hover:bg-gray-200 transition-all">Suscribirse</button>
+              <button onClick={() => handlePlanClick('Mensual $1')} className="w-full py-3 rounded-xl bg-white text-black font-bold hover:bg-gray-200 transition-all">Suscribirse</button>
             </div>
 
             {/* LIFETIME TIER (BEST VALUE) */}
@@ -358,8 +362,8 @@ const App: React.FC = () => {
                     <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-purple-400 mb-2">Lifetime Pro</h3>
                     <div className="flex flex-col">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-bold text-white tracking-tight">0</span>
-                        <span className="text-lg text-gray-500 line-through decoration-red-500/50">5</span>
+                        <span className="text-5xl font-bold text-white tracking-tight">$10</span>
+                        <span className="text-lg text-gray-500 line-through decoration-red-500/50">$20</span>
                       </div>
                       <span className="text-sm font-mono text-emerald-200 mt-1">
                         ≈ Bs {(10 * rates.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -369,11 +373,11 @@ const App: React.FC = () => {
                   </div>
                   <ul className="space-y-4 mb-8 flex-1">
                     <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-purple-400" /> <strong>Todo lo Pro Mensual</strong></li>
+                    <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-purple-400" /> <strong>60 Minutos</strong> de Voz</li>
                     <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-purple-400" /> Sin mensualidades jamás</li>
-                    <li className="flex items-center gap-3 text-white"><BadgeCheck size={18} className="text-purple-400" /> Acceso anticipado a funciones</li>
                     <li className="flex items-center gap-3 text-white"><ShieldCheck size={18} className="text-purple-400" /> Soporte Prioritario</li>
                   </ul>
-                  <button onClick={() => handlePlanClick('Lifetime 0')} className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:to-emerald-500 text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all active:scale-95">
+                  <button onClick={() => handlePlanClick('Lifetime $10')} className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:to-emerald-500 text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all active:scale-95">
                     Obtener Acceso Vitalicio
                   </button>
                 </div>
