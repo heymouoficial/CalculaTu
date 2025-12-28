@@ -1,10 +1,26 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { autoActivateTrial } from './license';
 import { useAppStore } from '../store/useAppStore';
 
+// Mock Supabase
+vi.mock('../services/supabaseClient', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+          }))
+        }))
+      }))
+    }))
+  }
+}));
+
 describe('autoActivateTrial', () => {
   beforeEach(() => {
-    // Clear localStorage and reset store
     localStorage.clear();
     useAppStore.setState({
       license: {
@@ -13,9 +29,18 @@ describe('autoActivateTrial', () => {
         expiresAt: null,
       }
     });
+    vi.useFakeTimers();
   });
 
-  it('should activate a 24h trial if no license exists', async () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('should activate a 24h trial if no license exists (and temp trial expired)', async () => {
+    // Set time to 2027 to ensure isTemporaryFreeTrialActive() returns false (expiry is 2026)
+    vi.setSystemTime(new Date('2027-01-01T12:00:00Z'));
+
     const machineId = 'M-TEST123';
     await autoActivateTrial(machineId);
     
@@ -32,6 +57,9 @@ describe('autoActivateTrial', () => {
   });
 
   it('should not overwrite an existing premium license', async () => {
+    // Set time to 2027
+    vi.setSystemTime(new Date('2027-01-01T12:00:00Z'));
+    
     const existingLicense = {
       active: true,
       tier: 'lifetime' as const,

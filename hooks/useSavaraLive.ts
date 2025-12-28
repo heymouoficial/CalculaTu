@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
 
-const MODEL = "models/gemini-2.0-flash-exp";
+const MODEL = "models/gemini-2.0-flash-exp"; // Fallback/Standard
+const MODEL_LIVE = "gemini-2.5-flash-native-audio-preview-12-2025"; // Optimized for Live
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
 
 interface UseSavaraLiveProps {
@@ -24,11 +25,37 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   const ws = useRef<WebSocket | null>(null);
   const nextStartTime = useRef<number>(0);
 
-  // Acceso al Store para Function Calling
+  // Acceso al Store para Function Calling y Metering
   const addItem = useAppStore((state) => state.addItem);
   const removeItem = useAppStore((state) => state.removeItem);
   const updateItem = useAppStore((state) => state.updateItem);
   const items = useAppStore((state) => state.items);
+  const incrementVoiceUsage = useAppStore((state) => state.incrementVoiceUsage);
+  const voiceUsageSeconds = useAppStore((state) => state.voiceUsageSeconds);
+  const license = useAppStore((state) => state.license);
+  
+  // Metering Interval
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isConnected) {
+      interval = setInterval(() => {
+        incrementVoiceUsage(1);
+        
+        // Dynamic Limit: Lifetime = 60 min (3600s), Others = 30 min (1800s)
+        const LIMIT_SECONDS = license.tier === 'lifetime' ? 3600 : 1800;
+        
+        if (voiceUsageSeconds >= LIMIT_SECONDS) {
+           console.warn("Límite de uso de voz alcanzado.");
+           disconnect();
+           setError({ 
+             code: 'USAGE_LIMIT_REACHED', 
+             message: `Has alcanzado tu límite de voz (${LIMIT_SECONDS / 60} min).` 
+           });
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isConnected, incrementVoiceUsage, voiceUsageSeconds, license.tier]);
 
   // Definición de Herramientas (Function Calling)
   const tools = [
@@ -93,6 +120,14 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   const connect = useCallback(async (initialPrompt?: string) => {
     try {
       if (ws.current?.readyState === WebSocket.OPEN) return;
+      
+      // Check Usage Limit Before Connecting
+      const LIMIT_SECONDS = 1800; // 30 Mins Promo
+      if (useAppStore.getState().voiceUsageSeconds >= LIMIT_SECONDS) {
+        setError({ code: 'USAGE_LIMIT_REACHED', message: "Has alcanzado tu límite mensual de voz (30 min)." });
+        return;
+      }
+
       console.log("🔵 Iniciando Savara Live...");
       setError(null);
 
@@ -147,7 +182,7 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
 
         const msg = {
           setup: {
-            model: MODEL,
+            model: `models/${MODEL_LIVE}`,
             tools: tools,
             generationConfig: {
               responseModalities: ["AUDIO"],
@@ -243,6 +278,8 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       } else if (err.code === 'CONNECTION_ERROR') {
         // Si ya viene formateado
         errorData = err;
+      } else if (err.code === 'MIC_PERMISSION_DENIED') {
+        errorData = err;
       }
 
       setError(errorData);
@@ -251,10 +288,47 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
   }, [addItem, onHangUp]);
 
   const disconnect = useCallback(() => {
-    ws.current?.close();
-    mediaStream.current?.getTracks().forEach(track => track.stop());
-    audioContext.current?.close();
-    audioContextOutput.current?.close();
+    // 1. Cerrar WebSocket si está abierto
+    if (ws.current) {
+      // Evitar bucles: quitar listeners antes de cerrar para no disparar 'onclose' de nuevo
+      ws.current.onclose = null; 
+      ws.current.onerror = null;
+      ws.current.onmessage = null;
+      ws.current.close();
+      ws.current = null;
+    }
+  
+    // 2. Limpieza de Audio IDEMPOTENTE (El fix del error)
+    if (audioContext.current) {
+      // Solo intentar cerrar si NO está cerrado ya
+      if (audioContext.current.state !== 'closed') {
+        audioContext.current.close()
+          .then(() => console.log("AudioContext cerrado correctamente"))
+          .catch(e => console.warn("Error cerrando AudioContext (ignorable):", e));
+      }
+      audioContext.current = null;
+    }
+  
+    // 3. Desconectar Worklet si existe
+    if (workletNode.current) {
+      workletNode.current.disconnect();
+      workletNode.current = null;
+    }
+    
+    // 4. Limpiar media stream
+    if (mediaStream.current) {
+      mediaStream.current.getTracks().forEach(track => track.stop());
+      mediaStream.current = null;
+    }
+
+    // 5. Limpiar Output Context
+    if (audioContextOutput.current) {
+      if (audioContextOutput.current.state !== 'closed') {
+        audioContextOutput.current.close().catch(e => console.warn(e));
+      }
+      audioContextOutput.current = null;
+    }
+
     setIsConnected(false);
   }, []);
 

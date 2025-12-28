@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { jwtVerify } from 'jose';
+import { jwtVerify, importSPKI } from 'jose';
 
 export type LicenseTier = 'trial' | 'pro' | 'lifetime';
 
@@ -28,7 +28,7 @@ export const useLicenseStore = create<LicenseState>()(
       licenseToken: null,
       machineId: null,
 
-      setLicense: async (token, currentMachineId, secret) => {
+      setLicense: async (token, currentMachineId, publicKey) => {
         // 0. Priority: Temporary Free Pass 2026
         if (token === 'TEMP_FREE_PASS_2026') {
           const expiry = '2026-01-01T00:00:00Z';
@@ -47,8 +47,9 @@ export const useLicenseStore = create<LicenseState>()(
 
         try {
           // Validation logic (Anti-Warp)
-          const encoder = new TextEncoder();
-          const { payload } = await jwtVerify(token, encoder.encode(secret));
+          // Import the Public Key for ES256 verification
+          const key = await importSPKI(publicKey, 'ES256');
+          const { payload } = await jwtVerify(token, key);
 
           if (payload.sub !== currentMachineId) {
             return { success: false, error: 'Este token no pertenece a este dispositivo.' };
@@ -68,6 +69,7 @@ export const useLicenseStore = create<LicenseState>()(
 
           return { success: true };
         } catch (err: any) {
+          console.error("License Verification Error:", err);
           return { success: false, error: 'Token inválido o expirado.' };
         }
       },

@@ -11,6 +11,7 @@ interface SavaraCallModalProps {
     onHangUp: () => void;
     latency?: number;
     isLowLatency?: boolean;
+    usageSeconds?: number;
 }
 
 export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
@@ -22,9 +23,15 @@ export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
     onHangUp,
     latency = 0,
     isLowLatency = true,
+    usageSeconds = 0,
 }) => {
     const [callDuration, setCallDuration] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
+    
+    // Promo Limit: 30 mins (1800s)
+    const LIMIT_SECONDS = 1800;
+    const remainingSeconds = Math.max(0, LIMIT_SECONDS - (usageSeconds + callDuration));
+    const remainingMins = Math.floor(remainingSeconds / 60);
 
     // Call timer
     useEffect(() => {
@@ -57,6 +64,11 @@ export const SavaraCallModal: React.FC<SavaraCallModalProps> = ({
                     <span>Llamada en curso</span>
                 </div>
                 <span className="text-white/50 text-xs font-mono">{formatTime(callDuration)}</span>
+                
+                {/* Remaining Time Badge */}
+                <div className={`mt-2 flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border animate-fade-in ${remainingMins < 5 ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                    <span>⏱️ Quedan {remainingMins} min de voz</span>
+                </div>
                 
                 {!isLowLatency && (
                   <div className="mt-2 flex items-center gap-2 bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border border-amber-500/30 animate-pulse">

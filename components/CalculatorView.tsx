@@ -30,6 +30,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const clearItems = useAppStore(s => s.clearItems);
   const userName = useAppStore(s => s.userName);
   const machineId = useAppStore(s => s.machineId);
+  const voiceUsageSeconds = useAppStore(s => s.voiceUsageSeconds);
 
   const {
     connect: connectSavara,
@@ -1075,6 +1076,39 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     <p className="text-[10px] text-gray-500 mt-2">El presupuesto se calcula sobre tu moneda seleccionada.</p>
                   </div>
 
+                  {/* Voice Balance (Promo de Lanzamiento) */}
+                  <div>
+                    <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                      <span>Saldo de Voz</span>
+                      <span className="text-emerald-400 text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded uppercase font-black tracking-tighter">
+                        {license.tier === 'lifetime' ? 'Plan 💎 Lifetime' : 'Plan 🚀 Promo'}
+                      </span>
+                    </h5>
+                    <div className="p-4 bg-black/40 border border-white/10 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between text-xs font-bold mb-1">
+                        <span className="text-white flex items-center gap-2">
+                           <Mic size={14} className="text-emerald-400" />
+                           {Math.floor(voiceUsageSeconds / 60)} min usados
+                        </span>
+                        <span className="text-gray-500">de {license.tier === 'lifetime' ? '60' : '30'} min</span>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/10">
+                        <div 
+                           className={`h-full transition-all duration-500 rounded-full ${voiceUsageSeconds > (license.tier === 'lifetime' ? 3300 : 1500) ? 'bg-red-500' : 'bg-emerald-500'}`}
+                           style={{ width: `${Math.min(100, (voiceUsageSeconds / (license.tier === 'lifetime' ? 3600 : 1800)) * 100)}%` }}
+                        />
+                      </div>
+                      
+                      <p className="text-[10px] text-gray-500 mt-1 leading-relaxed italic">
+                        {license.tier === 'lifetime' 
+                          ? 'Tu plan Lifetime incluye 60 min mensuales de voz.' 
+                          : 'Tu plan incluye 30 min mensuales de voz.'}
+                      </p>
+                    </div>
+                  </div>
+
                   {/* Save Button */}
                   <button
                     onClick={() => {
@@ -1461,6 +1495,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         onHangUp={toggleSavara}
         latency={latency}
         isLowLatency={isLowLatency}
+        usageSeconds={voiceUsageSeconds}
       />
       <ServiceUnavailableBanner
         isOpen={showServiceBanner}

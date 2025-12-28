@@ -23,6 +23,8 @@ export type LicenseState = {
 type AppState = {
   machineId: string;
   userName: string | null;
+  voiceUsageSeconds: number;
+  lastUsageReset: string;
   hasGreeted: boolean;
   baseRates: ExchangeRate;
   rates: ExchangeRate; // effective rates (baseRates unless user override is active)
@@ -32,6 +34,8 @@ type AppState = {
   items: ShoppingItem[];
 
   setUserName: (name: string | null) => void;
+  incrementVoiceUsage: (seconds: number) => void;
+  resetVoiceUsage: () => void;
   setHasGreeted: (hasGreeted: boolean) => void;
   setBaseRates: (rates: ExchangeRate) => void;
   setRatesTemporarily: (rates: ExchangeRate) => void; // 24h cache
@@ -140,6 +144,7 @@ function persistBudget(limit: number) {
 }
 
 const USER_NAME_STORAGE_KEY = 'calculatu_username_v1';
+const VOICE_USAGE_STORAGE_KEY = 'calculatu_voice_usage_v1';
 
 function readStoredUserName(): string | null {
   try {
@@ -159,15 +164,37 @@ function persistUserName(name: string | null) {
   }
 }
 
+function readStoredVoiceUsage(): { seconds: number; lastReset: string } {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(VOICE_USAGE_STORAGE_KEY) : null;
+    if (!raw) return { seconds: 0, lastReset: new Date().toISOString() };
+    return JSON.parse(raw);
+  } catch {
+    return { seconds: 0, lastReset: new Date().toISOString() };
+  }
+}
+
+function persistVoiceUsage(seconds: number, lastReset: string) {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.setItem(VOICE_USAGE_STORAGE_KEY, JSON.stringify({ seconds, lastReset }));
+  } catch {
+    // ignore
+  }
+}
+
 export const useAppStore = create<AppState>((set) => {
   // Initialize UIC async and update store when ready
   getOrCreateUIC().then((uic) => {
     set({ machineId: uic });
   });
 
+  const storedUsage = readStoredVoiceUsage();
+
   return {
     machineId: getOrCreateMachineId(), // Sync fallback (will update when async completes)
     userName: readStoredUserName(),
+    voiceUsageSeconds: storedUsage.seconds,
+    lastUsageReset: storedUsage.lastReset,
     hasGreeted: false,
     baseRates: RATES,
     rates: (() => {
@@ -188,6 +215,30 @@ export const useAppStore = create<AppState>((set) => {
       set(() => {
         persistUserName(name);
         return { userName: name };
+      }),
+      
+    incrementVoiceUsage: (seconds) =>
+      set((state) => {
+        const now = new Date();
+        const lastReset = new Date(state.lastUsageReset);
+        let newSeconds = state.voiceUsageSeconds + seconds;
+        let newReset = state.lastUsageReset;
+
+        // Auto-reset monthly
+        if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+          newSeconds = seconds;
+          newReset = now.toISOString();
+        }
+
+        persistVoiceUsage(newSeconds, newReset);
+        return { voiceUsageSeconds: newSeconds, lastUsageReset: newReset };
+      }),
+      
+    resetVoiceUsage: () =>
+      set(() => {
+        const now = new Date().toISOString();
+        persistVoiceUsage(0, now);
+        return { voiceUsageSeconds: 0, lastUsageReset: now };
       }),
 
     setHasGreeted: (hasGreeted) => set({ hasGreeted }),

@@ -4,8 +4,12 @@ import { useSavaraLive } from './useSavaraLive';
 import { useAppStore } from '../store/useAppStore';
 
 // Mock the store
+const { mockGetState } = vi.hoisted(() => ({
+  mockGetState: vi.fn(),
+}));
+
 vi.mock('../store/useAppStore', () => ({
-  useAppStore: vi.fn(),
+  useAppStore: Object.assign(vi.fn(), { getState: mockGetState }),
 }));
 
 describe('useSavaraLive', () => {
@@ -13,6 +17,10 @@ describe('useSavaraLive', () => {
   let mockItems: any[];
 
   beforeEach(() => {
+    // Setup Environment Mock
+    vi.stubEnv('VITE_GEMINI_API_KEY', 'test-api-key');
+    (import.meta as any).env = { VITE_GEMINI_API_KEY: 'test-api-key' };
+
     // Setup Store Mock defaults
     mockAddItem = vi.fn();
     mockRemoveItem = vi.fn();
@@ -20,8 +28,8 @@ describe('useSavaraLive', () => {
     mockItems = [
       { id: '1', name: 'Manzanas', price: 2, currency: 'USD', quantity: 1 }
     ];
-    (useAppStore as any).mockImplementation((selector: (state: any) => any) => {
-      const state = {
+
+    const mockState = {
         addItem: mockAddItem,
         removeItem: mockRemoveItem,
         updateItem: mockUpdateItem,
@@ -30,8 +38,15 @@ describe('useSavaraLive', () => {
         userName: 'TestUser',
         setUserName: vi.fn(),
         machineId: 'test-id',
-      };
-      return selector(state);
+        voiceUsageSeconds: 0,
+        incrementVoiceUsage: vi.fn(),
+        license: { tier: 'monthly', active: true },
+    };
+
+    mockGetState.mockReturnValue(mockState);
+
+    (useAppStore as any).mockImplementation((selector: (state: any) => any) => {
+      return selector(mockState);
     });
 
     // Mock getUserMedia
@@ -50,7 +65,7 @@ describe('useSavaraLive', () => {
         createBuffer: vi.fn(),
         createBufferSource: vi.fn().mockReturnValue({ connect: vi.fn(), start: vi.fn() }),
         resume: vi.fn().mockResolvedValue(undefined),
-        close: vi.fn(),
+        close: vi.fn().mockResolvedValue(undefined),
         state: 'running'
       };
     }) as any;
@@ -58,7 +73,8 @@ describe('useSavaraLive', () => {
     // Mock AudioWorkletNode
     global.AudioWorkletNode = vi.fn(function () {
       return {
-        port: { onmessage: null }
+        port: { onmessage: null },
+        disconnect: vi.fn()
       };
     }) as any;
 
@@ -80,6 +96,9 @@ describe('useSavaraLive', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    // vi.unstubEnv() might not be available, just letting the test environment handle teardown is often enough for envs if mocked correctly
+    // or reset explicitly
+    delete (import.meta as any).env.VITE_GEMINI_API_KEY;
   });
 
   describe('Error Handling', () => {
@@ -97,6 +116,8 @@ describe('useSavaraLive', () => {
 
       // Expect an error state to be present
       expect(result.current.error).not.toBeNull();
+      // The hook checks for err.name === 'NotAllowedError' or message includes 'Permission denied'
+      // It should return code: 'MIC_PERMISSION_DENIED'
       expect(result.current.error?.code).toBe('MIC_PERMISSION_DENIED');
     });
 
@@ -117,7 +138,9 @@ describe('useSavaraLive', () => {
       });
 
       // 2. Allow getUserMedia to succeed
-      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({});
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({
+         getTracks: () => [{ stop: vi.fn() }] // Return mock stream with tracks
+      });
 
       const { result } = renderHook(() => useSavaraLive());
 
@@ -160,7 +183,9 @@ describe('useSavaraLive', () => {
       global.WebSocket = MockWebSocket as any;
 
       // Allow getUserMedia
-      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({});
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({
+        getTracks: () => [{ stop: vi.fn() }]
+      });
 
       const { result } = renderHook(() => useSavaraLive());
 
@@ -202,7 +227,7 @@ describe('useSavaraLive', () => {
     it('should handle remove_shopping_item tool call', async () => {
       let wsInstance: any;
       (global.WebSocket as any).mockImplementation(function () { wsInstance = { send: vi.fn(), close: vi.fn(), readyState: 1, onmessage: null }; return wsInstance; });
-      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({});
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
 
       const { result } = renderHook(() => useSavaraLive());
       await act(async () => { await result.current.connect(); });
@@ -216,7 +241,7 @@ describe('useSavaraLive', () => {
     it('should handle update_shopping_item_quantity tool call', async () => {
       let wsInstance: any;
       (global.WebSocket as any).mockImplementation(function () { wsInstance = { send: vi.fn(), close: vi.fn(), readyState: 1, onmessage: null }; return wsInstance; });
-      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({});
+      (navigator.mediaDevices.getUserMedia as any).mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
 
       const { result } = renderHook(() => useSavaraLive());
       await act(async () => { await result.current.connect(); });

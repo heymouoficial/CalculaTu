@@ -34,13 +34,13 @@ export const PromotionBanner: React.FC<PromotionBannerProps> = ({ onActivate }) 
                         </div>
                     </div>
                     <p className="text-sm font-bold tracking-tight">
-                        🎁 REGALO DE NAVIDAD: <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">24 HORAS DE SAVARA PRO GRATIS</span>
+                        🎟️ FREEPASS: <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">SAVARA PRO GRATIS HASTA EL 1 DE ENERO</span>
                     </p>
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="hidden sm:block opacity-20 text-emerald-500">|</span>
                     <p className="text-xs font-medium text-gray-400 hidden lg:block">
-                        Prueba la asistente de voz inteligente hoy mismo sin costo.
+                        ¡Usa el Co-Piloto de Voz sin costo y danos tu feedback!
                     </p>
                     <button
                         onClick={() => {
