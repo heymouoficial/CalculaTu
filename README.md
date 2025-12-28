@@ -79,7 +79,10 @@ El proyecto incluye `vercel.json` optimizado para SPA + Serverless Functions.
 
 ## 📜 Licencia & Derechos
 
-Copyright © 2025–2026 **MultiversaGroup**.
-Todos los derechos reservados. **CalculaTú**, **Savara AI** y **Portality** son propiedad intelectual de **Runa Gold** y **MultiversaGroup**, con registro de timestamp en SafeCreative.
+**Copyright © 2025–2026 MultiversaGroup.**
 
-> *Hecho con ❤️ y ⚡ en Venezuela.*
+Todos los derechos reservados. **CalculaTú**, **Savara AI** y **Portality** son propiedad intelectual exclusiva de sus creadores: **Runa** y **HeyMou** (MultiversaGroup). 
+
+Este proyecto y todas sus obras derivadas cuentan con **registro de autoría y timestamp oficial en SafeCreative**, garantizando la protección de los derechos morales y patrimoniales de sus autores. 
+
+> *Hecho con ❤️ y ⚡ en Venezuela por Runa & HeyMou.*
