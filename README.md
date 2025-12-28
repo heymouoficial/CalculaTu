@@ -1,100 +1,85 @@
-# CalculaTú SmartWeb
+# 🇻🇪 CalculaTú SmartWeb (Beta 1.0)
 
-**CalculaTú** es una web app ligera (React + Vite) para hacer mercado **sin estrés**: suma productos en USD/EUR/VES y convierte a bolívares con tasa BCV (manual por ahora), con **Savara AI** (chat en landing y voz en la calculadora Pro), **PWA instalable**, y un sistema de **licencias** vinculado a huella digital (deviceId).
+**CalculaTú** es la herramienta definitiva de supervivencia financiera para Venezuela. Una Web App progresiva (PWA) diseñada para unificar tu bolsillo en Bolívares (VES), Dólares (USD) y Euros (EUR) en tiempo real, potenciada por **Savara AI**, tu copiloto de compras por voz.
 
-## Funciones principales
+> **Estado:** 🚀 **Beta 1.0 (Live)**
+> **Stack:** React 19 + Vite + Supabase + Gemini 2.0 Flash (Live API)
 
-- **Modo Manual (offline-friendly)**: suma rápida de productos y total en Bs / USD / EUR.
-- **Savara AI (Chatbot Landing)**: chat en tiempo real usando **Gemini Live API (TEXT)**.
-- **Savara Pro (Voz)**: asistente de voz usando **Gemini Live API (AUDIO)** (requiere licencia).
-- **Licencias por huella digital**: activación mediante token firmado (JWT) ligado a `deviceId`.
-- **Tasa global (Supabase)**: persistencia en Supabase con **RLS** para que solo admin autorizado actualice.
-- **Tasa local por usuario (24h)**: override temporal de tasa por 24 horas en cache, ligado al `deviceId`.
-- **PWA**: `manifest` + `service worker` (sin plugins) para instalación.
+![CalculaTú Preview](https://calculatu.app/CalculaTu-Featured.jpg)
 
-## Stack
+## 🔥 Características Principales (v1.0)
 
-- **Frontend**: React 19 + Vite
-- **State**: Zustand
-- **AI**: `@google/genai` (Gemini Live)
-- **DB/Auth**: Supabase (`@supabase/supabase-js`)
-- **Licencias**: JWT firmado con `jose` (Vercel Functions)
-- **Deploy**: Vercel
-- **Package manager**: PNPM
+### 🤖 Savara Pro (Live Audio)
+- **Asistente de Voz Bidireccional:** Habla con Savara para agregar productos ("Agrega 2 harinas y un queso") o consultar precios.
+- **Latencia Ultra-Baja:** Optimizado con WebSockets y `AudioWorklet` para respuestas casi instantáneas.
+- **Límites Inteligentes:** Sistema de "Taxímetro" de voz con persistencia en la nube.
+  - **FreePass / Promo:** 30 min/mes.
+  - **Lifetime:** 60 min/mes.
+- **Contexto Financiero:** Savara conoce la tasa del día y convierte divisas automáticamente mientras hablas.
 
-## Rutas
+### 🛡️ Modo Búnker (Offline-First)
+- **Resistencia a Fallos:** La app funciona perfectamente sin internet. Las tasas se cachean localmente por 24h.
+- **Sincronización Silenciosa:** Cuando vuelve la conexión, tus consumos y licencias se sincronizan con Supabase sin interrumpir tu flujo.
 
-- **`/`**: landing + chat widget
-- **`/portality`**: portal interno para:
-  - emitir/verificar tokens de licencia por `deviceId`
-  - login Supabase (admin) y edición de tasa global
+### 🔐 Seguridad & Licencias
+- **Hardware Fingerprint:** Las licencias se vinculan criptográficamente al dispositivo (`MachineID`) usando firmas `ES256`.
+- **Anti-Warp:** Protección contra clonación de sesiones.
+- **Persistencia de Saldo:** Tu consumo de voz se guarda en el backend (`contracts`), impidiendo que resetear el caché burle los límites.
 
-## Variables de entorno
+### 📊 Portality (God Mode Admin)
+- **Dashboard en Tiempo Real:** Monitor de nodos activos, tasas de cambio y logs del sistema.
+- **Gestión de Usuarios:** Generación de licencias, extensión de contratos y auditoría de huellas digitales.
+- **Control de Tasas:** Ingesta manual o automática de tasas BCV/Paralelo.
 
-### Frontend (Vercel → Environment Variables)
+##  SEO & Distribución
+- **PWA Instalable:** `manifest` y `service worker` optimizados para "Add to Home Screen".
+- **Social Ready:** Metadata completa (OpenGraph, Twitter Cards) para compartir recibos y enlaces.
+- **Indexación:** `sitemap.xml` y `robots.txt` configurados para máxima visibilidad.
 
-- **`GEMINI_API_KEY`** o **`VITE_GEMINI_API_KEY`**: clave de Gemini (se inyecta en build para el cliente). 
-  - ⚠️ **IMPORTANTE**: Si usas `GEMINI_API_KEY`, Vite la mapea automáticamente a `VITE_GEMINI_API_KEY` en el cliente.
-  - Si prefieres usar directamente `VITE_GEMINI_API_KEY`, también funciona.
-- **`VITE_SUPABASE_URL`**: URL del proyecto Supabase.
-- **`VITE_SUPABASE_ANON_KEY`**: anon key de Supabase.
+---
 
-### Serverless (Vercel Functions)
+## 🛠️ Stack Tecnológico
 
-- **`LICENSE_SIGNING_KEY`**: secreto para firmar/verificar tokens de licencia.
-- **`PORTAL_KEY`** *(opcional recomendado)*: protege la emisión de tokens en `/api/license/create` (header `x-portality-key`).
+- **Frontend:** React 19, Vite, Tailwind CSS 4 (con ShadCN UI concepts).
+- **State Management:** Zustand (Persist + Sync Logic).
+- **Backend / DB:** Supabase (PostgreSQL + RLS + Edge Functions).
+- **AI Core:** Google Gemini 2.0 Flash (Multimodal Live API).
+- **Cryptography:** `jose` (JWT/JWE) para firmas y validación.
+- **Package Manager:** PNPM (Speed & Security).
 
-## Supabase (schema + RLS)
+## 🚀 Instalación y Desarrollo
 
-1. Abre el editor SQL en Supabase.
-2. Ejecuta el script:
-   - `supabase/schema.sql`
+1. **Clonar y Preparar:**
+   ```bash
+   git clone <repo>
+   cd CalculaTu
+   pnpm install
+   ```
 
-Esto crea `public.exchange_rates` con:
+2. **Variables de Entorno (.env.local):**
+   ```env
+   VITE_GEMINI_API_KEY=...
+   VITE_SUPABASE_URL=...
+   VITE_SUPABASE_ANON_KEY=...
+   VITE_PORTALITY_PIN=...
+   ```
 
-- **Lectura pública** (anon/auth)
-- **Escritura solo admin** si el email del JWT coincide con **`multiversagroup@gmail.com`**
+3. **Correr en Local:**
+   ```bash
+   pnpm dev
+   ```
 
-> Importante: crea el usuario admin en Supabase Auth con ese email (email/password).
+## ☁️ Despliegue (Vercel)
 
-## Licencias
+El proyecto incluye `vercel.json` optimizado para SPA + Serverless Functions.
+- **Build Command:** `pnpm build`
+- **Output Directory:** `dist`
 
-- **Generación**: `POST /api/license/create` (requiere `LICENSE_SIGNING_KEY`, opcional `PORTAL_KEY`)
-- **Validación**: `POST /api/license/verify`
-- El token queda **ligado al `deviceId`** (`sub`) para evitar reutilización en otros dispositivos.
+---
 
-## Instalación / desarrollo
+## 📜 Licencia & Derechos
 
-```bash
-pnpm install
-pnpm dev
-```
+Copyright © 2025–2026 **MultiversaGroup**.
+Todos los derechos reservados. **CalculaTú**, **Savara AI** y **Portality** son propiedad intelectual de **Runa Gold** y **MultiversaGroup**, con registro de timestamp en SafeCreative.
 
-Build:
-
-```bash
-pnpm build
-pnpm preview
-```
-
-## Deploy en Vercel
-
-El repo incluye `vercel.json` con:
-
-- Install: `pnpm install --frozen-lockfile`
-- Build: `pnpm build`
-- Output: `dist`
-- Rewrites SPA (sin romper `/api/*`)
-
-## Copyright / Derechos
-
-Copyright © 2025–2026 **MultiversaGroup**.  
-**CalculaTú** y **Multiversa** son obras protegidas. Los titulares (fundador y co-fundadora, **Runa Gold**) mantienen los derechos y cuentan con **registro/timestamp en SafeCreative (LOCK‑IN)**.
-
-**All rights reserved.** No se concede licencia de uso, copia, modificación o distribución sin autorización expresa por escrito.
-
-
-
-
-
-
+> *Hecho con ❤️ y ⚡ en Venezuela.*
