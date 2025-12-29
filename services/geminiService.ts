@@ -1,17 +1,24 @@
 // services/geminiService.ts
 // Using Google Gemini API Direct (Gemini 2.5 Flash - Stable)
-// Operación Hydra: Key Rotation for 429 resilience
+// Server-compatible: No import.meta.env dependencies
 
 import { SAVARA_IDENTITY } from '../constants';
-import { GeminiKeyManager } from '../utils/geminiKeyManager';
 
 const CURRENT_MODEL = 'gemini-2.5-flash'; // As seen in User Dashboard
 
 const SAVARA_SYSTEM_PROMPT = SAVARA_IDENTITY;
 
+// Server-compatible key getter (for fallback only)
 const getGeminiApiKey = (): string | undefined => {
-  const keyManager = GeminiKeyManager.getInstance();
-  return keyManager.getKey() || undefined;
+  // Try process.env first (works in Node.js/Vercel)
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  }
+  // Fallback to import.meta.env for client (Vite)
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env.VITE_GEMINI_API_KEY;
+  }
+  return undefined;
 };
 
 class SavaraChat {
