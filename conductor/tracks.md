@@ -32,12 +32,13 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: CalculaTú Alpha v2 - Supermarket Survival (IN PROGRESS)
-*Link: [./plan_alpha_v2.md](./plan_alpha_v2.md)*
-*Start Date: 2025-12-26*
-*Summary: Refactoring to Alpha v2 with Mobile-First UI, custom keypad, and secure licensing.*
+## [x] Track: CORS Fix - Tasas BCV (COMPLETED)
+*Summary: Despliegue de Edge Function v4 vía Supabase MCP con headers CORS optimizados y permiso público.*
+*Completion Date: 2025-12-29*
 
 ---
 
-## [ ] Track: CORS Fix - Tasas BCV (PENDING)
-*Summary: Desplegar Edge Function bcv-rates actualizada con headers CORS mejorados a Supabase.*
+## [~] Track: CalculaTú Beta v1.0 - Polish & Refinement (IN PROGRESS)
+*Link: [./plan_alpha_v2.md](./plan_alpha_v2.md)*
+*Start Date: 2025-12-29*
+*Summary: Transición de Beta v0.9.0 a v1.0. Optimización de UX, refinamiento de la personalidad de Savara (incluyendo despedidas), y validación final de la infraestructura de producción.*

@@ -23,21 +23,19 @@ The primary users are everyday consumers in Venezuela who need a quick, reliable
 -   **Voucher System:** Generador de tickets/receipts con estética térmica, incluyendo avatar de Savara y tasa de cambio utilizada, listo para compartir como prueba de ahorro.
 -   **Portality Admin Panel:** Panel de administración con autenticación, generación de licencias JWT, gestión de trials con calendario interactivo, y publicación de tasas BCV.
 
-## 4. Estado Actual (28 Diciembre 2024)
+## 4. Estado Actual (29 Diciembre 2024 - Beta v1.0)
 
 ### ✅ FUNCIONANDO
+- **[BETA v1.0]** Proyecto estabilizado para producción.
+- **[NUEVO] Savara Voz Bidireccional** (SDK oficial Google GenAI).
+- **[NUEVO] RAG Integrado** con 16 chunks vectorizados en Supabase.
+- **[NUEVO] Hydra Pool** de API Keys (Resiliencia 429).
+- **[NUEVO] CORS BCV Fix** desplegado vía MCP.
+- **[NUEVO] Reglas de Despedida** para Savara Chat y Voz.
 - Banner promocional navideño con botón dorado "ACTIVAR AHORA"
-- Botón otorga 24h de Savara Pro gratis
-- Calculadora multi-moneda (manual mode)
-- Tasas BCV en Supabase (USD: 294.96, EUR: 347.77)
-- Portality admin panel con calendario interactivo react-day-picker
-- Sistema de licencias JWT con device lock
-- Social media links (TikTok, Instagram, Threads, Facebook, LinkedIn, X)
-- Voice mode (Savara Live) via WebSocket
-- **[NUEVO] Chatbot con memoria de conversación** (sessionStorage)
-- **[NUEVO] Respuestas largas sin truncar** (8192 tokens max)
-- **[NUEVO] Savara no repite saludos innecesarios**
-- **[NUEVO] Banner de error solo aparece 1 vez (localStorage)**
+- Calculadora multi-moneda (manual mode) con tasas BCV reales.
+- Portality admin panel con calendario interactivo y gestión de licencias.
+- Chatbot con memoria de conversación (sessionStorage).
 
 ### ⚠️ REQUIERE ACCIÓN (No Bloqueante)
 - **Límites de cuota Free Tier**: El modelo Live API (`gemini-2.0-flash-exp`) solo permite 2 llamadas/día en Free Tier. Solución: Configurar facturación para obtener $300 de crédito gratuito.
@@ -89,7 +87,9 @@ GEMINI_API_KEY=fallback_single_key
 3. **[PENDIENTE]** Configurar facturación en Google AI Studio para aumentar límites
 4. ✅ ~~Implementar sistema de API Keys de backup/fallback~~ (Operación Hydra)
 5. **[PENDIENTE]** Preparar métricas de uso para análisis post-navidad
-6. **[PENDIENTE]** Vectorizar base de conocimiento (knowledge_base) para RAG
+6. ✅ ~~Vectorizar base de conocimiento (knowledge_base) para RAG~~ (Completado)
+7. ✅ ~~Fix CORS Tasas BCV~~ (Completado vía MCP)
+8. **[PENDIENTE]** Optimización final de UI/UX Mobile-First
 
 ## 9. Sesión 28-Dic-2024 - Resumen de Cambios
 
@@ -122,11 +122,14 @@ GEMINI_API_KEY=fallback_single_key
 - 16 chunks vectorizados en knowledge_base
 - Embeddings con text-embedding-004
 
-#### 4. Fix Producción
-- `api/chat.ts` reescrito como standalone
-- Sin dependencias de archivos internos
-- Compatible con Vercel serverless
+#### 4. Fix Producción & CORS
+- `api/chat.ts` reescrito como standalone.
+- Despliegue de `bcv-rates` v4 vía Supabase MCP con headers CORS permitidos.
+- Verificación en navegador: Tasas sincronizadas y sin bloqueos.
 
-### Pendiente:
-- [ ] Desplegar Edge Function bcv-rates con CORS mejorado
-- [ ] Verificar GitHub Actions secrets
+#### 5. Savara Polish (Beta v1.0)
+- **Reglas de Despedida**: Implementado en `constants.tsx`, `api/chat.ts` y `savaraLiveSDK.ts`.
+- **Versión Core**: Actualizado a `v1.0.0-beta`.
+
+### Próximo:
+- Optimización UX y lanzamiento final.

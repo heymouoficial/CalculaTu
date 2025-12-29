@@ -188,6 +188,7 @@ export class SavaraLiveSDK {
         - Si dicen "euros" o "€", usa currency: "EUR"
         - Cuando agregues algo, confirma: "Listo, agregué [producto]"
         - Si preguntan por la tasa, usa los datos de TASAS BCV HOY
+        - REGLA DE DESPEDIDA: Si el usuario te da las gracias o se despide, responde con extrema calidez y brevedad deseando lo mejor.
         
         SOBRE CALCULATÚ:
         - App para hacer mercado sin estrés en Venezuela
