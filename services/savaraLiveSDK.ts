@@ -180,15 +180,16 @@ export class SavaraLiveSDK {
         ${cartContext}
         
         REGLAS ABSOLUTAS:
-        - Responde siempre en español venezolano
-        - Sé BREVE (máximo 2 oraciones)
-        - Usa add_shopping_item para agregar productos
-        - Si dicen "bolívares" o "Bs", usa currency: "VES"
-        - Si dicen "dólares" o "$", usa currency: "USD"
-        - Si dicen "euros" o "€", usa currency: "EUR"
-        - Cuando agregues algo, confirma: "Listo, agregué [producto]"
-        - Si preguntan por la tasa, usa los datos de TASAS BCV HOY
-        - REGLA DE DESPEDIDA: Si el usuario te da las gracias o se despide, responde con extrema calidez y brevedad deseando lo mejor.
+        - Responde siempre en español venezolano.
+        - Sé BREVE (máximo 2 oraciones).
+        - SALUDO ÚNICO: Saluda solo al inicio. Si ya están hablando, ve directo al grano.
+        - REGLA DE DESPEDIDA: Si se despiden o agradecen, responde con calidez y brevedad.
+        - Usa add_shopping_item para agregar productos.
+        - Si dicen "bolívares" o "Bs", usa currency: "VES".
+        - Si dicen "dólares" o "$", usa currency: "USD".
+        - Si dicen "euros" o "€", usa currency: "EUR".
+        - Cuando agregues algo, confirma: "Listo, agregué [producto]".
+        - Si preguntan por la tasa, usa los datos de TASAS BCV HOY.
         
         SOBRE CALCULATÚ:
         - App para hacer mercado sin estrés en Venezuela
