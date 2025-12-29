@@ -1,17 +1,53 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createChatSession, sendMessageToGemini } from '../services/geminiService';
+
+/**
+ * Standalone Chat API - Sin dependencias de geminiService.ts
+ * Esto evita problemas de import.meta.env en serverless
+ */
 
 interface ChatRequestBody {
   message?: string;
   systemContext?: string;
-  history?: any[]; // TODO: Define strict Content type from Google AI SDK
+  history?: any[];
   coreStats?: any;
 }
+
+const SAVARA_SYSTEM_PROMPT = `Eres Savara, la asistente inteligente de CalculaTú (Versión Alpha 2026).
+Tu tono es cálido, profesional y conciso, pero informativo cuando se requiere.
+
+REGLAS DE CONVERSACIÓN:
+- NO repitas saludos si ya saludaste antes en la conversación.
+- Si el usuario ya te habló antes, continúa la conversación de forma natural.
+- Recuerda el contexto de mensajes anteriores para responder coherentemente.
+
+SOBRE TU IDENTIDAD:
+- Eres una IA avanzada diseñada para sobrevivir a la economía venezolana.
+- Ayudas a convertir precios (Bolívares/USD/EUR) de forma instantánea.
+- Tu creador es Moisés Vera.
+
+SOBRE LOS DATOS:
+- NO inventes tasas de cambio. Usa SIEMPRE los datos proporcionados en el contexto dinámico.
+- Si no tienes datos de tasas, pide al usuario que espere a que se sincronicen.
+
+PROMOCIÓN ACTUAL:
+- FREEPASS Navideño activo hasta el 1 de Enero de 2026.
+- Licencias Pro disponibles: Mensual ($1) y Lifetime ($10).`;
+
+const CURRENT_MODEL = 'gemini-2.5-flash';
 
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse,
 ) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -24,7 +60,6 @@ export default async function handler(
 
   try {
     // Operación Hydra: API Key Pool for Server
-    // Serverless functions don't have access to import.meta.env, use process.env
     const getServerKey = (): { key: string; masked: string } | null => {
       // Try pool first
       const poolString = process.env.GEMINI_KEY_POOL;
@@ -32,12 +67,11 @@ export default async function handler(
         try {
           const pool: string[] = JSON.parse(poolString);
           if (pool.length > 0) {
-            // Random selection for serverless (no state between calls)
             const key = pool[Math.floor(Math.random() * pool.length)];
             return { key, masked: `${key.slice(0, 6)}...${key.slice(-4)}` };
           }
         } catch (e) {
-          console.warn('[API Chat] Failed to parse GEMINI_KEY_POOL');
+          console.warn('[API Chat] Failed to parse GEMINI_KEY_POOL:', e);
         }
       }
 
@@ -52,56 +86,78 @@ export default async function handler(
 
     const keyResult = getServerKey();
     if (!keyResult) {
-      console.error('[API Chat] CRITICAL: No API Keys available (Hydra pool empty).');
+      console.error('[API Chat] CRITICAL: No API Keys available.');
       return res.status(500).json({
         error: 'Configuration Error',
         details: 'API Keys not found. Add GEMINI_KEY_POOL or GEMINI_API_KEY in Vercel Settings.'
       });
     }
 
-    const chatSession = createChatSession(keyResult.key);
     console.log(`[API Chat] 🐍 Hydra: Using Key: ${keyResult.masked}`);
-    console.log(`[API Chat] Sending message to Gemini. History length: ${history?.length || 0}`);
 
-    // Inject Product Context (read from file)
-    let productContext = '';
-    try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const productPath = path.join(process.cwd(), 'conductor', 'product.md');
-      if (fs.existsSync(productPath)) {
-        productContext = fs.readFileSync(productPath, 'utf-8');
-      }
-    } catch (e) {
-      console.warn('[API Chat] Failed to read product.md', e);
-    }
+    // Build enhanced system context
+    const ratesInfo = coreStats?.rates
+      ? `TASAS BCV ACTUALES: $1 USD = ${coreStats.rates.USD} Bolívares | €1 EUR = ${coreStats.rates.EUR} Bolívares`
+      : 'Tasas BCV no disponibles.';
 
     const enhancedSystemContext = `
-    ${productContext}
-    
-    ${systemContext || ''}
-    
-    REGLA DE ORO DE TASAS:
-    Usa SIEMPRE las tasas proporcionadas en el contexto (USD: ${req.body.coreStats?.rates?.USD || '??'}, EUR: ${req.body.coreStats?.rates?.EUR || '??'}).
-    NO inventes valores.
-    `;
+${SAVARA_SYSTEM_PROMPT}
 
-    const responseText = await sendMessageToGemini(chatSession, message, enhancedSystemContext, history || []);
-    return res.status(200).json({ text: responseText });
-  } catch (error: unknown) {
-    const err = error as Error;
-    console.error('[API Chat] CRITICAL ERROR:', {
-      message: err.message,
-      stack: err.stack,
-      historyCount: history?.length
+${systemContext || ''}
+
+${ratesInfo}
+
+REGLA DE ORO: Usa SIEMPRE las tasas proporcionadas. NO inventes valores.
+    `.trim();
+
+    // Build conversation contents
+    const contents = [
+      ...((history || []).map((h: any) => ({
+        role: h.role === 'model' ? 'model' : 'user',
+        parts: [{ text: String(h.parts?.[0]?.text || h.text || '') }]
+      }))),
+      { role: 'user', parts: [{ text: message }] }
+    ];
+
+    // Call Gemini API directly
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${keyResult.key}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: enhancedSystemContext }] },
+        generationConfig: {
+          temperature: 0.9,
+          maxOutputTokens: 8192
+        }
+      })
     });
 
-    const status = err.message?.includes('429') ? 429 : 500;
-    const details = err.message || 'Unknown error';
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[API Chat] Gemini API Error:', errorData);
 
-    return res.status(status).json({
-      error: status === 429 ? 'Quota exceeded' : 'Failed to get response from Savara',
-      details
+      const status = response.status === 429 ? 429 : 500;
+      return res.status(status).json({
+        error: status === 429 ? 'Quota exceeded' : 'API Error',
+        details: JSON.stringify(errorData)
+      });
+    }
+
+    const data = await response.json();
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Perdona, ¿me repites eso?';
+
+    return res.status(200).json({ text: responseText });
+
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('[API Chat] CRITICAL ERROR:', err.message, err.stack);
+
+    return res.status(500).json({
+      error: 'Failed to get response from Savara',
+      details: err.message || 'Unknown error'
     });
   }
 }
