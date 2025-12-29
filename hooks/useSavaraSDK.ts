@@ -42,6 +42,21 @@ export const useSavaraSDK = ({ onItemAdded, onHangUp, userName, machineId }: Use
     const addItem = useAppStore((state) => state.addItem);
     const removeItem = useAppStore((state) => state.removeItem);
     const items = useAppStore((state) => state.items);
+    const rates = useAppStore((state) => state.rates);
+
+    // Calculate cart totals for Savara context
+    const calculateTotals = () => {
+        return items.reduce((acc, item) => {
+            let usd = 0;
+            if (item.currency === 'USD') usd = item.price * item.quantity;
+            else if (item.currency === 'EUR') usd = (item.price * (rates.USD / rates.EUR)) * item.quantity;
+            else if (item.currency === 'VES') usd = (item.price / rates.USD) * item.quantity;
+            return {
+                usd: acc.usd + usd,
+                bs: acc.bs + (usd * rates.USD)
+            };
+        }, { usd: 0, bs: 0 });
+    };
 
     const connect = useCallback(async (initialPrompt?: string) => {
         // Reset intentional disconnect flag
@@ -55,10 +70,16 @@ export const useSavaraSDK = ({ onItemAdded, onHangUp, userName, machineId }: Use
         setIsConnecting(true);
         setError(null);
 
+        // Calculate current cart state for Savara
+        const totals = calculateTotals();
+
         try {
             const config: SavaraLiveConfig = {
                 userName,
                 systemContext: initialPrompt,
+                // NEW: Inject BCV rates and cart info
+                bcvRates: { USD: rates.USD, EUR: rates.EUR },
+                cartInfo: { itemCount: items.length, totalBs: totals.bs, totalUsd: totals.usd },
                 onConnected: () => {
                     if (mountedRef.current) {
                         setIsConnected(true);

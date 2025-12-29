@@ -75,7 +75,7 @@ const addItemTool: FunctionDeclaration = {
         properties: {
             product_name: { type: Type.STRING, description: 'Nombre del producto' },
             price: { type: Type.STRING, description: 'Precio unitario (string numérico)' },
-            currency: { type: Type.STRING, description: 'Divisa: USD, EUR o VES' },
+            currency: { type: Type.STRING, description: 'Divisa: USD, EUR o VES (Bolivares)' },
             quantity: { type: Type.NUMBER, description: 'Cantidad' }
         },
         required: ['product_name', 'price']
@@ -108,6 +108,9 @@ export interface SavaraLiveConfig {
     onError?: (error: any) => void;
     userName?: string | null;
     systemContext?: string;
+    // NEW: Real-time data injection
+    bcvRates?: { USD: number; EUR: number };
+    cartInfo?: { itemCount: number; totalBs: number; totalUsd: number };
 }
 
 export class SavaraLiveSDK {
@@ -158,18 +161,39 @@ export class SavaraLiveSDK {
             // Initialize Google AI SDK
             const ai = new GoogleGenAI({ apiKey: this.currentApiKey });
 
+            // Build dynamic context with BCV rates
+            const ratesContext = this.config.bcvRates
+                ? `TASAS BCV HOY: $1 USD = Bs ${this.config.bcvRates.USD.toFixed(2)} | €1 EUR = Bs ${this.config.bcvRates.EUR.toFixed(2)}`
+                : 'Tasas BCV no disponibles.';
+
+            const cartContext = this.config.cartInfo
+                ? `CARRITO ACTUAL: ${this.config.cartInfo.itemCount} productos, Total: Bs ${this.config.cartInfo.totalBs.toFixed(2)} ($${this.config.cartInfo.totalUsd.toFixed(2)} USD)`
+                : '';
+
             const systemInstruction = `
-        Eres Savara, la asistente de voz de CalculaTú.
+        Eres Savara, la asistente de voz de CalculaTú - la app venezolana de compras inteligentes.
         Tu tono es cálido, profesional y extremadamente conciso.
         Hablas como una amiga experta en finanzas venezolanas.
         ${this.config.userName ? `Estás hablando con ${this.config.userName}.` : ''}
         
-        REGLAS:
-        - Responde siempre en español
-        - Sé breve (máximo 2 oraciones)
-        - Usa la herramienta add_shopping_item para agregar productos
-        - NO inventes tasas de cambio
-        - Si te piden agregar algo, confirma brevemente
+        ${ratesContext}
+        ${cartContext}
+        
+        REGLAS ABSOLUTAS:
+        - Responde siempre en español venezolano
+        - Sé BREVE (máximo 2 oraciones)
+        - Usa add_shopping_item para agregar productos
+        - Si dicen "bolívares" o "Bs", usa currency: "VES"
+        - Si dicen "dólares" o "$", usa currency: "USD"
+        - Si dicen "euros" o "€", usa currency: "EUR"
+        - Cuando agregues algo, confirma: "Listo, agregué [producto]"
+        - Si preguntan por la tasa, usa los datos de TASAS BCV HOY
+        
+        SOBRE CALCULATÚ:
+        - App para hacer mercado sin estrés en Venezuela
+        - Convierte automáticamente USD/EUR a Bolívares con tasa BCV oficial
+        - Savara Pro permite agregar productos por voz
+        - Promoción: Pro GRATIS hasta Enero 2026
         
         ${this.config.systemContext || ''}
       `.trim();
