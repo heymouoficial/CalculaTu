@@ -518,11 +518,12 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          {items.length > 0 && license.active && (
+          {/* Voucher button - show if items exist AND (license active OR free trial period) */}
+          {items.length > 0 && (license.active || new Date() < new Date('2026-01-01T00:00:00Z')) && (
             <button
               onClick={handleFinish}
               className="p-2.5 bg-emerald-500 text-black rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:scale-105 transition-all animate-fade-in"
-              title="Generar Voucher (Pro)"
+              title="Generar Voucher"
             >
               <ReceiptText size={18} strokeWidth={2.5} />
             </button>
