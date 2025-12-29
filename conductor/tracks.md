@@ -11,6 +11,27 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
+## [x] Track: Operación Hydra - Infra Resilience Matrix (COMPLETED)
+*Link: [./archive/infra_resilience_matrix/](./archive/infra_resilience_matrix/)*
+*Completion Date: 2025-12-29*
+*Summary: Sistema de rotación de API Keys para evitar errores 429 de Gemini Free Tier. Pool de 4 keys, fallback automático, cooldown de 1 hora.*
+
+---
+
+## [x] Track: Savara Voice SDK - Audio Bidireccional (COMPLETED)
+*Link: N/A*
+*Completion Date: 2025-12-29*
+*Summary: Implementación de voz bidireccional usando SDK oficial @google/genai con modelo gemini-2.5-flash-native-audio-preview. Function calling para agregar productos por voz.*
+
+---
+
+## [x] Track: RAG Knowledge Base (COMPLETED)
+*Link: [./scripts/ingest-knowledge.ts](./scripts/ingest-knowledge.ts)*
+*Completion Date: 2025-12-29*
+*Summary: 16 chunks vectorizados en Supabase (Identidad, Precios, Seguridad). Script de ingestión con Gemini text-embedding-004.*
+
+---
+
 ## [~] Track: CalculaTú Alpha v2 - Supermarket Survival (IN PROGRESS)
 *Link: [./plan_alpha_v2.md](./plan_alpha_v2.md)*
 *Start Date: 2025-12-26*
@@ -18,7 +39,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Operación Hydra - Infra Resilience Matrix (IN PROGRESS)
-*Link: [./archive/infra_resilience_matrix/](./archive/infra_resilience_matrix/)*
-*Start Date: 2025-12-29*
-*Summary: Sistema de rotación de API Keys para evitar errores 429 de Gemini Free Tier. Implementa GeminiKeyManager Singleton con pool de 4 keys, fallback automático, y cooldown de 1 hora.*
+## [ ] Track: CORS Fix - Tasas BCV (PENDING)
+*Summary: Desplegar Edge Function bcv-rates actualizada con headers CORS mejorados a Supabase.*

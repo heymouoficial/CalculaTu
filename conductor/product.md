@@ -59,20 +59,21 @@ The primary users are everyday consumers in Venezuela who need a quick, reliable
 
 ## 6. API Keys y Variables de Entorno
 
+> ⚠️ **NUNCA commitear keys reales.** Ver `.env.example` para plantilla.
+
 ### Local (.env.local)
-```
-VITE_GEMINI_API_KEY=AIzaSyB2pUIh2GWNX-C5sxC_3cLIztmcptdliRU
-VITE_SUPABASE_URL=https://wkjlpfwiflecwwnrvvcv.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_nkBQcnkVK4PG-K7E6n-DYw_5GBCq31Q
-VITE_PORTALITY_PIN=210311
+```env
+VITE_GEMINI_KEY_POOL='["key1", "key2", ...]'
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_xxx
+VITE_PORTALITY_PIN=xxx
 ```
 
-### Vercel (ACCIÓN REQUERIDA)
-Agregar en Vercel > Settings > Environment Variables:
+### Vercel (Production)
+```env
+GEMINI_KEY_POOL='["key1", "key2", ...]'
+GEMINI_API_KEY=fallback_single_key
 ```
-GEMINI_API_KEY=AIzaSyB2pUIh2GWNX-C5sxC_3cLIztmcptdliRU
-```
-**Nota:** Las variables `VITE_*` solo funcionan en el cliente. Para serverless functions en Vercel necesitas `GEMINI_API_KEY` sin prefijo.
 
 ## 7. Modelos Gemini Usados
 
@@ -100,34 +101,32 @@ GEMINI_API_KEY=AIzaSyB2pUIh2GWNX-C5sxC_3cLIztmcptdliRU
 - `components/CalculatorView.tsx` - Banner de error solo 1 vez (localStorage)
 - `components/ChatWidget.tsx` - Memoria de chat persistente (sessionStorage)
 
-## 10. Sesión 29-Dic-2024 - Operación Hydra 🐍
+## 10. Sesión 29-Dic-2024 - Operación Hydra + Savara Voice SDK 🐍🎤
 
-### Objetivo:
-Eliminar errores 429 (Quota Exceeded) mediante sistema de rotación de API Keys.
+### Tracks Completados:
 
-### Archivos Creados:
-- `utils/geminiKeyManager.ts` - Singleton para gestión de pool de API Keys
-- `conductor/archive/infra_resilience_matrix/spec.md` - Especificación técnica
-- `conductor/archive/infra_resilience_matrix/plan.md` - Plan de implementación
-- `.env.example` - Plantilla actualizada con `VITE_GEMINI_KEY_POOL`
+#### 1. Operación Hydra (Pool de API Keys)
+- `utils/geminiKeyManager.ts` - Singleton con rotación round-robin
+- Pool de 4 keys, cooldown de 1 hora
+- Integrado en voz, chat y serverless
 
-### Archivos Modificados:
-- `hooks/useSavaraLive.ts` - Integrado GeminiKeyManager con rotación automática en error 429
-- `services/geminiService.ts` - Integrado GeminiKeyManager para chat
-- `api/chat.ts` - Pool de keys para serverless con selección random
-- `conductor/tracks.md` - Nuevo track documentado
+#### 2. Savara Voice SDK Oficial
+- `services/savaraLiveSDK.ts` - Implementación con @google/genai
+- `hooks/useSavaraSDK.ts` - Hook React compatible
+- Modelo: `gemini-2.5-flash-native-audio-preview-09-2025`
+- Audio bidireccional + Function Calling
+- Tasas BCV inyectadas en system instruction
 
-### Configuración Requerida:
+#### 3. RAG Vectorizado
+- `scripts/ingest-knowledge.ts` - Script de ingestión
+- 16 chunks vectorizados en knowledge_base
+- Embeddings con text-embedding-004
 
-**Local (.env.local):**
-```env
-VITE_GEMINI_KEY_POOL='["key1", "key2", "key3", "key4"]'
-```
+#### 4. Fix Producción
+- `api/chat.ts` reescrito como standalone
+- Sin dependencias de archivos internos
+- Compatible con Vercel serverless
 
-**Vercel (Environment Variables):**
-```env
-GEMINI_KEY_POOL='["key1", "key2", "key3", "key4"]'
-```
-
-### Próximo: Vectorización RAG
-La tabla `knowledge_base` está lista para poblar con documentos y embeddings.
+### Pendiente:
+- [ ] Desplegar Edge Function bcv-rates con CORS mejorado
+- [ ] Verificar GitHub Actions secrets
