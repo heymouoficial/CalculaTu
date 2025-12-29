@@ -163,11 +163,11 @@ export class SavaraLiveSDK {
 
             // Build dynamic context with BCV rates
             const ratesContext = this.config.bcvRates
-                ? `TASAS BCV HOY: $1 USD = Bs ${this.config.bcvRates.USD.toFixed(2)} | €1 EUR = Bs ${this.config.bcvRates.EUR.toFixed(2)}`
+                ? `TASAS BCV HOY: $1 USD = ${this.config.bcvRates.USD.toFixed(2)} Bolívares | €1 EUR = ${this.config.bcvRates.EUR.toFixed(2)} Bolívares`
                 : 'Tasas BCV no disponibles.';
 
             const cartContext = this.config.cartInfo
-                ? `CARRITO ACTUAL: ${this.config.cartInfo.itemCount} productos, Total: Bs ${this.config.cartInfo.totalBs.toFixed(2)} ($${this.config.cartInfo.totalUsd.toFixed(2)} USD)`
+                ? `CARRITO ACTUAL: ${this.config.cartInfo.itemCount} productos, Total: ${this.config.cartInfo.totalBs.toFixed(2)} Bolívares ($${this.config.cartInfo.totalUsd.toFixed(2)} USD)`
                 : '';
 
             const systemInstruction = `
