@@ -17,7 +17,7 @@ import { showToast, ToastContainer } from './Toast';
 import { SavaraCallModal } from './SavaraCallModal';
 import { ServiceUnavailableBanner } from './ServiceUnavailableBanner';
 import { supabase } from '../services/supabaseClient';
-import { useSavaraLive } from '../hooks/useSavaraLive';
+import { useSavaraLive } from '../hooks/useSavaraSDK';
 
 interface CalculatorViewProps {
   onBack: () => void;
