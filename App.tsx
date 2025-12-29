@@ -33,7 +33,10 @@ import {
   WifiOff,
   Leaf,
   BadgeCheck,
-  Sparkles
+  Sparkles,
+  MessageCircle,
+  Hash, // Using Hash as a proxy for Threads if distinct one not available
+  Linkedin
 } from 'lucide-react';
 import { CalculatorView } from './components/CalculatorView';
 import { Logo } from './components/Logo';
@@ -41,11 +44,20 @@ import { DemoCard } from './components/DemoCard';
 import { ChatWidget } from './components/ChatWidget';
 import { InstallBanner } from './components/InstallBanner';
 import { PromotionBanner } from './components/PromotionBanner';
-import {
-  Linkedin,
-  MessageCircle,
-  Hash // Using Hash as a proxy for Threads if distinct one not available
-} from 'lucide-react';
+
+// Specialized Icons
+const TikTokIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 10.692 6.33 6.33 0 0 0 10.857-4.424V8.617a8.171 8.171 0 0 0 4.773 1.574V6.747a4.358 4.358 0 0 1-1.001-.061z" />
+  </svg>
+);
 
 // FAQ Data
 const FAQS = [
@@ -208,7 +220,7 @@ const App: React.FC = () => {
   if (currentView === 'portal') return <Portality />;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div className="min-h-screen text-white flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
       <PromotionBanner onActivate={handleActivateChristmas} />
 
       {/* NAVBAR */}
@@ -217,7 +229,7 @@ const App: React.FC = () => {
         <div className="absolute bottom-[10%] right-[-5%] w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[100px]" />
       </div>
 
-      <nav className="sticky top-0 w-full z-40 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md">
+      <nav className="sticky top-0 w-full z-40 border-b border-white/5 bg-black/40 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Logo size={36} />
@@ -252,8 +264,8 @@ const App: React.FC = () => {
         <section className="flex flex-col md:flex-row items-center gap-12 md:gap-20 mb-32">
           <div className="flex-1 text-center md:text-left space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2 animate-pulse"><Star size={14} className="fill-current" /><span>Lo nuevo de Multiversa</span></div>
-                              <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight">Cualquier compra, sin <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)]">Estrés.</span></h1>
-            
+            <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight">Cualquier compra, sin <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)]">Estrés.</span></h1>
+
             <p className="text-gray-400 text-lg md:text-xl max-w-lg mx-auto md:mx-0 leading-relaxed">Tu <strong>Asistente de Mercado</strong> personal. Deja de pelear con la calculadora y empieza a usar tu voz con <span className="text-purple-400 font-semibold">Savara AI</span>.</p>
             <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center md:justify-start">
               <button onClick={() => setCurrentView('calculator')} className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all flex items-center justify-center gap-2">Comenzar Gratis <Download size={20} /></button>
@@ -351,7 +363,7 @@ const App: React.FC = () => {
             {/* LIFETIME TIER (BEST VALUE) */}
             <div className="relative h-[500px]">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 w-full px-4">
-                <div className="bg-gradient-to-r from-[#10b981] via-[#3b82f6] to-[#8b5cf6] py-1.5 rounded-t-xl flex items-center justify-center gap-2 shadow-lg">
+                <div className="bg-gradient-to-r from-[#10b981] via-[#3b82f6] to-[#8b5cf6] py-1.5 rounded-full flex items-center justify-center gap-2 shadow-lg">
                   <Sparkles size={12} className="text-white fill-current" />
                   <span className="text-white text-[10px] font-black uppercase tracking-[0.2em]">OFERTA HASTA 31 ENE</span>
                 </div>
@@ -409,7 +421,7 @@ const App: React.FC = () => {
         <footer className="text-center border-t border-white/5 pt-12 pb-10">
           <div className="flex items-center justify-center gap-6 mb-8">
             <a href="https://tiktok.com/@mou_multiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="TikTok">
-              <span className="text-xs font-black uppercase tracking-tighter">TikTok</span>
+              <TikTokIcon size={20} />
             </a>
             <a href="https://instagram.com/mou_multiversa" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-instagram transition-colors" title="Instagram">
               <Instagram size={20} />

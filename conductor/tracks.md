@@ -38,7 +38,12 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: CalculaTú Beta v1.0 - Polish & Refinement (IN PROGRESS)
-*Link: [./plan_alpha_v2.md](./plan_alpha_v2.md)*
+## [x] Track: CalculaTú Beta v1.0 - Core Alignment (COMPLETED)
 *Start Date: 2025-12-29*
-*Summary: Transición de Beta v0.9.0 a v1.0. Optimización de UX, refinamiento de la personalidad de Savara (incluyendo despedidas), y validación final de la infraestructura de producción.*
+*Summary: Transición de Beta v0.9.0 a v1.0. Estabilización de Savara Voz (SDK), RAG vectorizado, Operación Hydra operativa y CORS fix en producción.*
+
+---
+
+## [~] Track: UX/UI Liquid Glass Polish (IN PROGRESS)
+*Summary: Aplicar mejor el estilo LiquidGlass, mejorar paddings móviles, hit areas de actualización de tasas y asegurar que Savara Voice se ajuste perfectamente a cualquier viewport sin componentes "raros".*
+*Focus: UX Aireada, thumb-zone agresiva, visualización impecable en móvil.*

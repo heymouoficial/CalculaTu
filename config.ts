@@ -1,6 +1,6 @@
 // Build Info - Update this on each release
-export const BUILD_VERSION = 'v0.9.0-beta';
-export const BUILD_DATE = '2024-12-22';
+export const BUILD_VERSION = 'v1.0.0-beta';
+export const BUILD_DATE = '2025-12-29';
 
 // App Name
 export const APP_NAME = 'CalculaTú';

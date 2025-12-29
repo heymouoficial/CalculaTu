@@ -5,28 +5,43 @@
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'Plus Jakarta Mono', monospace;
-  
+
   --color-glass-bg: rgba(255, 255, 255, 0.05);
   --color-glass-border: rgba(255, 255, 255, 0.1);
   --color-neon-lime: #ccff00;
   --color-deep-purple: #8b5cf6;
   --color-emerald-esmerald: #10b981;
+
+  --smooth-gradient: radial-gradient(circle at 50% -20%, #1e1e1e 0%, #050505 80%);
+  --premium-gradient: linear-gradient(135deg, #0f172a 0%, #020617 100%);
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #050505;
-  background-image: radial-gradient(circle at 50% -20%, #1e1e1e 0%, #050505 80%);
+  background: var(--smooth-gradient);
+  background-attachment: fixed;
   color: white;
   overflow-x: hidden;
+  min-height: 100dvh;
+  /* Soporte para mobile browser bars */
+  letter-spacing: -0.015em;
+  /* Premium kerning */
 }
 
 .glass-panel {
-  background: var(--color-glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--color-glass-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.liquid-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
 }
 
 .neon-pulse {
@@ -35,28 +50,46 @@ body {
 }
 
 @keyframes pulse-glow {
-  0% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
-  100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
+  0% {
+    box-shadow: 0 0 5px rgba(16, 185, 129, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+  }
+
+  100% {
+    box-shadow: 0 0 5px rgba(16, 185, 129, 0.2);
+  }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: transparent; 
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1); 
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 
 /* Savara Voice Animation */
 @keyframes sound {
-  0% { height: 8px; opacity: 0.5; }
-  100% { height: 32px; opacity: 1; }
+  0% {
+    height: 8px;
+    opacity: 0.5;
+  }
+
+  100% {
+    height: 32px;
+    opacity: 1;
+  }
 }
+
 .voice-bar {
   animation: sound 1s infinite ease-in-out alternate;
 }

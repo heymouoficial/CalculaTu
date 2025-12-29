@@ -131,5 +131,10 @@ GEMINI_API_KEY=fallback_single_key
 - **Reglas de Despedida**: Implementado en `constants.tsx`, `api/chat.ts` y `savaraLiveSDK.ts`.
 - **Versión Core**: Actualizado a `v1.0.0-beta`.
 
+#### 6. UX/UI Liquid Glass Polish (In Progress)
+- Auditoría UX completada con el browser subagent.
+- Identificados puntos de mejora en paddings superiores, hit areas de actualización de tasas y visualización de Savara en viewports móviles reales.
+
 ### Próximo:
-- Optimización UX y lanzamiento final.
+- Ejecutar plan de pulido UI Liquid Glass.
+- Optimización final de UX y lanzamiento final.

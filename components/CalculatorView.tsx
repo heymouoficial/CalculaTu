@@ -497,19 +497,19 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     : new Date().toLocaleString('es-VE');
 
   return (
-    <div className="h-screen bg-black flex flex-col font-sans overflow-hidden select-none relative">
+    <div className="min-h-[100dvh] bg-transparent flex flex-col font-sans overflow-hidden select-none relative">
 
       {/* HEADER BAR */}
-      <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+      <div className="absolute top-0 left-0 right-0 z-50 p-6 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
 
         {/* Left: Back & Brand */}
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-white/10 transition-all">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-white/10 transition-all">
             <ArrowLeft size={18} />
           </button>
-          <Logo size={32} />
+          <Logo size={36} />
           <div className="flex flex-col">
-            <span className="text-sm font-black tracking-tight text-white leading-none">CalculaTú</span>
+            <span className="text-base font-black tracking-tight text-white leading-none">CalculaTú</span>
             <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider flex items-center gap-1">
               <Calendar size={8} /> {currentDateDisplay}
             </span>
@@ -517,12 +517,12 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* Voucher button - show if items exist AND (license active OR free trial period) */}
           {items.length > 0 && (license.active || new Date() < new Date('2026-01-01T00:00:00Z')) && (
             <button
               onClick={handleFinish}
-              className="p-2.5 bg-emerald-500 text-black rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:scale-105 transition-all animate-fade-in"
+              className="p-3 bg-emerald-500 text-black rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)] hover:scale-105 transition-all animate-fade-in"
               title="Generar Voucher"
             >
               <ReceiptText size={18} strokeWidth={2.5} />
@@ -530,7 +530,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
           )}
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:rotate-90 duration-500"
+            className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:rotate-90 duration-500"
           >
             <Settings size={18} />
           </button>
@@ -603,40 +603,79 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Rates Bar */}
-      <div className="w-full border-y border-white/5 bg-black/40 py-2 flex flex-col items-center gap-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-emerald-400/70 font-medium tracking-wider">Tasas en tiempo real • BCV</span>
-          <button
-            onClick={async () => {
-              setIsRefreshingRates(true);
-              const newRates = await forceRefreshRates();
-              if (newRates) {
-                setRatesTemporarily({ USD: newRates.USD, EUR: newRates.EUR });
-                showToast('Tasas actualizadas ✅', 'success');
-              } else {
-                showToast('Error al actualizar tasas', 'error');
-              }
-              setIsRefreshingRates(false);
-            }}
-            disabled={isRefreshingRates}
-            className="p-1 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50"
-            title="Actualizar tasas"
-          >
-            <RefreshCcw size={12} className={`text-emerald-400 ${isRefreshingRates ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-        <div className="flex justify-center gap-8 items-center text-xs font-black uppercase tracking-widest text-gray-500">
-          <div className="flex gap-2 items-center">
-            <DollarSign size={16} className="text-emerald-400" />
-            <span className="text-white font-mono">Bs {rates.USD.toFixed(2)}</span>
-            {renderDelta(rates.USD, rates.prevUSD)}
-          </div>
-          <div className="h-3 w-px bg-white/10"></div>
-          <div className="flex gap-2 items-center">
-            <Euro size={16} className="text-purple-400" />
-            <span className="text-white font-mono">Bs {rates.EUR.toFixed(2).replace('.', ',')}</span>
-            {renderDelta(rates.EUR, rates.prevEUR)}
+      {/* RATES DISPLAY - GLASS CARD UPGRADE */}
+      <div className="px-4 py-4 w-full max-w-md mx-auto relative z-10">
+        <div className="glass-panel overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-2xl rounded-[2.5rem] p-5 shadow-2xl">
+          <div className="flex flex-col gap-4">
+
+            {/* Header: Label & Refresh */}
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 opacity-80">
+                  Tasas en tiempo real • BCV
+                </span>
+              </div>
+              <button
+                onClick={async () => {
+                  setIsRefreshingRates(true);
+                  const newRates = await forceRefreshRates();
+                  if (newRates) {
+                    setRatesTemporarily({ USD: newRates.USD, EUR: newRates.EUR });
+                    showToast('Tasas actualizadas ✅', 'success');
+                  } else {
+                    showToast('Error al actualizar tasas', 'error');
+                  }
+                  setIsRefreshingRates(false);
+                }}
+                disabled={isRefreshingRates}
+                className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all active:scale-90 border border-white/5"
+                title="Actualizar tasas"
+              >
+                <RefreshCcw size={14} className={`text-emerald-400 ${isRefreshingRates ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+
+            {/* Rates Grid */}
+            <div className="grid grid-cols-2 gap-3">
+
+              {/* USD CARD */}
+              <div className="bg-black/40 border border-white/[0.05] rounded-3xl p-4 flex flex-col gap-1 transition-all hover:bg-black/60 group">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="p-2 bg-blue-500/10 rounded-xl">
+                    <DollarSign size={16} className="text-blue-400" />
+                  </div>
+                  {renderDelta(rates.USD, rates.prevUSD)}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">Dólar USD</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-bold text-white font-mono tracking-tighter">
+                      Bs {rates.USD.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* EUR CARD */}
+              <div className="bg-black/40 border border-white/[0.05] rounded-3xl p-4 flex flex-col gap-1 transition-all hover:bg-black/60 group">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="p-2 bg-purple-500/10 rounded-xl">
+                    <Euro size={16} className="text-purple-400" />
+                  </div>
+                  {renderDelta(rates.EUR, rates.prevEUR)}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">Euro EUR</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-bold text-white font-mono tracking-tighter">
+                      Bs {rates.EUR.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       </div>
@@ -697,46 +736,46 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       {/* BOTTOM DOCK AREA */}
       <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center z-[60]">
 
-        {/* MANUAL MODE DOCK */}
+        {/* MANUAL MODE DOCK - ERGO POLISH */}
         {!isVoiceMode && (
-          <div className="w-full max-w-md bg-[#111]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-3 shadow-2xl animate-fade-in-up">
+          <div className="w-full max-w-md bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-4 shadow-2xl animate-fade-in-up">
 
             {/* Row 1: Qty & Name */}
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2.5 mb-2.5">
               <input
                 type="number"
                 value={inputQuantity}
                 onChange={(e) => setInputQuantity(e.target.value)}
                 placeholder="Cant."
-                className="w-20 bg-black/40 border border-white/10 rounded-xl px-3 py-3 text-center text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 transition-all font-mono text-sm"
+                className="w-20 bg-black/40 border border-white/10 rounded-2xl px-3 py-4 text-center text-white placeholder:text-gray-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all font-mono text-sm"
               />
               <input
                 type="text"
                 value={inputName}
                 onChange={(e) => setInputName(e.target.value)}
                 placeholder="Nombre del producto..."
-                className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 transition-all"
+                className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
               />
             </div>
 
             {/* Row 2: Controls & Price Group */}
-            <div className="flex gap-2 h-12">
+            <div className="flex gap-2.5 h-14">
 
               {/* Currency + Price Input Hybrid */}
-              <div className="flex-1 flex bg-black/40 border border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500/50 transition-colors">
+              <div className="flex-1 flex bg-black/40 border border-white/10 rounded-2xl overflow-hidden focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-all">
                 <button
                   onClick={cycleCurrency}
-                  className="h-full px-3 bg-white/5 border-r border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center gap-1.5 min-w-[70px]"
+                  className="h-full px-4 bg-white/[0.03] border-r border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center gap-2 min-w-[85px] active:bg-white/5"
                 >
-                  <span className={`font-mono font-bold text-lg ${currDisplay.color}`}>{currDisplay.symbol}</span>
-                  <span className="text-[10px] font-bold text-gray-500 pt-1">{currDisplay.label}</span>
+                  <span className={`font-mono font-bold text-xl ${currDisplay.color}`}>{currDisplay.symbol}</span>
+                  <span className="text-[10px] font-black text-gray-500 pt-0.5 tracking-tighter uppercase">{currDisplay.label}</span>
                 </button>
                 <input
                   type="number"
                   value={inputPrice}
                   onChange={(e) => setInputPrice(e.target.value)}
                   placeholder="0.00"
-                  className="flex-1 w-full bg-transparent border-none px-3 text-white font-mono text-lg placeholder:text-gray-700 focus:ring-0 outline-none"
+                  className="flex-1 w-full bg-transparent border-none px-4 text-white font-mono text-xl placeholder:text-gray-600 focus:ring-0 outline-none"
                 />
               </div>
 
@@ -744,9 +783,9 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               <button
                 onClick={handleAddItem}
                 disabled={!inputName || !inputPrice}
-                className="aspect-square h-full bg-emerald-500 rounded-xl text-black shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-95 hover:bg-emerald-400 transition-all flex items-center justify-center disabled:opacity-50 disabled:shadow-none"
+                className="aspect-square h-full bg-emerald-500 rounded-2xl text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-90 hover:bg-emerald-400 transition-all flex items-center justify-center disabled:opacity-30 disabled:grayscale disabled:scale-100 disabled:shadow-none"
               >
-                <Plus size={26} strokeWidth={3} />
+                <Plus size={28} strokeWidth={3} />
               </button>
             </div>
           </div>
@@ -1479,7 +1518,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       `}</style>
 
       {/* Version Badge */}
-      <div className="fixed bottom-2 right-2 z-30 text-[10px] text-gray-600 font-mono bg-black/50 px-2 py-0.5 rounded">
+      <div className="fixed bottom-8 right-6 z-30 text-[10px] text-white/30 font-black uppercase tracking-widest bg-white/5 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
         {BUILD_VERSION}
       </div>
 
@@ -1492,18 +1531,22 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       {/* Toast notifications */}
       <ToastContainer />
 
-      {/* Savara Call Modal */}
-      <SavaraCallModal
-        isOpen={isSavaraConnected}
-        isListening={isSavaraConnected}
-        currentItems={items}
-        currentTotals={currentTotals}
-        rates={rates}
-        onHangUp={toggleSavara}
-        latency={latency}
-        isLowLatency={isLowLatency}
-        usageSeconds={voiceUsageSeconds}
-      />
+      {isSavaraConnected && (
+        <SavaraCallModal
+          isOpen={isSavaraConnected}
+          isListening={true}
+          currentItems={items}
+          currentTotals={currentTotals}
+          rates={rates}
+          onHangUp={toggleSavara}
+          latency={latency}
+          isLowLatency={isLowLatency}
+          usageSeconds={voiceUsageSeconds}
+          onDurationUpdate={(duration) => {
+            useAppStore.getState().incrementVoiceUsage(1);
+          }}
+        />
+      )}
       <ServiceUnavailableBanner
         isOpen={showServiceBanner}
         onClose={() => setShowServiceBanner(false)}
