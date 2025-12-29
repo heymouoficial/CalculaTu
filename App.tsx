@@ -264,7 +264,7 @@ const App: React.FC = () => {
         <section className="flex flex-col md:flex-row items-center gap-12 md:gap-20 mb-32">
           <div className="flex-1 text-center md:text-left space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2 animate-pulse"><Star size={14} className="fill-current" /><span>Lo nuevo de Multiversa</span></div>
-            <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight">Cualquier compra, sin <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)]">Estrés.</span></h1>
+            <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight">Cualquier compra, <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)] text-white">sin </span><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200 drop-shadow-[0_0_30px_rgba(16,185,129,0.3)]">Estrés.</span></h1>
 
             <p className="text-gray-400 text-lg md:text-xl max-w-lg mx-auto md:mx-0 leading-relaxed">Tu <strong>Asistente de Mercado</strong> personal. Deja de pelear con la calculadora y empieza a usar tu voz con <span className="text-purple-400 font-semibold">Savara AI</span>.</p>
             <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center md:justify-start">
