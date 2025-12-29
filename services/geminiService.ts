@@ -1,16 +1,17 @@
 // services/geminiService.ts
-// Using Google Gemini API Direct (Gemini 1.5 Flash - Stable)
+// Using Google Gemini API Direct (Gemini 2.5 Flash - Stable)
+// Operación Hydra: Key Rotation for 429 resilience
 
 import { SAVARA_IDENTITY } from '../constants';
+import { GeminiKeyManager } from '../utils/geminiKeyManager';
 
 const CURRENT_MODEL = 'gemini-2.5-flash'; // As seen in User Dashboard
 
 const SAVARA_SYSTEM_PROMPT = SAVARA_IDENTITY;
 
 const getGeminiApiKey = (): string | undefined => {
-  const key = (typeof process !== 'undefined' && process.env ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : undefined) ||
-    (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
-  return key;
+  const keyManager = GeminiKeyManager.getInstance();
+  return keyManager.getKey() || undefined;
 };
 
 class SavaraChat {

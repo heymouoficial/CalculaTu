@@ -86,8 +86,9 @@ GEMINI_API_KEY=AIzaSyB2pUIh2GWNX-C5sxC_3cLIztmcptdliRU
 1. ✅ ~~Configurar `GEMINI_API_KEY` en Vercel y redeploy~~ (Completado)
 2. ✅ ~~Verificar chat funcionando en producción~~ (Completado)
 3. **[PENDIENTE]** Configurar facturación en Google AI Studio para aumentar límites
-4. **[PENDIENTE]** Implementar sistema de API Keys de backup/fallback
+4. ✅ ~~Implementar sistema de API Keys de backup/fallback~~ (Operación Hydra)
 5. **[PENDIENTE]** Preparar métricas de uso para análisis post-navidad
+6. **[PENDIENTE]** Vectorizar base de conocimiento (knowledge_base) para RAG
 
 ## 9. Sesión 28-Dic-2024 - Resumen de Cambios
 
@@ -99,3 +100,34 @@ GEMINI_API_KEY=AIzaSyB2pUIh2GWNX-C5sxC_3cLIztmcptdliRU
 - `components/CalculatorView.tsx` - Banner de error solo 1 vez (localStorage)
 - `components/ChatWidget.tsx` - Memoria de chat persistente (sessionStorage)
 
+## 10. Sesión 29-Dic-2024 - Operación Hydra 🐍
+
+### Objetivo:
+Eliminar errores 429 (Quota Exceeded) mediante sistema de rotación de API Keys.
+
+### Archivos Creados:
+- `utils/geminiKeyManager.ts` - Singleton para gestión de pool de API Keys
+- `conductor/archive/infra_resilience_matrix/spec.md` - Especificación técnica
+- `conductor/archive/infra_resilience_matrix/plan.md` - Plan de implementación
+- `.env.example` - Plantilla actualizada con `VITE_GEMINI_KEY_POOL`
+
+### Archivos Modificados:
+- `hooks/useSavaraLive.ts` - Integrado GeminiKeyManager con rotación automática en error 429
+- `services/geminiService.ts` - Integrado GeminiKeyManager para chat
+- `api/chat.ts` - Pool de keys para serverless con selección random
+- `conductor/tracks.md` - Nuevo track documentado
+
+### Configuración Requerida:
+
+**Local (.env.local):**
+```env
+VITE_GEMINI_KEY_POOL='["key1", "key2", "key3", "key4"]'
+```
+
+**Vercel (Environment Variables):**
+```env
+GEMINI_KEY_POOL='["key1", "key2", "key3", "key4"]'
+```
+
+### Próximo: Vectorización RAG
+La tabla `knowledge_base` está lista para poblar con documentos y embeddings.

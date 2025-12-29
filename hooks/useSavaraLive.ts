@@ -3,11 +3,14 @@ import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
 import { syncVoiceUsage } from '../services/usageService';
 import productContext from '../conductor/product.md?raw';
+import { GeminiKeyManager } from '../utils/geminiKeyManager';
 
 
 const MODEL = "models/gemini-2.5-flash";
-const MODEL_LIVE_PRIMARY = "gemini-2.0-flash-exp"; // Este sí conecta (el nombre del dashboard NO coincide con la API)
-const MODEL_LIVE_FALLBACK = "gemini-2.0-flash-exp"; // Mismo modelo, solo para evitar loops
+// ACTUALIZADO: Usando el modelo native-audio-preview que funcionó el 24 de diciembre
+// Este modelo tiene límites de cuota más altos que gemini-2.0-flash-exp
+const MODEL_LIVE_PRIMARY = "gemini-2.5-flash-native-audio-preview-09-2025";
+const MODEL_LIVE_FALLBACK = "gemini-2.0-flash-exp"; // Fallback si el primary falla
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
 const SILENCE_TIMEOUT_MS = 60000; // 60 seconds
 
@@ -203,12 +206,19 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       audioContextOutput.current = new AudioContext({ sampleRate: 24000 });
       nextStartTime.current = audioContextOutput.current.currentTime;
 
-      // 3. WebSocket Connection
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
+      // 3. WebSocket Connection - Operación Hydra (Key Rotation)
+      const keyManager = GeminiKeyManager.getInstance();
+      const apiKey = keyManager.getKey();
+
       if (!apiKey) {
-        console.error("❌ Savara Error: No se encontró VITE_GEMINI_API_KEY en el entorno.");
-        throw new Error("Falta la configuración de API Key (Gemini) en este dispositivo.");
+        console.error("❌ Savara Error: No hay API Keys disponibles (Hydra agotado).");
+        throw {
+          code: 'NO_KEYS_AVAILABLE',
+          message: "Servidores saturados. Todas las claves en cooldown. Intenta en 1 hora."
+        };
       }
+
+      console.log(`🐍 Hydra: Conectando con key ${keyManager.getStatus().currentKeyMasked}`);
 
       const WS_URL_DYNAMIC = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       ws.current = new WebSocket(WS_URL_DYNAMIC);
@@ -303,19 +313,27 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
           return;
         }
 
-        // RETRY ONCE for Quota Issues (with delay)
-        if (isQuotaError && retryCount.current === 0) {
-          console.warn(`⚠️ Quota agotada. Reintentando en 5 segundos...`);
-          retryCount.current = 1;
-          setError({ code: 'RETRYING', message: "Cuota agotada. Reintentando..." });
-          setTimeout(() => connect(initialPrompt), 5000); // 5 second delay
-          return;
+        // HYDRA: Rotate key and retry on Quota Issues (up to 3 attempts)
+        if (isQuotaError && retryCount.current < 3) {
+          const keyManager = GeminiKeyManager.getInstance();
+          keyManager.reportError(apiKey); // Marca la key actual como fallida
+
+          const newKey = keyManager.getKey();
+          if (newKey) {
+            console.warn(`🐍 Hydra: Rotando a nueva key. Intento ${retryCount.current + 1}/3`);
+            retryCount.current++;
+            setError({ code: 'RETRYING', message: `Rotando servidor... (${retryCount.current}/3)` });
+            setTimeout(() => connect(initialPrompt), 2000); // 2 second delay
+            return;
+          } else {
+            console.error("🐍 Hydra: Todas las keys agotadas");
+          }
         }
 
         if (onHangUp) onHangUp(); // Trigger callback if not retrying
 
         if (isQuotaError) {
-          setError({ code: 'API_LIMIT_REACHED', message: "Servidores de Google saturados. Intenta en 1-2 minutos." });
+          setError({ code: 'API_LIMIT_REACHED', message: "Todos los servidores saturados. Intenta en 1 hora." });
         } else if (event.code !== 1000) {
           setError({ code: 'CONNECTION_ERROR', message: "Conexión cerrada inesperadamente." });
         }

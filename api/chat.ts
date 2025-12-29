@@ -23,19 +23,44 @@ export default async function handler(
   }
 
   try {
-    // Check for Gemini API key
-    const key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    if (!key) {
-      console.error('[API Chat] CRITICAL: GEMINI_API_KEY not found in environment.');
+    // Operación Hydra: API Key Pool for Server
+    // Serverless functions don't have access to import.meta.env, use process.env
+    const getServerKey = (): { key: string; masked: string } | null => {
+      // Try pool first
+      const poolString = process.env.GEMINI_KEY_POOL;
+      if (poolString) {
+        try {
+          const pool: string[] = JSON.parse(poolString);
+          if (pool.length > 0) {
+            // Random selection for serverless (no state between calls)
+            const key = pool[Math.floor(Math.random() * pool.length)];
+            return { key, masked: `${key.slice(0, 6)}...${key.slice(-4)}` };
+          }
+        } catch (e) {
+          console.warn('[API Chat] Failed to parse GEMINI_KEY_POOL');
+        }
+      }
+
+      // Fallback to single key
+      const singleKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+      if (singleKey) {
+        return { key: singleKey, masked: `${singleKey.slice(0, 6)}...${singleKey.slice(-4)}` };
+      }
+
+      return null;
+    };
+
+    const keyResult = getServerKey();
+    if (!keyResult) {
+      console.error('[API Chat] CRITICAL: No API Keys available (Hydra pool empty).');
       return res.status(500).json({
         error: 'Configuration Error',
-        details: 'API Key not found. Add GEMINI_API_KEY in Vercel Settings → Environment Variables.'
+        details: 'API Keys not found. Add GEMINI_KEY_POOL or GEMINI_API_KEY in Vercel Settings.'
       });
     }
 
-    const chatSession = createChatSession(key);
-    const maskedKey = `${key.slice(0, 6)}...${key.slice(-4)}`;
-    console.log(`[API Chat] Using Key: ${maskedKey}`);
+    const chatSession = createChatSession(keyResult.key);
+    console.log(`[API Chat] 🐍 Hydra: Using Key: ${keyResult.masked}`);
     console.log(`[API Chat] Sending message to Gemini. History length: ${history?.length || 0}`);
 
     // Inject Product Context (read from file)
