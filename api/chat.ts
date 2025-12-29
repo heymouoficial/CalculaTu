@@ -95,19 +95,15 @@ export default async function handler(
 
     console.log(`[API Chat] 🐍 Hydra: Using Key: ${keyResult.masked}`);
 
-    // Build enhanced system context
-    const ratesInfo = coreStats?.rates
-      ? `TASAS BCV ACTUALES: $1 USD = ${coreStats.rates.USD} Bolívares | €1 EUR = ${coreStats.rates.EUR} Bolívares`
-      : 'Tasas BCV no disponibles.';
-
+    // El systemContext del cliente ya incluye las tasas BCV actuales
+    // Solo agregamos SAVARA_SYSTEM_PROMPT y la regla de oro
     const enhancedSystemContext = `
 ${SAVARA_SYSTEM_PROMPT}
 
 ${systemContext || ''}
 
-${ratesInfo}
-
-REGLA DE ORO: Usa SIEMPRE las tasas proporcionadas. NO inventes valores.
+REGLA DE ORO ABSOLUTA: Las tasas de cambio SIEMPRE vienen en el contexto anterior (ej: "Tasa USD: Bs 294.96"). 
+USA ESAS TASAS EXACTAS. NUNCA inventes ni aproximes valores. Si no ves tasas, pide que esperen a la sincronización.
     `.trim();
 
     // Build conversation contents
