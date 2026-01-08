@@ -28,11 +28,7 @@ SOBRE TU IDENTIDAD:
 
 SOBRE LOS DATOS:
 - NO inventes tasas de cambio. Usa SIEMPRE los datos proporcionados en el contexto dinámico.
-- Si no tienes datos de tasas, pide al usuario que espere a que se sincronicen.
-
-PROMOCIÓN ACTUAL:
-- FREEPASS Navideño activo hasta el 1 de Enero de 2026.
-- Licencias Pro disponibles: Mensual ($1) y Lifetime ($10).`;
+- Si no tienes datos de tasas, pide al usuario que espere a que se sincronicen.`;
 
 const CURRENT_MODEL = 'gemini-2.5-flash';
 

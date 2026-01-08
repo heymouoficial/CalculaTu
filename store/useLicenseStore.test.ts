@@ -90,17 +90,4 @@ describe('useLicenseStore', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should allow TEMP_FREE_PASS_2026 bypass before 2026', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2025-12-27T12:00:00Z'));
-    
-    const machineId = 'FREE_TEST_DEVICE';
-    const result = await useLicenseStore.getState().setLicense('TEMP_FREE_PASS_2026', machineId, 'any-secret');
-    
-    expect(result.success).toBe(true);
-    expect(useLicenseStore.getState().isPremium).toBe(true);
-    expect(useLicenseStore.getState().tier).toBe('trial');
-    
-    vi.useRealTimers();
-  });
 });

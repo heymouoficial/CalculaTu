@@ -37,9 +37,9 @@ describe('autoActivateTrial', () => {
     vi.useRealTimers();
   });
 
-  it('should activate a 24h trial if no license exists (and temp trial expired)', async () => {
-    // Set time to 2027 to ensure isTemporaryFreeTrialActive() returns false (expiry is 2026)
-    vi.setSystemTime(new Date('2027-01-01T12:00:00Z'));
+  it('should activate a 24h trial if no license exists', async () => {
+    // Ensuring a consistent time for testing
+    vi.setSystemTime(new Date('2026-01-02T12:00:00Z'));
 
     const machineId = 'M-TEST123';
     await autoActivateTrial(machineId);

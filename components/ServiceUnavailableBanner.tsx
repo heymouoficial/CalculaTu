@@ -40,18 +40,18 @@ export const ServiceUnavailableBanner: React.FC<ServiceUnavailableBannerProps> =
                     </h3>
 
                     <div className="bg-emerald-500/10 rounded-xl px-4 py-2 border border-emerald-500/20">
-                        <p className="text-emerald-400 font-bold text-sm tracking-wide italic">PRUEBA GRATUITA ACTIVA</p>
+                        <p className="text-emerald-400 font-bold text-sm tracking-wide italic">SAVARA PRO REQUERIDO</p>
                     </div>
 
                     <p className="text-sm text-gray-400 leading-relaxed max-w-[260px]">
-                        Disfruta de Savara Pro sin costo hasta el <strong>1 de enero de 2026</strong> como regalo de año nuevo.
+                        Activa Savara Pro para desbloquear el <strong>Co-Piloto de Voz</strong>, el <strong>Historial de Compras</strong> y tickets digitales.
                     </p>
 
                     <button
                         onClick={handleActivate}
                         className="w-full py-4 mt-4 bg-emerald-500 text-black font-black uppercase tracking-wider rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-500/20"
                     >
-                        ¡Probar Savara Pro Ahora!
+                        ¡Activar Savara Pro Ahora!
                     </button>
                 </div>
             </div>

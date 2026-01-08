@@ -2,37 +2,10 @@ import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../services/supabaseClient';
 
 const TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
-const TEMP_FREE_TRIAL_EXPIRY = '2026-01-01T00:00:00Z';
-
-export function isTemporaryFreeTrialActive(): boolean {
-  const now = new Date();
-  const expiry = new Date(TEMP_FREE_TRIAL_EXPIRY);
-  return now < expiry;
-}
 
 export async function autoActivateTrial(machineId: string): Promise<void> {
   const state = useAppStore.getState();
   const { license, setLicense } = state;
-
-  // 0. Priority: Temporary Global Free Trial until Jan 2026
-  if (isTemporaryFreeTrialActive()) {
-    const isPremium = license.active && (license.tier === 'lifetime' || license.tier === 'pro' || license.tier === 'monthly');
-    if (!isPremium) {
-      setLicense({
-        active: true,
-        tier: 'trial',
-        expiresAt: TEMP_FREE_TRIAL_EXPIRY,
-        token: 'TEMP_FREE_PASS_2026',
-        featureToken: {
-          uic: machineId,
-          features: ['voice'],
-          expiresAt: TEMP_FREE_TRIAL_EXPIRY,
-          token: 'TEMP_FREE_PASS_2026'
-        }
-      });
-      return;
-    }
-  }
 
   // 1. Check if we have a remote contract first (Remote-First Sync)
   if (supabase) {
@@ -121,23 +94,6 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
   setLicense({
     active: true,
     tier: 'trial',
-    expiresAt,
-  });
-}
-
-export async function activateChristmasPromo(machineId: string): Promise<void> {
-  const state = useAppStore.getState();
-  const { setLicense, license } = state;
-
-  // Don't downgrade a lifetime user
-  if (license.tier === 'lifetime') return;
-
-  // PRO Extendido hasta el 28 de Diciembre 2024 (00:00 hora local)
-  const expiresAt = new Date('2024-12-28T00:00:00').toISOString();
-
-  setLicense({
-    active: true,
-    tier: 'pro',
     expiresAt,
   });
 }

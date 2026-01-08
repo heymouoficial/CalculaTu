@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
 
 import { supabase } from './services/supabaseClient';
-import { autoActivateTrial, activateChristmasPromo } from './utils/license';
+import { autoActivateTrial } from './utils/license';
 import {
   AlertCircle,
   Check,
@@ -43,7 +43,6 @@ import { Logo } from './components/Logo';
 import { DemoCard } from './components/DemoCard';
 import { ChatWidget } from './components/ChatWidget';
 import { InstallBanner } from './components/InstallBanner';
-import { PromotionBanner } from './components/PromotionBanner';
 
 // Specialized Icons
 const TikTokIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
@@ -191,13 +190,6 @@ const App: React.FC = () => {
 
   const toggleCurrency = () => setShowEuro(!showEuro);
 
-  const handleActivateChristmas = async () => {
-    if (!machineId) return;
-    await activateChristmasPromo(machineId);
-    setCurrentView('calculator');
-    // Force voice mode activation in CalculatorView if needed
-    localStorage.setItem('savara_voice_mode', 'true');
-  };
 
   const renderDelta = (current: number, prev?: number) => {
     if (!prev || current === prev) return null;
@@ -221,7 +213,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen text-white flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
-      <PromotionBanner onActivate={handleActivateChristmas} />
 
       {/* NAVBAR */}
       <div className="fixed inset-0 pointer-events-none">
@@ -335,9 +326,6 @@ const App: React.FC = () => {
 
             {/* MONTHLY TIER */}
             <div className="p-8 rounded-3xl bg-[#111] border border-white/10 flex flex-col h-[460px] relative">
-              <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl rounded-tr-3xl uppercase tracking-wider">
-                Hasta 01 Ene
-              </div>
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-emerald-400 mb-2">Pro Mensual</h3>
                 <div className="flex flex-col">

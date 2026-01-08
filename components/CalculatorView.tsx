@@ -444,10 +444,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Toggle Savara Logic
   const toggleSavara = async () => {
-    // 0. Priority: Temporary Free Trial 2026
-    const isFreeTrial = new Date() < new Date('2026-01-01T00:00:00Z');
-
-    if (!isFreeTrial && (!license.active || !license.featureToken)) {
+    if (!license.active || !license.featureToken) {
       setShowServiceBanner(true);
       return;
     }
@@ -519,7 +516,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
           {/* Voucher button - show if items exist AND (license active OR free trial period) */}
-          {items.length > 0 && (license.active || new Date() < new Date('2026-01-01T00:00:00Z')) && (
+          {items.length > 0 && license.active && (
             <button
               onClick={handleFinish}
               className="p-3 bg-emerald-500 text-black rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)] hover:scale-105 transition-all animate-fade-in"

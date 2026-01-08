@@ -46,21 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!token) return json(res, 400, { valid: false, error: 'token is required' });
     if (!deviceId) return json(res, 400, { valid: false, error: 'deviceId is required' });
 
-    // Handle Temporary Free Trial 2026 Bypass
-    if (token === 'TEMP_FREE_PASS_2026') {
-      const expiry = '2026-01-01T00:00:00Z';
-      if (new Date() < new Date(expiry)) {
-        return json(res, 200, {
-          valid: true,
-          plan: 'trial',
-          expiresAt: expiry,
-          features: ['voice']
-        });
-      } else {
-        return json(res, 200, { valid: false, error: 'La prueba gratuita de Año Nuevo ha finalizado.' });
-      }
-    }
-
     console.log(`[license/verify] Verifying token for device: ${deviceId}`);
 
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
