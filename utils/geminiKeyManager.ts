@@ -45,6 +45,7 @@ export class GeminiKeyManager {
                 this.pool = [];
             }
         } else {
+            console.warn('🐍 Hydra: Variable VITE_GEMINI_KEY_POOL no encontrada, buscando fallback...');
             // Fallback: usar la key única si existe
             const singleKey = typeof import.meta !== 'undefined' && import.meta.env
                 ? import.meta.env.VITE_GEMINI_API_KEY
@@ -52,7 +53,14 @@ export class GeminiKeyManager {
 
             this.pool = singleKey ? [singleKey] : [];
             if (singleKey) {
-                console.log('🐍 Hydra: Modo single-key (legacy)');
+                console.log('🐍 Hydra: Modo single-key (legacy) activado');
+            } else {
+                // DEBUG: List available keys to help the user identify the issue
+                const availableKeys = typeof import.meta !== 'undefined' && import.meta.env 
+                    ? Object.keys(import.meta.env).filter(k => k.startsWith('VITE_'))
+                    : [];
+                console.log('🐍 Hydra: Variables VITE_ detectadas:', availableKeys);
+                console.error('❌ Hydra: Ni VITE_GEMINI_KEY_POOL ni VITE_GEMINI_API_KEY están definidas en .env.local');
             }
         }
     }

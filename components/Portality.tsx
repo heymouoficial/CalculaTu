@@ -252,40 +252,55 @@ export const Portality: React.FC = () => {
   // PIN Gate UI
   if (!isPinVerified) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-sm">
-          <form onSubmit={handlePinSubmit} className="p-8 rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 backdrop-blur-xl">
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <Lock className="w-8 h-8 text-emerald-400" />
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 relative overflow-hidden selection:bg-emerald-500/30">
+        {/* LIQUID GLASS BACKGROUND */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent blur-[80px] animate-liquid"></div>
+            <div className="absolute bottom-[5%] right-[15%] w-[35%] h-[35%] bg-gradient-to-tr from-purple-600/10 via-pink-500/5 to-transparent blur-[80px] animate-liquid [animation-delay:2s]"></div>
+          </div>
+        </div>
+
+        <div className="w-full max-w-sm relative z-10">
+          <form onSubmit={handlePinSubmit} className="p-10 rounded-[2.5rem] bg-white/[0.03] border border-white/10 backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-colors"></div>
+            
+            <div className="flex items-center justify-center mb-8 relative z-10">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black shadow-lg shadow-emerald-500/30">
+                <Lock size={32} />
               </div>
             </div>
-            <h2 className="text-xl font-bold text-white text-center mb-2">Acceso Restringido</h2>
-            <p className="text-gray-400 text-sm text-center mb-6">Ingresa el PIN de administrador</p>
+            
+            <h2 className="text-2xl font-black text-white text-center mb-2 tracking-tight">Portality SmartOS</h2>
+            <p className="text-gray-500 text-xs text-center mb-8 font-medium uppercase tracking-[0.2em]">Acceso Restringido</p>
 
-            <input
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-              placeholder="• • • • • •"
-              className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-4 text-2xl text-white text-center tracking-[0.5em] placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 font-mono"
-              autoFocus
-            />
+            <div className="space-y-6 relative z-10">
+              <input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••••"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-5 text-3xl text-white text-center tracking-[0.3em] placeholder:text-gray-800 focus:outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all font-mono"
+                autoFocus
+              />
 
-            {pinError && (
-              <p className="text-red-400 text-sm text-center mt-3">{pinError}</p>
-            )}
+              {pinError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold text-center animate-shake">
+                  {pinError}
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={pinInput.length < 4}
-              className="w-full mt-6 py-3 rounded-xl bg-emerald-500 text-black font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-400 transition-colors"
-            >
-              Verificar
-            </button>
+              <button
+                type="submit"
+                disabled={pinInput.length < 4}
+                className="w-full py-4 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+              >
+                Desbloquear Consola
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -589,186 +604,199 @@ export const Portality: React.FC = () => {
   if (!isAdminAuthed) {
     // === GATEKEEPER VIEW ===
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-[#111] border border-white/10 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
-          {/* Background decoration */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -mr-10 -mt-10"></div>
-
-          <div className="text-center mb-8 relative z-10">
-            <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10 text-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-              <ShieldCheck size={32} />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">Portality</h1>
-            <p className="text-xs text-gray-500 mt-2">
-              {isResettingPassword ? 'Restablecer Contraseña' : 'Acceso Administrativo Restringido'}
-            </p>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 relative overflow-hidden selection:bg-emerald-500/30">
+        {/* LIQUID GLASS BACKGROUND */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] bg-gradient-to-br from-blue-500/10 via-cyan-400/5 to-transparent blur-[80px] animate-liquid"></div>
+            <div className="absolute bottom-[-10%] left-[-5%] w-[45%] h-[45%] bg-gradient-to-tr from-emerald-500/10 via-emerald-400/5 to-transparent blur-[100px] animate-liquid [animation-delay:1s]"></div>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            {isResettingPassword ? (
-              <>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                    <Lock size={12} /> Nueva Contraseña
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pr-12 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                      placeholder="••••••••"
-                      disabled={isBusy}
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-white transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
+        <div className="max-w-md w-full relative z-10">
+          <div className="bg-white/[0.03] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl backdrop-blur-3xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-colors"></div>
 
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                    <Lock size={12} /> Confirmar Contraseña
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pr-12 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                      placeholder="••••••••"
-                      disabled={isBusy}
-                      autoComplete="new-password"
-                      onKeyDown={(e) => e.key === 'Enter' && handleUpdatePassword()}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-white transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
+            <div className="text-center mb-10 relative z-10">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-400/20 to-emerald-600/10 rounded-3xl flex items-center justify-center mb-6 border border-white/10 text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.1)] group-hover:scale-110 transition-transform">
+                <ShieldCheck size={40} />
+              </div>
+              <h1 className="text-3xl font-black tracking-tight text-white mb-2">Portality</h1>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em]">
+                {isResettingPassword ? 'Restablecer Seguridad' : 'Cámara de Autorización'}
+              </p>
+            </div>
 
-                <button
-                  onClick={handleUpdatePassword}
-                  disabled={isBusy || !newPassword.trim() || !confirmPassword.trim()}
-                  className="w-full py-4 rounded-xl bg-emerald-500 text-black font-black uppercase tracking-widest text-xs hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
-                >
-                  <Save size={16} /> {isBusy ? 'Actualizando...' : 'Actualizar Contraseña'}
-                </button>
-              </>
-            ) : (
-              <>
-                {!isRecoveringPassword ? (
-                  <>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                        <Mail size={12} /> Email
-                      </label>
+            <div className="space-y-5 relative z-10">
+              {isResettingPassword ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                      <Lock size={12} /> Nueva Contraseña
+                    </label>
+                    <div className="relative">
                       <input
-                        type="email"
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                        placeholder="multiversagroup@gmail.com"
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 pr-14 font-mono text-xs outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all placeholder:text-gray-800"
+                        placeholder="••••••••"
                         disabled={isBusy}
-                        autoComplete="email"
+                        autoComplete="new-password"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-600 hover:text-white transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                        <Key size={12} /> Contraseña
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          value={adminPassword}
-                          onChange={(e) => setAdminPassword(e.target.value)}
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pr-12 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                          placeholder="••••••••"
-                          disabled={isBusy}
-                          autoComplete="current-password"
-                          onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-white transition-colors"
-                          tabIndex={-1}
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                      <Lock size={12} /> Confirmar Contraseña
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 pr-14 font-mono text-xs outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all placeholder:text-gray-800"
+                        placeholder="••••••••"
+                        disabled={isBusy}
+                        autoComplete="new-password"
+                        onKeyDown={(e) => e.key === 'Enter' && handleUpdatePassword()}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-600 hover:text-white transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleUpdatePassword}
+                    disabled={isBusy || !newPassword.trim() || !confirmPassword.trim()}
+                    className="w-full py-5 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest text-xs hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-30 mt-4 flex items-center justify-center gap-2 active:scale-[0.98]"
+                  >
+                    <Save size={18} /> {isBusy ? 'Sincronizando...' : 'Actualizar Credenciales'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {!isRecoveringPassword ? (
+                    <div className="space-y-5">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                            <Mail size={12} /> Identificador Admin
+                          </label>
+                          <input
+                            type="email"
+                            value={adminEmail}
+                            onChange={(e) => setAdminEmail(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-mono text-xs outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all placeholder:text-gray-800"
+                            placeholder="multiversagroup@gmail.com"
+                            disabled={isBusy}
+                            autoComplete="email"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                            <Key size={12} /> Frase de Acceso
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              value={adminPassword}
+                              onChange={(e) => setAdminPassword(e.target.value)}
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 pr-14 font-mono text-xs outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all placeholder:text-gray-800"
+                              placeholder="••••••••"
+                              disabled={isBusy}
+                              autoComplete="current-password"
+                              onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-600 hover:text-white transition-colors"
+                              tabIndex={-1}
+                            >
+                              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    <button
-                      onClick={handleAdminLogin}
-                      disabled={isBusy || !adminEmail.trim() || !adminPassword.trim()}
-                      className="w-full py-4 rounded-xl bg-emerald-500 text-black font-black uppercase tracking-widest text-xs hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
-                    >
-                      <LogIn size={16} /> {isBusy ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-                    </button>
+                      <button
+                        onClick={handleAdminLogin}
+                        disabled={isBusy || !adminEmail.trim() || !adminPassword.trim()}
+                        className="w-full py-5 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest text-xs hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-30 mt-4 flex items-center justify-center gap-2 active:scale-[0.98]"
+                      >
+                        <LogIn size={18} /> {isBusy ? 'Verificando...' : 'Entrar al Núcleo'}
+                      </button>
 
-                    <button
-                      onClick={() => setIsRecoveringPassword(true)}
-                      disabled={isBusy}
-                      className="w-full py-2 text-[10px] text-gray-600 hover:text-gray-400 transition-colors"
-                    >
-                      ¿Olvidaste tu contraseña?
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        setIsRecoveringPassword(false);
-                        setStatus('');
-                      }}
-                      className="mb-4 flex items-center gap-2 text-[10px] text-gray-500 hover:text-gray-400 transition-colors"
-                    >
-                      <ArrowLeft size={12} /> Volver al login
-                    </button>
-
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
-                        <Mail size={12} /> Email para recuperación
-                      </label>
-                      <input
-                        type="email"
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs outline-none focus:border-emerald-500/50 transition-colors"
-                        placeholder="multiversagroup@gmail.com"
+                      <button
+                        onClick={() => setIsRecoveringPassword(true)}
                         disabled={isBusy}
-                        autoComplete="email"
-                        onKeyDown={(e) => e.key === 'Enter' && handleRecoverPassword()}
-                      />
-                      <p className="text-[10px] text-gray-500 mt-2">
-                        Te enviaremos un enlace para restablecer tu contraseña.
-                      </p>
+                        className="w-full py-2 text-[10px] text-gray-700 hover:text-white transition-colors font-bold tracking-widest"
+                      >
+                        RECUPERAR ACCESO
+                      </button>
                     </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <button
+                        onClick={() => {
+                          setIsRecoveringPassword(false);
+                          setStatus('');
+                        }}
+                        className="mb-2 flex items-center gap-2 text-[10px] text-gray-500 hover:text-white transition-colors font-black uppercase tracking-widest"
+                      >
+                        <ArrowLeft size={14} /> Volver
+                      </button>
 
-                    <button
-                      onClick={handleRecoverPassword}
-                      disabled={isBusy || !adminEmail.trim()}
-                      className="w-full py-4 rounded-xl bg-blue-500 text-white font-black uppercase tracking-widest text-xs hover:bg-blue-400 transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50 mt-2"
-                    >
-                      {isBusy ? 'Enviando...' : 'Enviar enlace de recuperación'}
-                    </button>
-                  </>
-                )}
-              </>
-            )}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-2">
+                            <Mail size={12} /> Email para recuperación
+                          </label>
+                          <input
+                            type="email"
+                            value={adminEmail}
+                            onChange={(e) => setAdminEmail(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 font-mono text-xs outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all placeholder:text-gray-800"
+                            placeholder="multiversagroup@gmail.com"
+                            disabled={isBusy}
+                            autoComplete="email"
+                            onKeyDown={(e) => e.key === 'Enter' && handleRecoverPassword()}
+                          />
+                          <p className="text-[10px] text-gray-500 mt-2">
+                            Te enviaremos un enlace para restablecer tu contraseña.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleRecoverPassword}
+                        disabled={isBusy || !adminEmail.trim()}
+                        className="w-full py-5 rounded-2xl bg-blue-500 text-white font-black uppercase tracking-widest text-xs hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-30 mt-4 active:scale-[0.98]"
+                      >
+                        {isBusy ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
             {status && (
               <div className={`mt-4 p-3 rounded-xl text-[10px] font-mono text-center ${status.includes('exitoso') || status.includes('envió')
@@ -786,10 +814,36 @@ export const Portality: React.FC = () => {
 
   // === DASHBOARD VIEW (AUTHED) ===
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-10 animate-fade-in font-sans selection:bg-emerald-500/30">
-      <div className="max-w-[1400px] mx-auto">
+    <div className="min-h-screen bg-black text-white selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden font-sans relative">
+      {/* LIQUID GLASS BACKGROUND (Sincronizado con App.tsx) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-0 left-0 w-full h-full">
+          <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-gradient-to-br from-cyan-500/10 via-cyan-400/5 to-transparent blur-[80px] animate-liquid"></div>
+          <div className="absolute top-[10%] right-[-5%] w-[45%] h-[45%] bg-gradient-to-bl from-indigo-500/15 via-purple-500/10 to-transparent blur-[100px] animate-liquid [animation-delay:1s]"></div>
+          <div className="absolute bottom-[5%] left-[15%] w-[35%] h-[35%] bg-gradient-to-tr from-purple-600/10 via-pink-500/5 to-transparent blur-[80px] animate-liquid [animation-delay:2s]"></div>
+        </div>
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `
+                            linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)
+                        `,
+            backgroundSize: "50px 50px",
+          }}
+        ></div>
+        <div
+          className="absolute inset-0 opacity-[0.01]"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/ %3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")",
+          }}
+        ></div>
+      </div>
+
+      <div className="max-w-[1400px] mx-auto relative z-10 px-4 py-10">
         {/* Header */}
-        <div className="flex items-center justify-between mb-10 pb-6 border-b border-white/5">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-10 pb-6 border-b border-white/5 gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black shadow-lg shadow-emerald-500/20">
               <ShieldCheck size={24} />
@@ -816,7 +870,7 @@ export const Portality: React.FC = () => {
 
           {/* === LEFT COLUMN: RATES & METRICS (4/12) === */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl relative overflow-hidden group">
+            <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-emerald-500/10 transition-colors"></div>
 
               <div className="flex items-center justify-between mb-8 relative z-10">
@@ -841,7 +895,7 @@ export const Portality: React.FC = () => {
                         const val = e.target.value.replace(',', '.');
                         if (/^\d*\.?\d*$/.test(val)) setGlobalUsd(val as any);
                       }}
-                      className="w-full bg-transparent text-white font-mono font-black text-4xl outline-none placeholder:text-gray-800"
+                      className="w-full bg-transparent text-white font-mono font-black text-4xl outline-none placeholder:text-gray-800 focus:text-emerald-400 transition-colors"
                       placeholder="0.00"
                     />
                   </div>
@@ -905,11 +959,11 @@ export const Portality: React.FC = () => {
 
             {/* Quick Stats Summary */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-6 rounded-[2rem] bg-[#111] border border-white/5 text-center">
+              <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 text-center backdrop-blur-md">
                 <p className="text-[10px] font-black text-gray-500 uppercase mb-1">Nodos</p>
                 <div className="text-2xl font-black">{profiles.length}</div>
               </div>
-              <div className="p-6 rounded-[2rem] bg-[#111] border border-white/5 text-center">
+              <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 text-center backdrop-blur-md">
                 <p className="text-[10px] font-black text-gray-500 uppercase mb-1">Activos</p>
                 <div className="text-2xl font-black text-emerald-500">{contracts.filter(c => c.status === 'active').length}</div>
               </div>
@@ -918,7 +972,7 @@ export const Portality: React.FC = () => {
 
           {/* === CENTER COLUMN: USERS & CONTRACTS (4/12) === */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="p-6 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 h-full flex flex-col">
+            <div className="p-6 rounded-[2.5rem] bg-white/[0.03] border border-white/10 h-full flex flex-col backdrop-blur-3xl shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">Explorador de Nodos</h2>
                 <Fingerprint size={16} className="text-gray-700" />
@@ -931,7 +985,7 @@ export const Portality: React.FC = () => {
                   value={profileSearch}
                   onChange={(e) => setProfileSearch(e.target.value)}
                   placeholder="Filtrar nodos..."
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-emerald-500/50 transition-all placeholder:text-gray-700"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all placeholder:text-gray-700"
                 />
               </div>
 
@@ -983,16 +1037,16 @@ export const Portality: React.FC = () => {
           {/* === RIGHT COLUMN: LICENSE GEN & KNOWLEDGE (4/12) === */}
           <div className="lg:col-span-4 space-y-6">
             {/* Knowledge Manager */}
-            <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl relative group overflow-hidden">
+            <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative group overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-purple-500/10 transition-colors"></div>
                <h2 className="text-xs font-black uppercase tracking-widest text-purple-400 mb-6 flex items-center gap-2 relative z-10">
                  <RefreshCcw size={16} /> Brain Ingestion (RAG)
                </h2>
                
                <div className="space-y-4 relative z-10">
-                 <div className="border-2 border-dashed border-white/5 rounded-3xl p-8 flex flex-col items-center justify-center text-center hover:border-purple-500/30 transition-all cursor-pointer bg-white/[0.01]">
-                    <Download className="text-gray-600 mb-2" size={24} />
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Arrastra PDF / TXT</p>
+                 <div className="border-2 border-dashed border-white/10 rounded-3xl p-8 flex flex-col items-center justify-center text-center hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer bg-white/[0.02] backdrop-blur-sm group/drop">
+                    <Download className="text-gray-600 mb-2 group-hover/drop:text-purple-400 group-hover/drop:scale-110 transition-all" size={24} />
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover/drop:text-white transition-colors">Arrastra PDF / TXT</p>
                     <p className="text-[8px] text-gray-700 mt-1">Límite 2MB • Vectorización Automática</p>
                  </div>
                  
@@ -1012,7 +1066,7 @@ export const Portality: React.FC = () => {
                </div>
             </div>
 
-            <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl">
+            <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl">
               <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500 mb-8 flex items-center gap-2">
                 <KeyRound size={16} /> Forjado de Licencias
               </h2>
@@ -1070,7 +1124,7 @@ export const Portality: React.FC = () => {
 
         {/* === BOTTOM SECTION: REAL-TIME LOGS & DIAGNOSTICS === */}
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl relative overflow-hidden">
+          <div className="lg:col-span-8 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
@@ -1127,7 +1181,7 @@ export const Portality: React.FC = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-4 p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-2xl flex flex-col justify-center items-center text-center group">
+          <div className="lg:col-span-4 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl flex flex-col justify-center items-center text-center group">
             <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform">
               <RefreshCcw size={32} className={isBusy ? 'animate-spin' : ''} />
             </div>
@@ -1146,5 +1200,7 @@ export const Portality: React.FC = () => {
     </div>
   );
 };
+
+export default Portality;
 
 
