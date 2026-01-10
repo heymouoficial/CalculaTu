@@ -18,6 +18,13 @@
 - **Operación Hydra:** Pool de 4 API Keys rotativas con Failover automático para máxima estabilidad.
 - **Contexto Financiero:** Savara conoce la tasa del día y convierte divisas automáticamente mientras hablas.
 
+### ⚡ Cuenta Rápida (Nuevo)
+
+- **Supermarket Style:** Sumadora rápida diseñada para el ajetreo del mercado.
+- **Teclado Nativo:** Usa el teclado numérico de tu móvil para máxima velocidad.
+- **Doble Moneda:** Agrega montos en USD o VES y ve el total acumulado en ambas monedas al instante.
+- **Sin Fricción:** Alterna entre lista detallada y cuenta rápida con un solo toque.
+
 ### 🛡️ Modo Búnker (Offline-First)
 
 - **Resistencia a Fallos:** La app funciona perfectamente sin internet. Las tasas se cachean localmente por 24h.

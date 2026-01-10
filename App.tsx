@@ -339,7 +339,7 @@ const App: React.FC = () => {
               icon={<BrainCircuit size={24} />}
               title="Cero Matemáticas"
               pain="Odio sacar la cuenta de $3.50 x 36.5 y luego sumarle el IVA..."
-              solution="CalculaTú convierte todo a Bs automáticamente a tasa oficial."
+              solution="Usa la nueva Cuenta Rápida o deja que Savara sume por ti."
             />
             <FeatureCard
               icon={<Clock size={24} />}
@@ -379,7 +379,7 @@ const App: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-2">Para compras rápidas</p>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-center gap-3 text-gray-300"><BadgeCheck size={18} className="text-gray-600" /> Calculadora Manual</li>
+                <li className="flex items-center gap-3 text-gray-300"><BadgeCheck size={18} className="text-emerald-500" /> <strong>Cuenta Rápida</strong> (Nuevo)</li>
                 <li className="flex items-center gap-3 text-gray-300"><BadgeCheck size={18} className="text-gray-600" /> Tasa BCV al día</li>
                 <li className="flex items-center gap-3 text-gray-300"><BadgeCheck size={18} className="text-gray-600" /> Sin límites de uso</li>
               </ul>
