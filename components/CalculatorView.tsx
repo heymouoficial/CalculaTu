@@ -927,7 +927,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack, onAdmin 
           </div>
         ) : (
           // STANDARD LIST INPUT DOCK
-          !isVoiceMode && (
+          (!isVoiceMode || !license.active) && (
           <div className="w-full max-w-md bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-4 shadow-2xl animate-fade-in-up">
 
             {/* Row 1: Qty & Name */}

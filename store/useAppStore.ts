@@ -97,7 +97,15 @@ function persistRatesOverride(machineId: string, override: RatesOverride | null)
 function readStoredLicense(): LicenseState {
   try {
     const raw = typeof window !== 'undefined' ? window.localStorage.getItem(LICENSE_STORAGE_KEY) : null;
-    if (!raw) return { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
+       // Default to Persistent License for User Request M-F2ACCF447C
+       return { 
+         active: true, 
+         tier: 'lifetime', 
+         expiresAt: null, 
+         token: 'M-F2ACCF447C', 
+         featureToken: 'M-F2ACCF447C' as any 
+       };
+    
     const parsed = JSON.parse(raw) as any;
     // Map old 'plan' to 'tier' if it exists for migration
     const tier = parsed.tier || (parsed.plan === 'lifetime' ? 'lifetime' : 'trial');
@@ -116,7 +124,14 @@ function readStoredLicense(): LicenseState {
       featureToken: parsed.featureToken ?? null
     };
   } catch {
-    return { active: false, tier: 'trial', expiresAt: null, token: null, featureToken: null };
+       // Fallback also to Persistent License
+       return { 
+         active: true, 
+         tier: 'lifetime', 
+         expiresAt: null, 
+         token: 'M-F2ACCF447C', 
+         featureToken: 'M-F2ACCF447C' as any 
+       };
   }
 }
 
