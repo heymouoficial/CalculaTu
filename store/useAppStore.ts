@@ -33,6 +33,7 @@ type AppState = {
   budgetLimit: number; // in USD
   license: LicenseState;
   items: ShoppingItem[];
+  isAdmin: boolean;
 
   setUserName: (name: string | null) => void;
   incrementVoiceUsage: (seconds: number) => void;
@@ -49,6 +50,7 @@ type AppState = {
   removeItem: (id: string) => void;
   updateItem: (id: string, updatedFields: Partial<Omit<ShoppingItem, 'id'>>) => void;
   clearItems: () => void;
+  setAdmin: (isAdmin: boolean) => void;
 };
 
 const LICENSE_STORAGE_KEY = 'calculatu_license_v1';
@@ -212,6 +214,7 @@ export const useAppStore = create<AppState>((set) => {
     budgetLimit: readStoredBudget(),
     license: readStoredLicense(),
     items: [],
+    isAdmin: false,
 
     setUserName: (name) =>
       set(() => {
@@ -324,8 +327,6 @@ export const useAppStore = create<AppState>((set) => {
         ),
       })),
     clearItems: () => set({ items: [] }),
-
+    setAdmin: (isAdmin: boolean) => set({ isAdmin }),
   };
 });
-
-

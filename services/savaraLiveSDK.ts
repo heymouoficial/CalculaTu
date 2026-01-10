@@ -14,6 +14,7 @@
 
 import { GoogleGenAI, Modality, type LiveServerMessage, type FunctionDeclaration, Type } from "@google/genai";
 import { GeminiKeyManager } from '../utils/geminiKeyManager';
+import { SAVARA_IDENTITY } from '../constants';
 
 // Audio Helpers
 function decode(base64: string): Uint8Array {
@@ -148,6 +149,15 @@ export class SavaraLiveSDK {
             if (this.inputContext.state === 'suspended') await this.inputContext.resume();
             if (this.outputContext.state === 'suspended') await this.outputContext.resume();
 
+            // Verify MediaDevices support (Guard for HTTP/LAN access)
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error("❌ getUserMedia not supported. Likely unsecured HTTP origin.");
+                throw { 
+                    code: 'HTTPS_REQUIRED', 
+                    message: 'El micrófono requiere HTTPS o Localhost. En redes locales, usa un túnel seguro o configuración avanzada.' 
+                };
+            }
+
             // Get Microphone
             this.stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -171,31 +181,22 @@ export class SavaraLiveSDK {
                 : '';
 
             const systemInstruction = `
-        Eres Savara, la asistente de voz de CalculaTú - la app venezolana de compras inteligentes.
-        Tu tono es cálido, profesional y extremadamente conciso.
-        Hablas como una amiga experta en finanzas venezolanas.
+        ${SAVARA_IDENTITY}
+
+        CONTEXTO DINÁMICO:
         ${this.config.userName ? `Estás hablando con ${this.config.userName}.` : ''}
-        
         ${ratesContext}
         ${cartContext}
         
-        REGLAS ABSOLUTAS:
+        REGLAS DE VOZ ADICIONALES:
         - Responde siempre en español venezolano.
         - Sé BREVE (máximo 2 oraciones).
-        - SALUDO ÚNICO: Saluda solo al inicio. Si ya están hablando, ve directo al grano.
-        - REGLA DE DESPEDIDA: Si se despiden o agradecen, responde con calidez y brevedad.
         - Usa add_shopping_item para agregar productos.
         - Si dicen "bolívares" o "Bs", usa currency: "VES".
         - Si dicen "dólares" o "$", usa currency: "USD".
         - Si dicen "euros" o "€", usa currency: "EUR".
         - Cuando agregues algo, confirma: "Listo, agregué [producto]".
         - Si preguntan por la tasa, usa los datos de TASAS BCV HOY.
-        
-        SOBRE CALCULATÚ:
-        - App para hacer mercado sin estrés en Venezuela
-        - Convierte automáticamente USD/EUR a Bolívares con tasa BCV oficial
-        - Savara Pro permite agregar productos por voz
-        - Promoción: Pro GRATIS hasta Enero 2026
         
         ${this.config.systemContext || ''}
       `.trim();

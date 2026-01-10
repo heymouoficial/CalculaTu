@@ -15,13 +15,8 @@ function getEnv(name: string): string | undefined {
 // In a real app, you'd check a session or a proper admin API key.
 function requireAdminAccess(req: VercelRequest): boolean {
   try {
-    // TEMPORARY: Allow access from localhost for development
-    const host = req.headers['host'] || '';
-    if (host.includes('localhost')) {
-      return true;
-    }
     const expected = getEnv('PORTAL_KEY');
-    if (!expected) return true; // Allow if not configured
+    if (!expected) return true; // Keep true for verify if not configuring portal access yet, but remove localhost
 
     const headerVal = req.headers['x-portality-key'] || req.headers['x-portal-key'];
     const provided = (Array.isArray(headerVal) ? headerVal[0] : headerVal || '').trim();

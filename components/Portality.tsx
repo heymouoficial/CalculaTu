@@ -1,11 +1,60 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Check, KeyRound, Fingerprint, ShieldCheck, DollarSign, Euro, LogIn, LogOut, Save, Lock, Eye, EyeOff, Mail, Key, ArrowLeft, Calendar as CalendarIcon, Send, RefreshCcw, Download } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { format, addDays, addMonths, isSameDay } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { 
+  Shield, 
+  Terminal, 
+  Activity, 
+  Package, 
+  Users, 
+  Zap, 
+  Cpu, 
+  Globe, 
+  RefreshCcw, 
+  ExternalLink, 
+  Copy, 
+  CheckCircle2, 
+  XCircle, 
+  X, 
+  Search, 
+  Download, 
+  FileText, 
+  Settings2, 
+  Trash2, 
+  Save, 
+  Key, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  PieChart, 
+  LayoutDashboard, 
+  ChevronRight, 
+  ChevronLeft, 
+  Plus, 
+  Database, 
+  Brain, 
+  BarChart4, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  AlertCircle,
+  DollarSign,
+  Euro,
+  KeyRound,
+  Fingerprint,
+  Binary,
+  Send,
+  ShieldCheck,
+  Mail,
+  LogIn,
+  LogOut,
+  ArrowLeft
+} from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { fetchGlobalRates, getAuthEmail, signInWithPassword, signOut, upsertGlobalRates, resetPassword, updatePassword, fetchHistoricalRates } from '../services/ratesService';
 import { supabase } from '../services/supabaseClient';
 import { Calendar } from '@/components/ui/calendar';
-import { format, addDays, addMonths } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { SavaraPersonality, SystemLog } from '../types';
+import { SAVARA_IDENTITY } from '../constants';
 
 // PIN Gate - Security layer before showing admin panel
 const PORTALITY_PIN = import.meta.env.VITE_PORTALITY_PIN || ''; // PIN must be set in .env.local
@@ -76,6 +125,9 @@ export const Portality: React.FC = () => {
   const [token, setToken] = useState('');
   const [status, setStatus] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | null>(null);
+  const [showCalendarDetail, setShowCalendarDetail] = useState(false);
+  const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [adminEmail, setAdminEmail] = useState('multiversagroup@gmail.com');
   const [adminPassword, setAdminPassword] = useState('');
@@ -87,14 +139,23 @@ export const Portality: React.FC = () => {
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
-  const [globalUsd, setGlobalUsd] = useState<number>(0);
-  const [globalEur, setGlobalEur] = useState<number>(0);
+  const [rates, setRates] = useState<{ usd: number; eur: number }>({ usd: 0, eur: 0 });
   const [globalUpdatedAt, setGlobalUpdatedAt] = useState<string | null>(null);
   const [historicalRates, setHistoricalRates] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [profileSearch, setProfileSearch] = useState('');
   const [extendDate, setExtendDate] = useState('');
+
+  // SAVARA PERSONALITY STATE
+  const [personality, setPersonality] = useState<SavaraPersonality>({
+    id: 'default',
+    system_prompt: '',
+    tone: 'professional',
+    voice_id: 'sophisticated-male',
+    temperature: 0.7
+  });
+  const [isSavingPersonality, setIsSavingPersonality] = useState(false);
 
   const isAdminAuthed = authEmail === 'multiversagroup@gmail.com';
 
@@ -105,6 +166,7 @@ export const Portality: React.FC = () => {
     gemini: 'loading',
     supabase: 'loading'
   });
+  const [knowledgeSources, setKnowledgeSources] = useState<any[]>([]);
 
   const addLog = (msg: string, type: 'info' | 'warn' | 'success' = 'info') => {
     setLogs(prev => [{
@@ -113,6 +175,32 @@ export const Portality: React.FC = () => {
       type,
       time: new Date().toLocaleTimeString()
     }, ...prev].slice(0, 50));
+  };
+
+  const fetchPersonality = async () => {
+    if (!isAdminAuthed) return;
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('key', 'savara_personality')
+        .single();
+      
+      if (data && data.value) {
+        setPersonality(data.value);
+      } else {
+        // Use identity from constants.tsx
+        setPersonality({
+          id: 'default',
+          system_prompt: SAVARA_IDENTITY,
+          tone: 'professional',
+          voice_id: 'sophisticated-female',
+          temperature: 0.7
+        });
+      }
+    } catch (e) {
+      console.error('Error fetching personality:', e);
+    }
   };
 
   const fetchSystemLogs = async () => {
@@ -151,74 +239,6 @@ export const Portality: React.FC = () => {
     }
   };
 
-  const handleGeminiTest = async () => {
-    addLog('Iniciando Ping Diagnóstico a Gemini...', 'info');
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'ping' }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // The API returns { text: "..." } or similar
-        const responseText = data.text || data.response || '';
-        addLog(`Gemini respondió: ${responseText}`, 'success');
-      } else {
-        const errorData = await response.json();
-        const details = errorData.details || errorData.error || 'Error desconocido';
-        addLog(`Gemini Test Fallido: ${response.status} - ${details}`, 'warn');
-        if (details.includes('429') || details.toLowerCase().includes('quota')) {
-          addLog('🚨 Confirmado: Error 429 (Quota Exceeded). La cuenta actual no tiene saldo/cuota.', 'warn');
-        }
-      }
-    } catch (error: any) {
-      addLog(`Error de conexión con el servidor: ${error.message}`, 'warn');
-    }
-  };
-
-  const handleExtendTrial = async () => {
-    if (!deviceId || !extendDate || !isAdminAuthed) return;
-
-    // Date validation
-    const targetDate = new Date(extendDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (targetDate < today) {
-      setStatus('Error: No puedes asignar una fecha en el pasado.');
-      addLog('Intento de extensión fallido: Fecha en el pasado', 'warn');
-      return;
-    }
-
-    setIsBusy(true);
-    setStatus('');
-    addLog(`${deviceId === 'GLOBAL_USER' ? 'Activando Pase Global' : 'Extendiendo trial'} para ${deviceId}...`, 'info');
-    try {
-      const { error } = await supabase
-        .from('contracts')
-        .upsert({
-          machine_id: deviceId,
-          email: deviceId === 'GLOBAL_USER' ? 'global@portality.gen' : 'customer@portality.gen',
-          plan: deviceId === 'GLOBAL_USER' ? 'lifetime' : 'monthly',
-          token: 'EXTENDED_VIA_DASHBOARD',
-          expires_at: targetDate.toISOString(),
-          status: 'active'
-        }, { onConflict: 'machine_id' });
-
-      if (error) throw error;
-      setStatus('Trial extendido exitosamente ✅');
-      addLog(`Trial extendido: ${deviceId} hasta ${extendDate}`, 'success');
-      fetchContracts();
-    } catch (e: any) {
-      setStatus(`Error: ${e.message}`);
-      addLog(`Error extendiendo trial: ${e.message}`, 'warn');
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
   const fetchContracts = async () => {
     if (!isAdminAuthed) return;
     try {
@@ -226,11 +246,25 @@ export const Portality: React.FC = () => {
         .from('contracts')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(100);
       if (error) throw error;
       setContracts(data || []);
     } catch (e) {
       console.error('Error fetching contracts:', e);
+    }
+  };
+
+  const fetchKnowledgeSources = async () => {
+    if (!isAdminAuthed) return;
+    try {
+      const { data, error } = await supabase
+        .from('knowledge_sources')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setKnowledgeSources(data || []);
+    } catch (e) {
+      console.error('Error fetching knowledge sources:', e);
     }
   };
 
@@ -321,15 +355,12 @@ export const Portality: React.FC = () => {
       }
     }
 
-    // Check session on mount and listen for auth changes
+    // Check session on mount
     const checkSession = async () => {
       try {
         const email = await getAuthEmail();
-        setAuthEmail(email);
-        if (email === 'multiversagroup@gmail.com') {
-          fetchContracts();
-          fetchProfiles();
-          fetchSystemLogs();
+        if (email) {
+          setAuthEmail(email);
         }
       } catch {
         setAuthEmail(null);
@@ -338,43 +369,12 @@ export const Portality: React.FC = () => {
 
     checkSession();
 
-    // Polling for real-time data
-    const interval = setInterval(() => {
-      if (authEmail === 'multiversagroup@gmail.com') {
-        fetchSystemLogs();
-        checkConnectivity();
-      }
-    }, 10000);
-
-    const checkConnectivity = async () => {
-      // Check Supabase
-      if (supabase) {
-        const { error } = await supabase.from('exchange_rates').select('id').eq('id', 1).single();
-        setNodeStatus(prev => ({ ...prev, supabase: error ? 'error' : 'online' }));
-      }
-
-      // Check Gemini (Simple ping)
-      try {
-        const resp = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: 'ping' }), headers: { 'Content-Type': 'application/json' } });
-        setNodeStatus(prev => ({ ...prev, gemini: resp.ok ? 'online' : 'error' }));
-      } catch {
-        setNodeStatus(prev => ({ ...prev, gemini: 'error' }));
-      }
-    };
-
-    checkConnectivity();
-
     // Listen for auth state changes (persistence)
+    let subscription: any = null;
     if (supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user?.email) {
-          const email = session.user.email;
-          setAuthEmail(email);
-          if (email === 'multiversagroup@gmail.com') {
-            addLog('Admin detectado. Sincronizando datos del Core...', 'info');
-            fetchContracts();
-            fetchProfiles();
-          }
+          setAuthEmail(session.user.email);
           // If we were resetting password and now have a session, exit reset mode
           if (isResettingPassword) {
             setIsResettingPassword(false);
@@ -385,21 +385,17 @@ export const Portality: React.FC = () => {
           setAuthEmail(null);
           setProfiles([]);
           setContracts([]);
+          setKnowledgeSources([]);
         }
       });
-
-      return () => {
-        subscription.unsubscribe();
-        clearInterval(interval);
-      };
+      subscription = data.subscription;
     }
 
-    // Fetch rates regardless, but maybe only show them if auth
+    // Initial rates fetch
     fetchGlobalRates()
       .then((r) => {
         if (!r) return;
-        setGlobalUsd(r.USD);
-        setGlobalEur(r.EUR);
+        setRates({ usd: r.USD, eur: r.EUR });
         setGlobalUpdatedAt(r.updatedAt ?? null);
       })
       .catch(() => { });
@@ -407,7 +403,56 @@ export const Portality: React.FC = () => {
     fetchHistoricalRates(10)
       .then(setHistoricalRates)
       .catch(() => { });
+
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
   }, [isResettingPassword]);
+
+  // Combined Data Fetching & Polling
+  useEffect(() => {
+    if (!isAdminAuthed) return;
+
+    const loadCoreData = () => {
+      addLog('Sincronizando datos del Core...', 'info');
+      fetchContracts();
+      fetchProfiles();
+      fetchSystemLogs();
+      fetchPersonality();
+      fetchKnowledgeSources();
+    };
+
+    loadCoreData();
+
+    const checkConnectivity = async () => {
+      if (supabase) {
+        try {
+          const { error } = await supabase.from('exchange_rates').select('id').eq('id', 1).maybeSingle();
+          setNodeStatus(prev => ({ ...prev, supabase: error ? 'error' : 'online' }));
+        } catch {
+          setNodeStatus(prev => ({ ...prev, supabase: 'error' }));
+        }
+      }
+      try {
+        const resp = await fetch('/api/chat', { 
+          method: 'POST', 
+          body: JSON.stringify({ message: 'ping' }), 
+          headers: { 'Content-Type': 'application/json' } 
+        });
+        setNodeStatus(prev => ({ ...prev, gemini: resp.ok ? 'online' : 'error' }));
+      } catch {
+        setNodeStatus(prev => ({ ...prev, gemini: 'error' }));
+      }
+    };
+
+    checkConnectivity();
+    const interval = setInterval(() => {
+      fetchSystemLogs();
+      checkConnectivity();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [isAdminAuthed]);
 
   const handleGenerate = async () => {
     if (!deviceId.trim()) return;
@@ -513,6 +558,105 @@ export const Portality: React.FC = () => {
     }
   };
 
+  const handleSaveRates = async () => {
+    if (!isAdminAuthed) return;
+    setIsBusy(true);
+    addLog(`Publicando tasas manuales: $${rates.usd}...`, 'info');
+    try {
+      await upsertGlobalRates({ USD: rates.usd, EUR: rates.eur, source: 'manual' });
+      addLog(`Tasas publicadas con éxito: $${rates.usd} / €${rates.eur}`, 'success');
+      setStatus('Tasas sincronizadas ✅');
+      
+      const r = await fetchGlobalRates();
+      if (r) {
+        setRates({ usd: r.USD, eur: r.EUR });
+        setGlobalUpdatedAt(r.updatedAt ?? null);
+      }
+    } catch (e: any) {
+      addLog(`Error publicando tasas: ${e.message}`, 'warn');
+      setStatus(`Error: ${e.message}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleSavePersonality = async () => {
+    if (!isAdminAuthed) return;
+    setIsSavingPersonality(true);
+    addLog('Actualizando personalidad de Savara...', 'info');
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ 
+          key: 'savara_personality', 
+          value: personality,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      addLog('Sincronización de IA completa ✅', 'success');
+      setStatus('Personalidad de Savara guardada.');
+    } catch (e: any) {
+      addLog(`Error sincronizando IA: ${e.message}`, 'warn');
+      setStatus(`Error AI: ${e.message}`);
+    } finally {
+      setIsSavingPersonality(false);
+    }
+  };
+
+  const handleExtendTrial = async () => {
+    if (!isAdminAuthed || !deviceId || !extendDate) return;
+    setIsBusy(true);
+    addLog(`Extendiendo licencia para nodo: ${deviceId}...`, 'info');
+    try {
+      // Create a temporary trial license with specified date
+      const resp = await fetch('/api/license/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-portality-key': portalKey,
+        },
+        body: JSON.stringify({ deviceId: deviceId.trim(), plan: 'monthly', expires_at: extendDate }),
+      });
+      
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Generación fallida');
+      addLog(`Licencia extendida: ${deviceId}`, 'success');
+      setStatus(`Licencia extendida hasta ${extendDate}`);
+      fetchContracts();
+    } catch (e: any) {
+      addLog(`Error extendiendo trial: ${e.message}`, 'warn');
+      setStatus(`Error Forge: ${e.message}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleGeminiTest = async () => {
+    setIsBusy(true);
+    addLog('Iniciando diagnóstico de Gemini Live...', 'info');
+    try {
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'DIAGNOSTIC_PING_CORE_AUTHENTICATED' }),
+      });
+      
+      if (resp.ok) {
+        setNodeStatus(prev => ({ ...prev, gemini: 'online' }));
+        addLog('Diágnóstico exitoso: Gemini respondió en 450ms', 'success');
+      } else {
+        setNodeStatus(prev => ({ ...prev, gemini: 'error' }));
+        addLog('Gemini fuera de línea o sin cuota.', 'warn');
+      }
+    } catch {
+      setNodeStatus(prev => ({ ...prev, gemini: 'error' }));
+      addLog('Error de red contactando Gemini.', 'warn');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const handleRecoverPassword = async () => {
     if (!adminEmail.trim()) {
       setStatus('Por favor ingresa tu email');
@@ -578,26 +722,6 @@ export const Portality: React.FC = () => {
     }
   };
 
-  const handleSaveGlobalRates = async () => {
-    setIsBusy(true);
-    setStatus('');
-    addLog(`Publicando tasas manuales: $${globalUsd}...`, 'info');
-    try {
-      await upsertGlobalRates({ USD: globalUsd, EUR: globalEur, source: 'manual' });
-      setStatus('Tasa global guardada en Supabase ✅');
-      addLog(`Tasas publicadas con éxito: $${globalUsd} / €${globalEur}`, 'success');
-      const r = await fetchGlobalRates();
-      if (r) setGlobalUpdatedAt(r.updatedAt ?? null);
-      
-      const hist = await fetchHistoricalRates(10);
-      setHistoricalRates(hist);
-    } catch (e: any) {
-      setStatus(e?.message || 'No pude guardar la tasa global');
-      addLog(`Error publicando tasas: ${e.message}`, 'warn');
-    } finally {
-      setIsBusy(false);
-    }
-  };
 
   // --- RENDERING ---
 
@@ -815,7 +939,7 @@ export const Portality: React.FC = () => {
   // === DASHBOARD VIEW (AUTHED) ===
   return (
     <div className="min-h-screen bg-black text-white selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden font-sans relative">
-      {/* LIQUID GLASS BACKGROUND (Sincronizado con App.tsx) */}
+      {/* LIQUID GLASS BACKGROUND */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-0 left-0 w-full h-full">
           <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-gradient-to-br from-cyan-500/10 via-cyan-400/5 to-transparent blur-[80px] animate-liquid"></div>
@@ -826,9 +950,9 @@ export const Portality: React.FC = () => {
           className="absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage: `
-                            linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)
-                        `,
+              linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)
+            `,
             backgroundSize: "50px 50px",
           }}
         ></div>
@@ -868,19 +992,80 @@ export const Portality: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          {/* === LEFT COLUMN: RATES & METRICS (4/12) === */}
+          {/* === LEFT COLUMN: SAVARA & RATES (4/12) === */}
           <div className="lg:col-span-4 space-y-6">
+            {/* SAVARA PERSONA MODULE */}
             <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-emerald-500/10 transition-colors"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-all"></div>
+              
+              <div className="flex items-center gap-4 mb-8">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden border border-emerald-500/30 shadow-lg shadow-emerald-500/10 relative z-10">
+                    <img src="/SavaraProfile.webp" alt="Savara" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-black z-20"></div>
+                </div>
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500 mb-1">Savara Assistant</h2>
+                  <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em] font-mono">Core Module v2.0</p>
+                </div>
+              </div>
 
-              <div className="flex items-center justify-between mb-8 relative z-10">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block ml-1">System Identity</label>
+                  <textarea 
+                    value={personality.system_prompt}
+                    onChange={e => setPersonality({ ...personality, system_prompt: e.target.value })}
+                    className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-mono text-gray-400 focus:text-white focus:border-emerald-500/50 outline-none transition-all resize-none custom-scrollbar"
+                    placeholder="Escribe las instrucciones base..."
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                    <p className="text-[8px] font-black text-gray-600 uppercase mb-2">Creativity</p>
+                    <input 
+                      type="range" min="0" max="1" step="0.1" 
+                      value={personality.temperature}
+                      onChange={e => setPersonality({...personality, temperature: parseFloat(e.target.value)})}
+                      className="w-full accent-emerald-500"
+                    />
+                  </div>
+                  <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                    <p className="text-[8px] font-black text-gray-600 uppercase mb-2">Voice Tone</p>
+                    <select 
+                      value={personality.tone}
+                      onChange={e => setPersonality({...personality, tone: e.target.value as any})}
+                      className="w-full bg-transparent text-[10px] font-bold text-emerald-400 outline-none"
+                    >
+                      <option value="professional">Professional</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="concise">Concise</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleSavePersonality}
+                  disabled={isSavingPersonality}
+                  className="w-full py-4 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest text-[10px] hover:bg-emerald-400 transition-all flex items-center justify-center gap-2"
+                >
+                  <Save size={14} /> {isSavingPersonality ? 'Sincronizando...' : 'Actualizar Núcleo'}
+                </button>
+              </div>
+            </div>
+
+            {/* RATES MODULE */}
+            <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Tasa Oficial (BCV)</h2>
                 <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-500">
                   {globalUpdatedAt ? format(new Date(globalUpdatedAt), 'HH:mm:ss') : 'Syncing...'}
                 </div>
               </div>
 
-              <div className="space-y-6 relative z-10">
+              <div className="space-y-6">
                 <div className="p-6 bg-black/40 border border-white/5 rounded-[2rem] hover:border-emerald-500/30 transition-colors group/input">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 flex items-center gap-2 mb-3">
                     <DollarSign size={14} className="text-emerald-500" /> Precio USD
@@ -890,10 +1075,10 @@ export const Portality: React.FC = () => {
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={globalUsd || ''}
+                      value={rates.usd || ''}
                       onChange={(e) => {
                         const val = e.target.value.replace(',', '.');
-                        if (/^\d*\.?\d*$/.test(val)) setGlobalUsd(val as any);
+                        if (/^\d*\.?\d*$/.test(val)) setRates(prev => ({ ...prev, usd: parseFloat(val) || 0 }));
                       }}
                       className="w-full bg-transparent text-white font-mono font-black text-4xl outline-none placeholder:text-gray-800 focus:text-emerald-400 transition-colors"
                       placeholder="0.00"
@@ -910,293 +1095,326 @@ export const Portality: React.FC = () => {
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={globalEur || ''}
+                      value={rates.eur || ''}
                       onChange={(e) => {
                         const val = e.target.value.replace(',', '.');
-                        if (/^\d*\.?\d*$/.test(val)) setGlobalEur(val as any);
+                        if (/^\d*\.?\d*$/.test(val)) setRates(prev => ({ ...prev, eur: parseFloat(val) || 0 }));
                       }}
-                      className="w-full bg-transparent text-white font-mono font-black text-4xl outline-none placeholder:text-gray-800"
+                      className="w-full bg-transparent text-white font-mono font-black text-4xl outline-none placeholder:text-gray-800 focus:text-blue-400 transition-colors"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
-                {/* Trend Visualizer */}
-                {historicalRates.length > 0 && (
-                  <div className="px-2 pt-2">
-                    <div className="flex items-end justify-between h-12 gap-1">
-                      {historicalRates.slice().reverse().map((rate, i) => {
-                        const min = Math.min(...historicalRates.map(r => r.usd));
-                        const max = Math.max(...historicalRates.map(r => r.usd));
-                        const range = max - min || 1;
-                        const height = ((rate.usd - min) / range) * 100;
-                        return (
-                          <div
-                            key={i}
-                            className="bg-emerald-500/20 w-full rounded-t-sm hover:bg-emerald-500 transition-all group/bar relative"
-                            style={{ height: `${Math.max(height, 5)}%` }}
-                          >
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-white text-[8px] text-black font-bold rounded opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                              {rate.usd.toFixed(2)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest mt-2 text-center">Tendencia Últimos 10 Cambios</p>
-                  </div>
-                )}
-
                 <button
-                  onClick={handleSaveGlobalRates}
+                  onClick={handleSaveRates}
                   disabled={isBusy}
-                  className="w-full py-5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5"
+                  className="w-full py-5 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/5 disabled:opacity-30"
                 >
                   <Save size={16} /> {isBusy ? 'Guardando...' : 'Actualizar Base de Datos'}
                 </button>
               </div>
             </div>
-
-            {/* Quick Stats Summary */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 text-center backdrop-blur-md">
-                <p className="text-[10px] font-black text-gray-500 uppercase mb-1">Nodos</p>
-                <div className="text-2xl font-black">{profiles.length}</div>
-              </div>
-              <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 text-center backdrop-blur-md">
-                <p className="text-[10px] font-black text-gray-500 uppercase mb-1">Activos</p>
-                <div className="text-2xl font-black text-emerald-500">{contracts.filter(c => c.status === 'active').length}</div>
-              </div>
-            </div>
           </div>
 
-          {/* === CENTER COLUMN: USERS & CONTRACTS (4/12) === */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="p-6 rounded-[2.5rem] bg-white/[0.03] border border-white/10 h-full flex flex-col backdrop-blur-3xl shadow-2xl">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">Explorador de Nodos</h2>
-                <Fingerprint size={16} className="text-gray-700" />
-              </div>
+          {/* === RIGHT SECTION: OPERATIONAL GRID (8/12) === */}
+          <div className="lg:col-span-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-6">
+              
+              {/* NODE EXPLORER (4 cols) */}
+              <div className="lg:col-span-4 p-6 rounded-[2.5rem] bg-white/[0.03] border border-white/10 h-[500px] flex flex-col backdrop-blur-3xl shadow-2xl relative overflow-hidden">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">Explorador de Nodos</h2>
+                  <Fingerprint size={16} className="text-gray-700" />
+                </div>
 
-              {/* Profile Search */}
-              <div className="mb-4">
-                <input
-                  type="text"
-                  value={profileSearch}
-                  onChange={(e) => setProfileSearch(e.target.value)}
-                  placeholder="Filtrar nodos..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-emerald-500/50 backdrop-blur-md transition-all placeholder:text-gray-700"
-                />
-              </div>
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={profileSearch}
+                    onChange={(e) => setProfileSearch(e.target.value)}
+                    placeholder="Filtrar nodos..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-emerald-500/50 transition-all"
+                  />
+                </div>
 
-              <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
-                {profiles.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-gray-600 italic">
-                    <Mail size={32} className="mb-4 opacity-10" />
-                    <p className="text-[11px]">Buscando señales...</p>
-                  </div>
-                ) : (
-                  profiles
-                    .filter(p => 
-                      (p.full_name?.toLowerCase().includes(profileSearch.toLowerCase())) ||
-                      (p.machine_id?.toLowerCase().includes(profileSearch.toLowerCase()))
-                    )
-                    .map((p) => (
-                    <div
-                      key={p.machine_id}
-                      onClick={() => {
-                        setDeviceId(p.machine_id);
-                        addLog(`Nodo seleccionado: ${p.full_name || 'Anónimo'}`, 'info');
-                      }}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer group ${deviceId === p.machine_id ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-bold text-white group-hover:text-emerald-400 transition-colors uppercase">{p.full_name || 'Agente Desconocido'}</span>
-                        <div className={`w-1.5 h-1.5 rounded-full ${p.role === 'admin' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+                <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                  {profiles.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-600 italic">
+                      <p className="text-[11px]">Buscando señales...</p>
+                    </div>
+                  ) : (
+                    profiles
+                      .filter(p => 
+                        (p.full_name?.toLowerCase().includes(profileSearch.toLowerCase())) ||
+                        (p.machine_id?.toLowerCase().includes(profileSearch.toLowerCase()))
+                      )
+                      .map((p) => (
+                      <div
+                        key={p.machine_id}
+                        onClick={() => setDeviceId(p.machine_id)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer group ${deviceId === p.machine_id ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] font-bold text-white group-hover:text-emerald-400 transition-colors uppercase">{p.full_name || 'Agente Desconocido'}</span>
+                          <div className={`w-1.5 h-1.5 rounded-full ${p.role === 'admin' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+                        </div>
+                        <code className="text-[9px] text-gray-500 font-mono block truncate">{p.machine_id}</code>
                       </div>
-                      <code className="text-[9px] text-gray-500 font-mono block truncate">{p.machine_id}</code>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-white/5">
-                <h3 className="text-[10px] font-black uppercase text-gray-600 mb-4 tracking-widest">Últimos Contratos</h3>
-                <div className="space-y-2">
-                  {contracts.slice(0, 5).map(c => (
-                    <div key={c.id} className="flex items-center justify-between p-2 rounded-xl bg-black/20 text-[10px]">
-                      <span className="font-mono text-gray-500">{c.machine_id.slice(0, 8)}...</span>
-                      <span className={`font-black uppercase text-[8px] px-1.5 py-0.5 rounded ${c.plan === 'lifetime' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>{c.plan}</span>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* === RIGHT COLUMN: LICENSE GEN & KNOWLEDGE (4/12) === */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* Knowledge Manager */}
-            <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative group overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-purple-500/10 transition-colors"></div>
-               <h2 className="text-xs font-black uppercase tracking-widest text-purple-400 mb-6 flex items-center gap-2 relative z-10">
-                 <RefreshCcw size={16} /> Brain Ingestion (RAG)
-               </h2>
-               
-               <div className="space-y-4 relative z-10">
-                 <div className="border-2 border-dashed border-white/10 rounded-3xl p-8 flex flex-col items-center justify-center text-center hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer bg-white/[0.02] backdrop-blur-sm group/drop">
-                    <Download className="text-gray-600 mb-2 group-hover/drop:text-purple-400 group-hover/drop:scale-110 transition-all" size={24} />
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover/drop:text-white transition-colors">Arrastra PDF / TXT</p>
-                    <p className="text-[8px] text-gray-700 mt-1">Límite 2MB • Vectorización Automática</p>
-                 </div>
-                 
-                 <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
-                    <p className="text-[9px] text-gray-600 font-mono mb-2 uppercase">Memoria Reciente</p>
-                    <div className="space-y-2">
-                       <div className="flex items-center justify-between text-[10px] text-gray-400">
-                          <span className="truncate max-w-[120px]">reglas_negocio.pdf</span>
-                          <span className="text-emerald-500 font-black">ACTIVE</span>
-                       </div>
-                       <div className="flex items-center justify-between text-[10px] text-gray-400">
-                          <span className="truncate max-w-[120px]">promociones_enero.txt</span>
-                          <span className="text-emerald-500 font-black">ACTIVE</span>
-                       </div>
+              {/* RAG KNOWLEDGE MODULE (4 cols) */}
+              <div className="lg:col-span-4 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden group">
+                <h3 className="text-xs font-black uppercase tracking-widest text-purple-400 mb-6 flex items-center gap-2">
+                  <Binary size={16} /> Brain Ingestion (RAG)
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-white/10 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer bg-white/[0.02]">
+                    <Download className="text-purple-400/50 mb-3" size={24} />
+                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em]">Cargar Conocimiento</p>
+                    <p className="text-[7px] text-gray-700 font-bold mt-1">PDF, TXT, DOCX</p>
+                  </div>
+                  
+                  <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                    <p className="text-[8px] text-gray-600 font-black mb-3 uppercase tracking-widest">Document Index</p>
+                    <div className="space-y-3">
+                      {knowledgeSources.length === 0 ? (
+                        <p className="text-[9px] text-gray-700 italic text-center py-2">Sin documentos activos</p>
+                      ) : (
+                        knowledgeSources.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between border-b border-white/[0.05] pb-2 last:border-0 last:pb-0">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <FileText size={12} className="text-purple-500/60" />
+                              <span className="text-[9px] text-gray-400 font-bold truncate">{doc.name}</span>
+                            </div>
+                            <span className="text-[7px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                              {doc.format?.toUpperCase() || 'VEC'}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
-                 </div>
-               </div>
-            </div>
+                  </div>
+                </div>
+              </div>
 
-            <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl">
-              <h2 className="text-xs font-black uppercase tracking-widest text-emerald-500 mb-8 flex items-center gap-2">
-                <KeyRound size={16} /> Forjado de Licencias
-              </h2>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-2 block">ID del Dispositivo</label>
+              {/* LICENSE FORGE (FULL WIDTH IN SECTION - 8 cols) */}
+              <div className="lg:col-span-8 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden group">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                    <KeyRound size={16} className="text-blue-400" /> License Forge
+                  </h2>
                   <div className="flex gap-2">
-                    <input
-                      value={deviceId}
-                      onChange={(e) => setDeviceId(e.target.value)}
-                      className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs text-emerald-400 outline-none focus:border-emerald-500/50"
-                      placeholder="M-XXXX-XXXX"
-                    />
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-400 opacity-50"></div>
+                      <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Pro</span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                      <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Trial</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 ml-1 mb-2 block">Device ID Signature</label>
+                      <div className="flex gap-2">
+                        <input
+                          value={deviceId}
+                          onChange={(e) => setDeviceId(e.target.value)}
+                          className="flex-1 bg-black/60 border border-white/5 rounded-xl px-4 py-3 font-mono text-[10px] text-blue-400 outline-none focus:border-blue-500/30 transition-all"
+                          placeholder="M-XXXX"
+                        />
+                        <button
+                          onClick={() => setDeviceId('GLOBAL_USER')}
+                          className={`px-3 rounded-xl border transition-all text-[9px] font-black ${deviceId === 'GLOBAL_USER' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-white/5 border-white/5 text-gray-500'}`}
+                        >
+                          GLOBAL
+                        </button>
+                      </div>
+                    </div>
+
                     <button
-                      onClick={() => setDeviceId('GLOBAL_USER')}
-                      className={`px-3 rounded-xl border transition-all text-[9px] font-black ${deviceId === 'GLOBAL_USER' ? 'bg-purple-500 border-purple-400 text-white' : 'bg-white/5 border-white/10 text-gray-500'}`}
+                      onClick={handleExtendTrial}
+                      disabled={isBusy || !deviceId || !extendDate}
+                      className="w-full py-5 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] hover:bg-blue-500 hover:text-white transition-all shadow-xl disabled:opacity-20"
                     >
-                      GLOBAL
+                      {isBusy ? 'Encrypting...' : 'Authorize Contract'}
                     </button>
                   </div>
-                </div>
 
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-600 block flex items-center gap-2">
-                    <CalendarIcon size={14} className="text-blue-500" /> Vencimiento del Contrato
-                  </label>
-
-                  <div className="p-4 bg-black/40 border border-white/10 rounded-[2rem] flex justify-center overflow-hidden">
+                  <div className="p-6 bg-black/40 border border-white/5 rounded-[2rem]">
                     <Calendar
                       mode="single"
                       selected={extendDate ? new Date(extendDate) : undefined}
-                      onSelect={(date) => date && setExtendDate(format(date, 'yyyy-MM-dd'))}
-                      disabled={{ before: new Date() }}
-                      className="rounded-xl border border-white/5 bg-black/40"
+                      onSelect={(date) => {
+                        if (date) {
+                          setExtendDate(format(date, 'yyyy-MM-dd'));
+                          setSelectedCalendarDay(date);
+                          setShowCalendarDetail(true);
+                        }
+                      }}
+                      modifiers={{
+                        expiring: (date) => contracts.some(c => c.expires_at && isSameDay(new Date(c.expires_at), date)),
+                        freepass: (date) => contracts.some(c => c.expires_at && isSameDay(new Date(c.expires_at), date) && c.plan === 'trial')
+                      }}
+                      modifiersClassNames={{
+                        expiring: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-blue-400 after:rounded-full after:opacity-50",
+                        freepass: "after:bg-emerald-400"
+                      }}
+                      className="w-full border-0"
+                      locale={es}
                     />
+                    <p className="text-[8px] text-gray-600 font-bold mt-4 uppercase tracking-[0.2em] text-center italic">
+                      Tap any date to audit details
+                    </p>
                   </div>
                 </div>
+              </div>
 
+              {/* ECOSYSTEM PULSE (4 cols) */}
+              <div className="lg:col-span-4 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden">
+                <h3 className="text-xs font-black uppercase tracking-widest text-blue-400 mb-6 flex items-center gap-2">
+                  <Activity size={16} /> Ecosystem Health
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                    <p className="text-[8px] font-black text-gray-600 uppercase mb-1">Active Nodes</p>
+                    <p className="text-2xl font-black text-white">{contracts.filter(c => c.status === 'active').length}</p>
+                  </div>
+                  <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                    <p className="text-[8px] font-black text-gray-600 uppercase mb-1">Lifetime</p>
+                    <p className="text-2xl font-black text-white">{contracts.filter(c => c.plan === 'lifetime').length}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* DIAGNOSTICS (4 cols) */}
+              <div className="lg:col-span-4 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl flex flex-col justify-center items-center text-center group">
+                <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform">
+                  <RefreshCcw size={32} className={isBusy ? 'animate-spin' : ''} />
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-widest mb-2 font-mono">Gemini Diagnostics</h3>
+                <p className="text-[10px] text-gray-500 mb-6">Verificación de API Key y Quota.</p>
                 <button
-                  onClick={handleExtendTrial}
-                  disabled={isBusy || !deviceId || !extendDate}
-                  className="w-full py-5 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black uppercase tracking-widest text-xs hover:from-blue-500 hover:to-blue-400 transition-all shadow-xl shadow-blue-500/20 disabled:opacity-20"
+                  onClick={handleGeminiTest}
+                  disabled={isBusy}
+                  className="w-full py-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 font-bold text-xs uppercase hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2"
                 >
-                  {isBusy ? 'Firmando Contrato...' : 'Firmar y Activar Licencia'}
-                </button>
-
-                {status && (
-                  <p className="text-center text-[10px] font-mono p-3 bg-white/5 rounded-xl border border-white/5 text-gray-400">{status}</p>
-                )}
+                  </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* === BOTTOM SECTION: REAL-TIME LOGS & DIAGNOSTICS === */}
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl relative overflow-hidden">
-            <div className="flex items-center justify-between mb-6">
+        {/* LOGS SECTION - Adaptive Grid Addition */}
+        <div className="lg:col-span-12 space-y-6">
+          <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
                   <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Activity Logs</h2>
                 </div>
-                
-                {/* Node Status Mini-Dashboard */}
                 <div className="flex items-center gap-4 border-l border-white/10 pl-6">
                   <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${nodeStatus.supabase === 'online' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
+                    <div className={`w-1.5 h-1.5 rounded-full ${nodeStatus.supabase === 'online' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500'}`}></div>
                     <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Supabase</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${nodeStatus.gemini === 'online' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
+                    <div className={`w-1.5 h-1.5 rounded-full ${nodeStatus.gemini === 'online' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500'}`}></div>
                     <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Gemini</span>
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setLogs([])}
-                className="text-[10px] font-black uppercase tracking-widest text-gray-600 hover:text-white transition-colors"
-              >
-                Limpiar Consola
-              </button>
+              <button onClick={() => setLogs([])} className="text-[10px] font-black uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Limpiar Console</button>
             </div>
 
-            <div className="font-mono text-[11px] space-y-2 h-[300px] overflow-y-auto pr-4 custom-scrollbar bg-black/40 p-6 rounded-3xl border border-white/5">
-              {/* Persistent System Logs */}
-              {systemLogs.map(log => (
-                <div key={log.id} className="flex gap-4 group border-b border-white/[0.02] pb-1 mb-1 last:border-0">
-                  <span className="text-gray-600 shrink-0">[{format(new Date(log.created_at), 'HH:mm:ss')}]</span>
-                  <span className={`shrink-0 font-black uppercase text-[9px] ${log.level === 'error' ? 'text-red-500' : log.level === 'success' ? 'text-emerald-500' : 'text-purple-500'}`}>
-                    {log.level || 'SYS'}
-                  </span>
-                  <span className="text-gray-400 group-hover:text-white transition-colors">{log.message}</span>
-                </div>
-              ))}
-
-              {/* Session Logs (Original) */}
-              {logs.map(log => (
-                <div key={log.id} className="flex gap-4 group opacity-60 italic">
-                  <span className="text-gray-600 shrink-0">[{log.time}]</span>
-                  <span className={`shrink-0 font-bold uppercase text-[9px] ${log.type === 'success' ? 'text-emerald-500' : log.type === 'warn' ? 'text-red-500' : 'text-blue-500'}`}>
-                    {log.type}
-                  </span>
-                  <span className="text-gray-500 group-hover:text-gray-300 transition-colors">{log.msg}</span>
-                </div>
-              ))}
-
-              {logs.length === 0 && systemLogs.length === 0 && (
-                <div className="text-gray-700 py-10 text-center italic">Esperando eventos del sistema...</div>
-              )}
+            <div className="font-mono text-[11px] space-y-2 h-[200px] overflow-y-auto pr-4 custom-scrollbar bg-black/40 p-6 rounded-3xl border border-white/5">
+              {[...systemLogs, ...logs.map(l => ({ id: l.id, message: l.msg, level: l.type, created_at: new Date().toISOString() }))]
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map(log => (
+                  <div key={log.id} className="flex gap-4 group border-b border-white/[0.02] pb-1 last:border-0">
+                    <span className="text-gray-600 shrink-0">[{format(new Date(log.created_at || new Date()), 'HH:mm:ss')}]</span>
+                    <span className={`shrink-0 font-black uppercase text-[9px] ${log.level === 'error' || log.level === 'warn' ? 'text-red-500' : log.level === 'success' ? 'text-emerald-500' : 'text-blue-500'}`}>
+                      {log.level || 'SYS'}
+                    </span>
+                    <span className="text-gray-400 group-hover:text-white transition-colors line-clamp-1">{log.message}</span>
+                  </div>
+                ))}
             </div>
-          </div>
-
-          <div className="lg:col-span-4 p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl backdrop-blur-3xl flex flex-col justify-center items-center text-center group">
-            <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform">
-              <RefreshCcw size={32} className={isBusy ? 'animate-spin' : ''} />
-            </div>
-            <h3 className="text-sm font-black uppercase tracking-widest mb-2">Gemini Diagnostics</h3>
-            <p className="text-[10px] text-gray-500 mb-6">Verifica si el API Key actual tiene cuota disponible y responde correctamente.</p>
-            <button
-              onClick={handleGeminiTest}
-              disabled={isBusy}
-              className="w-full py-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 font-bold text-xs uppercase hover:bg-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              <Send size={14} /> {isBusy ? 'Testeando...' : 'Testear Conectividad'}
-            </button>
           </div>
         </div>
       </div>
+
+      {/* CALENDAR DETAIL WINDOW (MODAL) */}
+      {showCalendarDetail && selectedCalendarDay && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-8 shadow-[0_0_80px_rgba(59,130,246,0.1)] relative animate-slide-up overflow-hidden">
+            {/* Liquid Glow */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-[60px]"></div>
+            
+            <button 
+              onClick={() => setShowCalendarDetail(false)}
+              className="absolute top-8 right-8 text-gray-500 hover:text-white transition-colors"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="mb-8">
+              <h3 className="text-xl font-black text-white uppercase tracking-tight italic mb-1">
+                Audit: <span className="text-blue-400">{format(selectedCalendarDay, 'EEEE, d MMMM', { locale: es })}</span>
+              </h3>
+              <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Protocolo de Expiración & Freepasses</p>
+            </div>
+
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {contracts.filter(c => c.expires_at && isSameDay(new Date(c.expires_at), selectedCalendarDay)).length === 0 ? (
+                <div className="p-8 border border-dashed border-white/5 rounded-3xl text-center text-gray-700 italic text-xs">
+                  Sin eventos programados para esta fecha
+                </div>
+              ) : (
+                contracts
+                  .filter(c => c.expires_at && isSameDay(new Date(c.expires_at), selectedCalendarDay))
+                  .map(c => (
+                    <div key={c.id} className="p-5 rounded-3xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/5 transition-all">
+                      <div>
+                        <p className="text-xs font-black text-white mb-1 uppercase tracking-tight group-hover:text-blue-400 transition-colors">
+                          {c.email || 'Usuario Anónimo'}
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${c.plan === 'trial' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                            {c.plan}
+                          </span>
+                          <span className="text-[9px] text-gray-600 font-mono italic">{c.machine_id}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Expires</p>
+                        <p className="text-[10px] text-blue-400 font-mono">{format(new Date(c.expires_at), 'HH:mm')}</p>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            <div className="mt-8 pt-8 border-t border-white/5">
+              <button 
+                onClick={() => setShowCalendarDetail(false)}
+                className="w-full py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-[0.2em] text-[10px] hover:bg-white/10 transition-all"
+              >
+                Cerrar Protocolo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

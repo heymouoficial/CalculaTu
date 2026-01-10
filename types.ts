@@ -35,7 +35,7 @@ export interface SavaraIntent {
   text?: string; // For the 'TALK' action or AI commentary
 }
 
-export type ViewState = 'landing' | 'calculator' | 'portal';
+export type ViewState = 'landing' | 'calculator' | 'portal' | 'admin';
 
 export interface ExchangeRate {
   USD: number;
@@ -43,4 +43,34 @@ export interface ExchangeRate {
   prevUSD?: number;
   prevEUR?: number;
   updatedAt?: string | null;
+}
+
+export interface SavaraPersonality {
+  id: string;
+  system_prompt: string;
+  tone: 'professional' | 'friendly' | 'zen' | 'empathetic';
+  voice_id: string;
+  temperature: number;
+}
+
+export interface FreePass {
+  id: string;
+  machine_id: string;
+  expires_at: string;
+  type: 'trial' | 'custom';
+}
+
+export interface SystemLog {
+  id: string;
+  timestamp: string;
+  level: 'info' | 'warn' | 'error';
+  service: string;
+  message: string;
+}
+
+export interface IncidentTicket {
+  id: string;
+  source: string;
+  msg: string;
+  time: string;
 }

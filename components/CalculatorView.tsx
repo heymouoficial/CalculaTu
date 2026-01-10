@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ChevronDown, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign, Download, Image as ImageIcon } from 'lucide-react';
+import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ChevronDown, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign, Download, Image as ImageIcon, Shield, Calculator as CalcIcon } from 'lucide-react';
+
 
 import { toJpeg } from 'html-to-image';
 import { RATES, SAVARA_AVATAR } from '../constants';
@@ -21,9 +22,10 @@ import { useSavaraLive } from '../hooks/useSavaraSDK';
 
 interface CalculatorViewProps {
   onBack: () => void;
+  onAdmin: () => void;
 }
 
-export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
+export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack, onAdmin }) => {
   const items = useAppStore(s => s.items);
   const addItem = useAppStore(s => s.addItem);
   const removeItem = useAppStore(s => s.removeItem);
@@ -31,6 +33,8 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const userName = useAppStore(s => s.userName);
   const machineId = useAppStore(s => s.machineId);
   const voiceUsageSeconds = useAppStore(s => s.voiceUsageSeconds);
+  const hasGreeted = useAppStore(s => s.hasGreeted);
+  const setHasGreeted = useAppStore(s => s.setHasGreeted);
 
   const {
     connect: connectSavara,
@@ -54,14 +58,25 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Banner State
   const [showServiceBanner, setShowServiceBanner] = useState(false);
+  const isAdmin = useAppStore(s => s.isAdmin);
 
   // Watch for Savara Errors - ONLY SHOW BANNER ONCE
+  const lastErrorRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (savaraError) {
+      // Avoid duplicate toasts for the same error
+      const errorSignature = `${savaraError.code}:${savaraError.message}`;
+      if (lastErrorRef.current === errorSignature) return;
+      lastErrorRef.current = errorSignature;
+
+      // Clear ref after 5 seconds to allow same error to be shown again later if it persists/recurs
+      setTimeout(() => { lastErrorRef.current = null; }, 5000);
+
       // If error is related to connection/quota/permissions, show banner ONCE
       if (savaraError.code === 'API_LIMIT_REACHED' || savaraError.code === 'CONNECTION_ERROR' || savaraError.code === 'MODEL_NOT_FOUND') {
         const alreadyShown = localStorage.getItem('savara_error_banner_shown');
-        if (!alreadyShown) {
+        if (!alreadyShown && !isAdmin) {
           setShowServiceBanner(true);
           localStorage.setItem('savara_error_banner_shown', 'true');
         }
@@ -71,7 +86,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
         showToast(savaraError.message || 'Error en Savara', 'error');
       }
     }
-  }, [savaraError]);
+  }, [savaraError, isAdmin]);
 
   // Voucher Modal States
   const [showVoucher, setShowVoucher] = useState(false);
@@ -97,6 +112,16 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const license = useAppStore(s => s.license);
   const setLicense = useAppStore(s => s.setLicense);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // NEW: Simple Mode (Quick Accumulator) State
+  const [isSimpleMode, setIsSimpleMode] = useState(false);
+  const [simpleTotalUSD, setSimpleTotalUSD] = useState(0);
+  const [simpleInput, setSimpleInput] = useState('');
+  const simpleInputRef = useRef<HTMLInputElement>(null);
+
+  const [adminEmail, setAdminEmail] = useState('');
+  const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
 
   // Settings Drawer State
   const [activeTab, setActiveTab] = useState<'config' | 'history' | 'license' | 'support'>('config');
@@ -124,7 +149,49 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   // Copy Feedback State
   const [copiedState, setCopiedState] = useState<string | null>(null);
 
-  // Confetti State for license activation celebration
+  // Focus simple input when mode changes
+  useEffect(() => {
+    if (isSimpleMode) {
+      setTimeout(() => {
+        if (simpleInputRef.current) simpleInputRef.current.focus();
+      }, 100);
+    }
+  }, [isSimpleMode]);
+
+  const handleSimpleAdd = (currency: 'USD' | 'VES') => {
+    const val = parseFloat(simpleInput);
+    if (!val) return;
+
+    let amountUSD = val;
+    if (currency === 'VES') {
+      amountUSD = val / rates.USD;
+    }
+
+    setSimpleTotalUSD(prev => prev + amountUSD);
+    setSimpleInput('');
+    if (simpleInputRef.current) simpleInputRef.current.focus();
+  };
+
+  const handleSimpleReset = () => {
+    if (confirm('¿Reiniciar cuenta rápida a cero?')) {
+      setSimpleTotalUSD(0);
+      setSimpleInput('');
+      if (simpleInputRef.current) simpleInputRef.current.focus();
+    }
+  };
+
+  // ... (keeping other handlers like formatMoney from context or creating local helper if needed)
+  // Re-implementing formatMoney here if it's not available in scope, but it usually is or can be imported.
+  // Viewing previous file content, formatMoney was not in the viewed range of top definition, checking if it exists.
+  // Assuming formatMoney exists or I should add it.
+  
+  // To avoid duplicate declaration if it exists below, I'll rely on the existing one if I can view it, 
+  // OR I will simply use standard toLocaleString inline for safety in this snippet if I'm not sure.
+  // But wait, the previous snippet showed `view_file` output didn't show formatMoney defined in the top scope.
+  // It was inside SimpleCalculator.tsx. 
+  // I should add a helper here or use `totalUSD.toLocaleString(...)`.
+
+
   const [showConfetti, setShowConfetti] = useState(false);
 
   // Config saved feedback
@@ -144,9 +211,21 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     setCurrentDateDisplay(formatted.charAt(0).toUpperCase() + formatted.slice(1));
   }, []);
 
-  const renderDelta = (current?: number, prev?: number) => {
-    if (!prev || !current || current === prev) return null;
-    const isUp = current > prev;
+  // Helper: Force numeric value even if rate is temporarily a string during manual edit
+  const safeNumber = (val: any) => {
+    const n = Number(val);
+    return isFinite(n) ? n : 0;
+  };
+
+  const safeFixed = (val: any, decimals: number = 2) => {
+    return safeNumber(val).toFixed(decimals);
+  };
+
+  const renderDelta = (current?: any, prev?: any) => {
+    const c = safeNumber(current);
+    const p = safeNumber(prev);
+    if (!p || !c || c === p) return null;
+    const isUp = c > p;
     return (
       <span className={`inline-flex items-center text-[10px] ml-1 ${isUp ? 'text-red-400' : 'text-emerald-400'}`}>
         {isUp ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
@@ -156,15 +235,18 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Totals Calculation (Helper function to calculate from any list of items)
   const calculateTotals = (itemList: ShoppingItem[]) => {
+    const rUSD = safeNumber(rates.USD) || 1; // Avoid division by zero
+    const rEUR = safeNumber(rates.EUR) || 1;
+
     return itemList.reduce((acc, item) => {
       let usd = 0;
       if (item.currency === 'USD') usd = item.price * item.quantity;
-      else if (item.currency === 'EUR') usd = (item.price * (rates.USD / rates.EUR)) * item.quantity;
-      else if (item.currency === 'VES') usd = (item.price / rates.USD) * item.quantity;
+      else if (item.currency === 'EUR') usd = (item.price * (rUSD / rEUR)) * item.quantity;
+      else if (item.currency === 'VES') usd = (item.price / rUSD) * item.quantity;
       return {
         usd: acc.usd + usd,
-        bs: acc.bs + (usd * rates.USD),
-        eur: acc.eur + ((usd * rates.USD) / rates.EUR)
+        bs: acc.bs + (usd * rUSD),
+        eur: acc.eur + ((usd * rUSD) / rEUR)
       };
     }, { usd: 0, bs: 0, eur: 0 });
   };
@@ -444,7 +526,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
   // Toggle Savara Logic
   const toggleSavara = async () => {
-    if (!license.active || !license.featureToken) {
+    if ((!license.active || !license.featureToken) && !isAdmin) {
       setShowServiceBanner(true);
       return;
     }
@@ -455,8 +537,14 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     } else {
       showToast('Iniciando Savara Pro...', 'success');
       try {
-        const dynamicPrompt = `El usuario tiene ${items.length} productos en el carrito. Total actual: Bs ${currentTotals.bs.toFixed(2)}.`;
+        const greetingContext = !hasGreeted 
+          ? `Es el primer contacto. SALUDO ÚNICO OBLIGATORIO: Hola ${userName || 'amigo'}, soy Savara. ` 
+          : `Continuación de charla con ${userName || 'el usuario'}. Ve al grano. `;
+        
+        const dynamicPrompt = `${greetingContext}El carrito tiene ${items.length} productos. Total: Bs ${currentTotals.bs.toFixed(2)}.`;
+        
         await connectSavara(dynamicPrompt);
+        if (!hasGreeted) setHasGreeted(true);
       } catch (e: any) {
         console.error('Error connecting to Savara:', e);
         showToast('Error al conectar con Savara', 'error');
@@ -468,6 +556,36 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
   const sendActivationMessage = () => {
     const text = `Hola Multiversa 👋. Deseo activar mi licencia Pro.\n\nMachine ID: ${machineId}\n\n(Adjunto captura de pago a continuación)`;
     window.open(`https://wa.me/584142949498?text=${encodeURIComponent(text)}`);
+  };
+
+  // Magic Link Handler
+  const handleMagicLink = async () => {
+    if (!adminEmail || !adminEmail.includes('@')) {
+      showToast('Ingresa un correo válido', 'error');
+      return;
+    }
+
+    setIsAdminLoading(true);
+    try {
+      if (!supabase) throw new Error('Supabase no configurado');
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email: adminEmail,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+      
+      setIsMagicLinkSent(true);
+      showToast('Enlace enviado ✅ Revisa tu correo', 'success');
+    } catch (err: any) {
+      console.error('Magic Link Error:', err);
+      showToast(err.message || 'Error al enviar enlace', 'error');
+    } finally {
+      setIsAdminLoading(false);
+    }
   };
 
   // Cleanup on unmount or mode switch
@@ -494,29 +612,58 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
     : new Date().toLocaleString('es-VE');
 
   return (
-    <div className="min-h-[100dvh] bg-transparent flex flex-col font-sans overflow-hidden select-none relative">
+    <div className={`min-h-[100dvh] bg-transparent flex flex-col font-sans overflow-hidden select-none relative ${isSimpleMode ? 'simple-mode-active' : ''}`}>
 
       {/* HEADER BAR */}
       <div className="absolute top-0 left-0 right-0 z-50 p-6 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
 
-        {/* Left: Back & Brand */}
+        {/* Left: Back & Brand (or Mode Title) */}
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-white/10 transition-all">
-            <ArrowLeft size={18} />
-          </button>
-          <Logo size={36} />
-          <div className="flex flex-col">
-            <span className="text-base font-black tracking-tight text-white leading-none">CalculaTú</span>
-            <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider flex items-center gap-1">
-              <Calendar size={8} /> {currentDateDisplay}
-            </span>
-          </div>
+          {!isSimpleMode && (
+             <button onClick={onBack} className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-white/10 transition-all">
+                <ArrowLeft size={18} />
+             </button>
+          )}
+          
+          {isSimpleMode ? (
+             <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                   <Calculator size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                   <h1 className="text-lg font-black tracking-tighter text-white leading-none">CUENTA RÁPIDA</h1>
+                   <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                      Modo Simplificado
+                   </span>
+                </div>
+             </div>
+          ) : (
+             <>
+               <Logo size={36} />
+               <div className="flex flex-col">
+                 <span className="text-base font-black tracking-tight text-white leading-none">CalculaTú</span>
+                 <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                   <Calendar size={8} /> {currentDateDisplay}
+                 </span>
+               </div>
+             </>
+          )}
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
-          {/* Voucher button - show if items exist AND (license active OR free trial period) */}
-          {items.length > 0 && license.active && (
+          {/* Quick Accumulator Reset */}
+          {isSimpleMode && simpleTotalUSD > 0 && (
+             <button
+               onClick={handleSimpleReset}
+               className="p-2 px-3 bg-red-500/10 border border-red-500/20 rounded-full text-red-400 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all mr-2"
+             >
+               RESET
+             </button>
+          )}
+
+          {/* Voucher button - show if items exist AND (license active OR free trial period) - Only in List Mode */}
+          {!isSimpleMode && items.length > 0 && license.active && (
             <button
               onClick={handleFinish}
               className="p-3 bg-emerald-500 text-black rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)] hover:scale-105 transition-all animate-fade-in"
@@ -525,6 +672,16 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               <ReceiptText size={18} strokeWidth={2.5} />
             </button>
           )}
+          
+          {/* Mode Toggle */}
+          <button
+            onClick={() => setIsSimpleMode(!isSimpleMode)}
+            className={`p-3 backdrop-blur-md border rounded-full transition-all duration-300 ${isSimpleMode ? 'bg-emerald-500 text-black border-emerald-500' : 'bg-black/40 border-white/10 text-emerald-400 hover:text-white'}`}
+            title={isSimpleMode ? "Volver a Lista" : "Modo Rápido"}
+          >
+            {isSimpleMode ? <X size={18} strokeWidth={3} /> : <CalcIcon size={18} />}
+          </button>
+          
           <button
             onClick={() => setIsSettingsOpen(true)}
             className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:rotate-90 duration-500"
@@ -536,12 +693,12 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
       {/* Main Totals Display */}
       <div className="pt-20 pb-6 flex flex-col items-center justify-center bg-gradient-to-b from-emerald-500/5 to-transparent">
-        <span className="text-[10px] font-extrabold text-emerald-500 tracking-[0.3em] uppercase mb-1">Total a Pagar</span>
+        <span className="text-[10px] font-extrabold text-emerald-500 tracking-[0.3em] uppercase mb-1">{isSimpleMode ? 'TOTAL ACUMULADO' : 'Total a Pagar'}</span>
         <div className="flex items-baseline gap-3 mb-4">
-          <span className="text-6xl font-bold tracking-tighter text-white font-mono">
-            {currentTotals.bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className={`font-bold tracking-tighter text-white font-mono transition-all duration-300 ${isSimpleMode ? 'text-7xl shadow-emerald-500/20 drop-shadow-2xl' : 'text-6xl'}`}>
+             {(isSimpleMode ? simpleTotalUSD : currentTotals.bs / rates.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className="text-2xl font-bold text-emerald-500 italic">Bs.</span>
+          <span className="text-2xl font-bold text-emerald-500 italic">$</span>
         </div>
 
         {/* Budget Progress Bar - Enhanced with gradient */}
@@ -648,7 +805,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                   <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">Dólar USD</span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-lg font-bold text-white font-mono tracking-tighter">
-                      Bs {rates.USD.toFixed(2)}
+                      Bs {safeFixed(rates.USD).replace('.', ',')}
                     </span>
                   </div>
                 </div>
@@ -666,7 +823,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                   <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">Euro EUR</span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-lg font-bold text-white font-mono tracking-tighter">
-                      Bs {rates.EUR.toFixed(2).replace('.', ',')}
+                      Bs {safeFixed(rates.EUR).replace('.', ',')}
                     </span>
                   </div>
                 </div>
@@ -704,7 +861,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                 </div>
                 <div className="flex items-center gap-4">
                   <p className="text-sm font-bold text-emerald-400 font-mono">
-                    {((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
+                    {safeNumber((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
                   </p>
                   <button
                     onClick={() => removeItem(item.id)}
@@ -734,7 +891,43 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
       <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center z-[60]">
 
         {/* MANUAL MODE DOCK - ERGO POLISH */}
-        {!isVoiceMode && (
+        {/* INPUT DOCK AREA */}
+        {isSimpleMode ? (
+          // QUICK ACCUMULATOR DOCK
+          <div className="w-full max-w-[calc(100vw-2rem)] md:max-w-md bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2rem] p-4 shadow-2xl animate-fade-in-up mx-auto">
+            <div className="flex flex-col gap-3">
+               {/* Display Accumulator Input */}
+               <input
+                 ref={simpleInputRef}
+                 type="number"
+                 inputMode="decimal"
+                 pattern="[0-9]*"
+                 value={simpleInput}
+                 onChange={(e) => setSimpleInput(e.target.value)}
+                 placeholder="0.00"
+                 className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-center text-3xl font-mono text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+               />
+               
+               {/* Quick Add Actions */}
+               <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => handleSimpleAdd('USD')}
+                    className="flex-1 bg-blue-500/10 border border-blue-500/20 rounded-xl py-3 sm:py-4 flex flex-col items-center justify-center hover:bg-blue-500/20 active:scale-95 transition-all text-blue-400 group"
+                  >
+                    <span className="text-xs font-black uppercase tracking-widest group-active:scale-105 transition-transform">+ USD ($)</span>
+                  </button>
+                  <button
+                    onClick={() => handleSimpleAdd('VES')}
+                    className="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl py-3 sm:py-4 flex flex-col items-center justify-center hover:bg-emerald-500/20 active:scale-95 transition-all text-emerald-400 group"
+                  >
+                    <span className="text-xs font-black uppercase tracking-widest group-active:scale-105 transition-transform">+ BS (VES)</span>
+                  </button>
+               </div>
+            </div>
+          </div>
+        ) : (
+          // STANDARD LIST INPUT DOCK
+          !isVoiceMode && (
           <div className="w-full max-w-md bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-4 shadow-2xl animate-fade-in-up">
 
             {/* Row 1: Qty & Name */}
@@ -786,10 +979,10 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
               </button>
             </div>
           </div>
-        )}
+        )) }
 
-        {/* VOICE MODE DOCK (SAVARA) - ONLY IF LICENSE ACTIVE */}
-        {isVoiceMode && license.active && (
+        {/* VOICE MODE DOCK (SAVARA) - ONLY IF LICENSE ACTIVE AND NOT IN SIMPLE MODE */}
+        {isVoiceMode && license.active && !isSimpleMode && (
           <div className="flex items-center gap-4 px-6 py-4 bg-[#111]/90 backdrop-blur-3xl border border-emerald-500/20 rounded-[2.5rem] shadow-[0_0_50px_rgba(16,185,129,0.1)] z-[100] min-w-[320px] animate-fade-in-up">
             <div className="flex-1 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden border border-emerald-500/30 shadow-sm relative">
@@ -874,7 +1067,7 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                         <span className="uppercase max-w-[160px] truncate">{item.name}</span>
                       </div>
                       <span className="font-bold">
-                        {((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {safeNumber((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   ))}
@@ -889,11 +1082,11 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
 
               <div className="flex flex-col items-end gap-1 text-gray-500 text-[10px] font-bold border-b-2 border-dashed border-gray-300 pb-4 mb-4">
                 <div className="flex gap-3">
-                  <span>REF: $ {voucherTotals.usd.toFixed(2)}</span>
-                  <span>EUR {voucherTotals.eur.toFixed(2)}</span>
+                  <span>REF: $ {safeFixed(voucherTotals.usd)}</span>
+                  <span>EUR {safeFixed(voucherTotals.eur)}</span>
                 </div>
                 {!viewingHistoryEntry && (
-                  <span className="text-[9px] opacity-70">Tasa: {rates.USD.toFixed(2)} Bs/$</span>
+                  <span className="text-[9px] opacity-70">Tasa: {safeFixed(rates.USD)} Bs/$</span>
                 )}
               </div>
 
@@ -1278,6 +1471,42 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                     </div>
                   </div>
 
+                  {/* Root Access / Recovery Flow */}
+                  <div className="p-6 rounded-2xl bg-purple-900/10 border border-purple-500/20 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
+                        <Lock size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white uppercase tracking-tight">Acceso Fundador</h4>
+                        <p className="text-[10px] text-purple-300/70">Recupera tu acceso 💎 en cualquier dispositivo.</p>
+                      </div>
+                    </div>
+
+                    {!isMagicLinkSent ? (
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="email"
+                          placeholder="Tu correo de administrador..."
+                          value={adminEmail}
+                          onChange={(e) => setAdminEmail(e.target.value)}
+                          className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500"
+                        />
+                        <button
+                          onClick={handleMagicLink}
+                          disabled={isAdminLoading}
+                          className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-purple-500 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20"
+                        >
+                          {isAdminLoading ? <RefreshCcw size={16} className="animate-spin" /> : <><Send size={16} /> Enviar Enlace de Acceso</>}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl text-center">
+                        <p className="text-xs text-purple-200 font-medium italic">📧 Hemos enviado un enlace a {adminEmail}. Haz click en el enlace para restaurar tu acceso.</p>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Payment Info - Only show if license NOT active */}
                   {!license.active && (
                     <>
@@ -1353,6 +1582,17 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack }) => {
                           Este token te lo proporcionamos nosotros después de validar tu pago vía WhatsApp, normalmente respondemos en minutos.
                         </p>
                       </div>
+
+                      {license.tier === 'lifetime' && (
+                        <div className="pt-4 border-t border-white/5">
+                          <button
+                            onClick={onAdmin}
+                            className="w-full py-4 rounded-xl bg-purple-600/10 border border-purple-500/30 text-purple-400 font-black text-[10px] uppercase tracking-widest hover:bg-purple-600/20 transition-all flex items-center justify-center gap-3"
+                          >
+                            <Shield size={18} /> Entrar al Panel de Control (SOP)
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
 

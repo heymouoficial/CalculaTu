@@ -7,7 +7,7 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
   const state = useAppStore.getState();
   const { license, setLicense } = state;
 
-  // 1. Check if we have a remote contract first (Remote-First Sync)
+  // 1. Remote-First Sync
   if (supabase) {
     try {
       // 1.1 First check if the user is an admin in profiles
@@ -33,6 +33,33 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
         return;
       }
 
+      // 1.1.5 Fallback: Check if currently authenticated user is an admin
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        const { data: adminByEmail } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('email', user.email)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (adminByEmail) {
+          setLicense({
+            active: true,
+            tier: 'lifetime',
+            expiresAt: null,
+            token: 'ADMIN_AUTH_VERIFIED',
+            featureToken: {
+              uic: machineId,
+              features: ['voice'],
+              expiresAt: null,
+              token: 'ADMIN_AUTH_VERIFIED'
+            }
+          });
+          return;
+        }
+      }
+
       // 1.2 Check for specific machine contract
       const { data, error } = await supabase
         .from('contracts')
@@ -42,43 +69,29 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
         .maybeSingle();
 
       if (data && !error) {
-        setLicense({
-          active: true,
-          tier: data.plan as any,
-          expiresAt: data.expires_at,
-          token: data.token,
-          featureToken: {
-            uic: machineId,
-            features: ['voice'],
+        // Validation: Verify if the contract is still valid
+        const isExpired = data.expires_at ? new Date() > new Date(data.expires_at) : false;
+
+        if (!isExpired) {
+          setLicense({
+            active: true,
+            tier: data.plan as any,
             expiresAt: data.expires_at,
-            token: data.token
+            token: data.token,
+            featureToken: {
+              uic: machineId,
+              features: ['voice'],
+              expiresAt: data.expires_at,
+              token: data.token
+            }
+          });
+          return;
+        } else {
+          // Contract expired, ensure local state reflects this
+          if (license.active && license.token === data.token) {
+            setLicense({ ...license, active: false });
           }
-        });
-        return;
-      }
-
-      // 1.3 Fallback: Check for GLOBAL_USER active contract (Universal Master Key)
-      const { data: globalContract } = await supabase
-        .from('contracts')
-        .select('*')
-        .eq('machine_id', 'GLOBAL_USER')
-        .eq('status', 'active')
-        .maybeSingle();
-
-      if (globalContract) {
-        setLicense({
-          active: true,
-          tier: globalContract.plan as any,
-          expiresAt: globalContract.expires_at,
-          token: globalContract.token,
-          featureToken: {
-            uic: machineId,
-            features: ['voice'],
-            expiresAt: globalContract.expires_at,
-            token: globalContract.token
-          }
-        });
-        return;
+        }
       }
     } catch (e) {
       console.error('Error syncing remote contract:', e);
@@ -86,8 +99,9 @@ export async function autoActivateTrial(machineId: string): Promise<void> {
   }
 
   // 2. Default Local Auto-Trial (Modo Bunker / First Run)
-  if (license.active && license.tier !== 'trial') return;
-  if (license.expiresAt) return;
+  // Only activate trial if no other active license exists
+  if (license.active) return;
+  if (license.expiresAt && new Date() > new Date(license.expiresAt)) return;
 
   const expiresAt = new Date(Date.now() + TRIAL_DURATION_MS).toISOString();
 

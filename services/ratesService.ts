@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { RATES } from '../constants';
 
 export type GlobalRates = {
   USD: number;
@@ -67,8 +68,8 @@ export async function fetchGlobalRates(): Promise<GlobalRates | null> {
         const prev = history?.find(h => h.usd !== latest.usd) || history?.[1];
 
         const rates: GlobalRates = {
-          USD: Number(Number(latest.usd).toFixed(2)),
-          EUR: Number(Number(latest.eur).toFixed(2)),
+          USD: Number(Number(latest.usd).toFixed(2)) || RATES.USD,
+          EUR: Number(Number(latest.eur).toFixed(2)) || RATES.EUR,
           prevUSD: prev ? Number(Number(prev.usd).toFixed(2)) : undefined,
           prevEUR: prev ? Number(Number(prev.eur).toFixed(2)) : undefined,
           updatedAt: (latest as any).updated_at ?? null,

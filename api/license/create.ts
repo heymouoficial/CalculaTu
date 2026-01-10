@@ -14,16 +14,11 @@ function getEnv(name: string): string | undefined {
 
 function requirePortalKey(req: VercelRequest): boolean {
   try {
-    // TEMPORARY: Allow access from localhost for development
-    const host = req.headers['host'] || '';
-    if (host.includes('localhost')) {
-      console.log('[requirePortalKey] Allowing request from localhost.');
-      return true;
-    }
-
     const expected = getEnv('PORTAL_KEY');
-    // Allow if not configured or empty on production
-    if (!expected || expected.trim() === '') return true;
+    if (!expected) {
+      console.error('[requirePortalKey] PORTAL_KEY is NOT set in environment variables.');
+      return false;
+    }
 
     // Check headers
     // headers values can be string or string[]

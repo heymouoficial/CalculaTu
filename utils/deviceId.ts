@@ -70,11 +70,28 @@ async function saveUICToIndexedDB(uic: string): Promise<void> {
 
 async function sha256(message: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(message);
-  const cryptoImpl = typeof window !== 'undefined' ? (window.crypto || (window as any).msCrypto) : crypto;
-  const hashBuffer = await cryptoImpl.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
+  const cryptoImpl = typeof window !== 'undefined' ? (window.crypto || (window as any).msCrypto) : (typeof crypto !== 'undefined' ? crypto : null);
+  
+  // SubtleCrypto is only available in Secure Contexts (HTTPS/Localhost)
+  if (cryptoImpl?.subtle) {
+    try {
+      const hashBuffer = await cryptoImpl.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    } catch (e) {
+      console.warn('[Fingerprint] SubtleCrypto failed, using fallback.', e);
+    }
+  }
+
+  // Fallback for insecure contexts (Simple hash based on string reduction)
+  let hash = 0;
+  for (let i = 0; i < message.length; i++) {
+    const char = message.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(16).padStart(10, '0');
 }
 
 function fingerprintString(): string {

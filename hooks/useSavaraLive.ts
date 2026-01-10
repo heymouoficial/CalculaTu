@@ -183,6 +183,41 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
       console.log("🔵 Iniciando Savara Live...");
       setError(null);
 
+      // 0. Fetch Personality from Supabase
+      let dynamicPrompt = `
+        ${productContext}
+        Eres Savara, la asistente inteligente de CalculaTú.
+        Tu tono es cálido, profesional y extremadamente conciso.
+        Habla claro, amigable y directo al grano. CERO TECNICISMOS.
+        REGLA DE ORO: NO INVENTES TASAS DE CAMBIO. Usa 'get_bcv_rate'.
+      `;
+      let dynamicConfig = { voice: "Aoede", temperature: 0.7 };
+
+      try {
+        const { data: settingsData } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'savara_personality')
+          .maybeSingle();
+        
+        if (settingsData?.value) {
+          const p = settingsData.value;
+          dynamicPrompt = `
+            ${p.system_prompt || ''}
+            
+            Contexto del Producto:
+            ${productContext}
+
+            ${userName ? `Estás hablando con ${userName}.` : ''}
+            ${machineId ? `ID Dispositivo: ${machineId}.` : ''}
+          `;
+          dynamicConfig.temperature = p.temperature || 0.7;
+          // Note: voiceConfig can also be dynamic if needed
+        }
+      } catch (e) {
+        console.warn("No se pudo cargar personalidad dinámica, usando fallback.");
+      }
+
       // 1. Get Microphone Stream
       try {
         mediaStream.current = await navigator.mediaDevices.getUserMedia({
@@ -227,37 +262,19 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
         console.log("🟢 Savara Conectada (Sockets Optimized)");
         setIsConnected(true);
 
-        const identityPrompt = `
-          ${productContext}
-
-          Eres Savara, la asistente inteligente de CalculaTú.
-          Tu tono es cálido, profesional y extremadamente conciso.
-          Habla claro, amigable y directo al grano. CERO TECNICISMOS.
-          ${userName ? `Estás hablando con ${userName}.` : ''}
-          ${machineId ? `El ID de dispositivo del usuario es: ${machineId}.` : ''}
-          
-          REGLA DE ORO: NO INVENTES TASAS DE CAMBIO.
-          Usa SIEMPRE la herramienta 'get_bcv_rate' para obtener la tasa del día desde la base de datos.
-          Si no puedes obtener la tasa, dilo honestamente.
-
-          Tienes acceso a la base de datos de Multiversa para consultas.
-          Responde siempre en español. Sé breve y útil.
-          
-          ${initialPrompt || ''}
-        `.trim();
-
         const msg = {
           setup: {
             model: `models/${currentModel}`,
             tools: tools,
             generationConfig: {
               responseModalities: ["AUDIO"],
+              temperature: dynamicConfig.temperature,
               speechConfig: {
                 voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
               }
             },
             systemInstruction: {
-              parts: [{ text: identityPrompt }]
+              parts: [{ text: dynamicPrompt.trim() }]
             }
           }
         };
@@ -384,6 +401,8 @@ export const useSavaraLive = ({ onItemAdded, onHangUp, userName, machineId }: Us
         // Si ya viene formateado
         errorData = err;
       } else if (err.code === 'MIC_PERMISSION_DENIED') {
+        errorData = err;
+      } else if (err.code === 'HTTPS_REQUIRED') {
         errorData = err;
       }
 

@@ -7,6 +7,7 @@ import { fetchGlobalRates, forceRefreshRates } from './services/ratesService';
 
 import { supabase } from './services/supabaseClient';
 import { autoActivateTrial } from './utils/license';
+import { showToast } from './components/Toast';
 import {
   AlertCircle,
   Check,
@@ -125,11 +126,13 @@ const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState('');
   const [chatTrigger, setChatTrigger] = useState<{ open: boolean; message?: string }>({ open: false });
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const { rates, setBaseRates, machineId, setUserName } = useAppStore(useShallow(s => ({
+  const { rates, setBaseRates, machineId, setUserName, license, setAdmin } = useAppStore(useShallow(s => ({
     rates: s.rates,
     setBaseRates: s.setBaseRates,
     machineId: s.machineId,
-    setUserName: s.setUserName
+    setUserName: s.setUserName,
+    license: s.license,
+    setAdmin: s.setAdmin
   })));
 
   // Sync User Profile (Identity)
@@ -142,17 +145,76 @@ const App: React.FC = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, role')
         .eq('machine_id', machineId)
         .maybeSingle();
 
       if (data?.full_name) {
         console.log("👤 Profile synced:", data.full_name);
         setUserName(data.full_name);
+        if (['admin', 'founder', 'owner'].includes(data.role)) {
+          console.log("🛡️ Admin/Founder role detected via profile");
+          setAdmin(true);
+        }
       }
     };
 
     syncProfile();
+  }, [machineId, setUserName]);
+
+  // Magic Link Session Listener
+  useEffect(() => {
+    if (!supabase || !machineId || machineId === 'M-LOADING...') return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user?.email) {
+        console.log("💎 Magic Link SIGNED_IN:", session.user.email);
+        
+        // Fetch ALL profiles for this user to make a smart decision
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', session.user.email)
+          .in('role', ['admin', 'founder', 'owner']);
+
+        if (profiles && profiles.length > 0) {
+          // 1. Check if ANY profile already matches this machine
+          const exactMatch = profiles.find(p => p.machine_id === machineId);
+          
+          if (exactMatch) {
+             console.log("✅ Device already linked:", machineId);
+             setUserName(exactMatch.full_name);
+             setAdmin(true);
+             await autoActivateTrial(machineId);
+             showToast(`Bienvenido de vuelta, ${exactMatch.full_name}`, 'success');
+          } else {
+            // 2. New Device? Find a slot to take. 
+            // Prefer overwriting 'M-LOADING...' or orphans, try NOT to overwrite established IDs if possible unless restricted.
+            // For now, we take the FIRST one that is NOT the known Production Phone if we can distinguish, 
+            // OR just take the first one available.
+            // BETTER: Use the first one provided by Supabase but update by ID.
+            const targetProfile = profiles[0];
+            
+            console.log("🚀 Linking new device to profile:", targetProfile.id);
+            
+            // Update ONLY this specific profile ID
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ machine_id: machineId })
+              .eq('id', targetProfile.id); // SAFE update by ID
+
+            if (!updateError) {
+               setUserName(targetProfile.full_name);
+               setAdmin(true);
+               await autoActivateTrial(machineId);
+               showToast(`Dispositivo Vinculado: ${targetProfile.full_name}`, 'success');
+            }
+          }
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [machineId, setUserName]);
 
   // Efecto para guardar la preferencia cada vez que cambia la vista
@@ -208,7 +270,7 @@ const App: React.FC = () => {
     });
   };
 
-  if (currentView === 'calculator') return <CalculatorView onBack={() => setCurrentView('landing')} />;
+  if (currentView === 'calculator') return <CalculatorView onBack={() => setCurrentView('landing')} onAdmin={() => setCurrentView('portal')} />;
   if (currentView === 'portal') return <Portality />;
 
   return (
