@@ -696,9 +696,14 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack, onAdmin 
         <span className="text-[10px] font-extrabold text-emerald-500 tracking-[0.3em] uppercase mb-1">{isSimpleMode ? 'TOTAL ACUMULADO' : 'Total a Pagar'}</span>
         <div className="flex items-baseline gap-3 mb-4">
           <span className={`font-bold tracking-tighter text-white font-mono transition-all duration-300 ${isSimpleMode ? 'text-7xl shadow-emerald-500/20 drop-shadow-2xl' : 'text-6xl'}`}>
-             {(isSimpleMode ? simpleTotalUSD : currentTotals.bs / rates.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+             {(isSimpleMode ? (simpleTotalUSD * rates.USD) : currentTotals.bs).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className="text-2xl font-bold text-emerald-500 italic">$</span>
+          <span className="text-2xl font-bold text-emerald-500 italic">Bs</span>
+        </div>
+        
+        {/* Secondary Total (USD) */}
+        <div className="flex items-center gap-2 mb-2 text-gray-400 font-mono text-sm">
+           <span>$ {(isSimpleMode ? simpleTotalUSD : currentTotals.usd).toFixed(2)} USD</span>
         </div>
 
         {/* Budget Progress Bar - Enhanced with gradient */}
