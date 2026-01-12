@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ShoppingBag, Mic, Trash2, ArrowLeft, Plus, Settings, X, Check, RefreshCcw, ListFilter, DollarSign, Euro, Calculator, ChevronUp, ChevronDown, ReceiptText, Share2, History, CreditCard, Fingerprint, Save, Copy, MessageCircle, Lock, Eye, Calendar, HelpCircle, AlertTriangle, Send, CircleDollarSign, Download, Image as ImageIcon, Shield, Calculator as CalcIcon } from 'lucide-react';
 
 
@@ -114,8 +114,15 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack, onAdmin 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // NEW: Simple Mode (Quick Accumulator) State
+  interface SimpleItem {
+    id: string;
+    amountUSD: number;
+    originalCurrency: 'USD' | 'VES';
+    timestamp: number;
+  }
   const [isSimpleMode, setIsSimpleMode] = useState(false);
-  const [simpleTotalUSD, setSimpleTotalUSD] = useState(0);
+  const [simpleItems, setSimpleItems] = useState<SimpleItem[]>([]);
+  const simpleTotalUSD = useMemo(() => simpleItems.reduce((acc, item) => acc + item.amountUSD, 0), [simpleItems]);
   const [simpleInput, setSimpleInput] = useState('');
   const simpleInputRef = useRef<HTMLInputElement>(null);
 
@@ -167,17 +174,28 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack, onAdmin 
       amountUSD = val / rates.USD;
     }
 
-    setSimpleTotalUSD(prev => prev + amountUSD);
+    const newItem: SimpleItem = {
+      id: crypto.randomUUID(),
+      amountUSD,
+      originalCurrency: currency,
+      timestamp: Date.now()
+    };
+
+    setSimpleItems(prev => [newItem, ...prev]);
     setSimpleInput('');
     if (simpleInputRef.current) simpleInputRef.current.focus();
   };
 
   const handleSimpleReset = () => {
-    if (confirm('¿Reiniciar cuenta rápida a cero?')) {
-      setSimpleTotalUSD(0);
+    if (simpleItems.length > 0 && confirm('¿Reiniciar cuenta rápida a cero?')) {
+      setSimpleItems([]);
       setSimpleInput('');
       if (simpleInputRef.current) simpleInputRef.current.focus();
     }
+  };
+
+  const handleSimpleDelete = (id: string) => {
+    setSimpleItems(prev => prev.filter(item => item.id !== id));
   };
 
   // ... (keeping other handlers like formatMoney from context or creating local helper if needed)
@@ -841,54 +859,93 @@ export const CalculatorView: React.FC<CalculatorViewProps> = ({ onBack, onAdmin 
 
       {/* Main Content Area (List) */}
       <div className="flex-1 relative overflow-hidden flex flex-col items-center px-4 pb-44">
-        {items.length === 0 ? (
-          <div className="mt-12 flex flex-col items-center justify-center opacity-50">
-            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 border border-white/5">
-              <ShoppingBag size={32} className="text-gray-500" />
+        {isSimpleMode ? (
+          /* QUICK ACCUMULATOR LIST */
+          simpleItems.length === 0 ? (
+            <div className="mt-12 flex flex-col items-center justify-center opacity-50">
+              <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
+                <Calculator size={32} className="text-emerald-500" />
+              </div>
+              <p className="text-sm text-gray-600">Cuenta rápida vacía</p>
+              <p className="text-xs text-center max-w-[200px] mt-2 text-gray-700">Agrega montos en $ o Bs. para sumar rápidamente.</p>
             </div>
-            <p className="text-sm text-gray-600">Tu carrito está vacío</p>
-          </div>
-        ) : (
-          <div className="w-full max-w-md h-full overflow-y-auto space-y-3 py-4 custom-scroll">
-            {items.map(item => (
-              <div key={item.id} className="p-4 rounded-3xl bg-[#0c0c0c] border border-white/5 flex items-center justify-between group animate-fade-in-up">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center font-bold text-emerald-400 text-xs font-mono">
-                    {item.quantity}x
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white uppercase tracking-tight">{item.name}</h4>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-gray-400 font-mono">{item.currency}</span>
-                      <span className="text-[10px] text-gray-500 font-mono">{item.price.toFixed(2)}</span>
+          ) : (
+            <div className="w-full max-w-md h-full overflow-y-auto space-y-3 py-4 custom-scroll">
+              {simpleItems.map(item => (
+                <div key={item.id} className="p-4 rounded-3xl bg-[#0c0c0c] border border-white/5 flex items-center justify-between group animate-fade-in-up">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.originalCurrency === 'VES' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                      <span className="text-[10px] font-black">{item.originalCurrency}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                         <p className="text-lg font-bold text-white font-mono tracking-tight leading-none">
+                            Bs { (item.amountUSD * rates.USD).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+                         </p>
+                      </div>
+                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                         $ {item.amountUSD.toFixed(2)} USD
+                      </p>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <p className="text-sm font-bold text-emerald-400 font-mono">
-                    {safeNumber((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
-                  </p>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="p-2 text-gray-600 hover:text-red-400 transition-colors"
-                  >
-                    <X size={14} />
+                  <button onClick={() => handleSimpleDelete(item.id)} className="p-2 text-gray-600 hover:text-red-400 transition-colors bg-white/5 rounded-full hover:bg-red-500/10">
+                      <Trash2 size={14} />
                   </button>
                 </div>
-              </div>
-            ))}
-
-            {/* Guardar Historial Button (for Free/Manual users) */}
-            <div className="pt-6 pb-2 flex justify-center">
-              <button
-                onClick={handleSaveHistory}
-                className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-emerald-400 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest shadow-xl ring-1 ring-white/5"
-              >
-                <Save size={16} className="text-emerald-400/70" />
-                Guardar Historial
-              </button>
+              ))}
             </div>
-          </div>
+          )
+        ) : (
+          /* STANDARD MODE LIST */
+          items.length === 0 ? (
+            <div className="mt-12 flex flex-col items-center justify-center opacity-50">
+              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 border border-white/5">
+                <ShoppingBag size={32} className="text-gray-500" />
+              </div>
+              <p className="text-sm text-gray-600">Tu carrito está vacío</p>
+            </div>
+          ) : (
+            <div className="w-full max-w-md h-full overflow-y-auto space-y-3 py-4 custom-scroll">
+              {items.map(item => (
+                <div key={item.id} className="p-4 rounded-3xl bg-[#0c0c0c] border border-white/5 flex items-center justify-between group animate-fade-in-up">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center font-bold text-emerald-400 text-xs font-mono">
+                      {item.quantity}x
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white uppercase tracking-tight">{item.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-gray-400 font-mono">{item.currency}</span>
+                        <span className="text-[10px] text-gray-500 font-mono">{item.price.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="text-sm font-bold text-emerald-400 font-mono">
+                      {safeNumber((item.price * (item.currency === 'VES' ? 1 : (item.currency === 'EUR' ? rates.EUR : rates.USD))) * item.quantity).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
+                    </p>
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      className="p-2 text-gray-600 hover:text-red-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Guardar Historial Button (for Free/Manual users) */}
+              <div className="pt-6 pb-2 flex justify-center">
+                <button
+                  onClick={handleSaveHistory}
+                  className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-emerald-400 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest shadow-xl ring-1 ring-white/5"
+                >
+                  <Save size={16} className="text-emerald-400/70" />
+                  Guardar Historial
+                </button>
+              </div>
+            </div>
+          )
         )}
       </div>
 
